@@ -4,9 +4,10 @@ Single source of truth for what the platform is and how it is built.
 Business rationale lives in *INTERLUDE — Business Foundation v1.0*; this file is the engineering
 counterpart. Section references (§) point at that document.
 
-**Status:** pre-validation. The business doc gates code behind Tests 0–2; we are building ahead of
-that gate by explicit decision. Consequence: every unmeasured number (Appendix B, B1–B16) is
-**venue configuration, never a constant.**
+**Status:** pre-validation, shipping anyway. The business doc gates code behind Tests 0–2; that gate
+is lifted by explicit owner decision. We ship a staged MLP, run it at one venue, and validate from
+live data rather than ahead of it. Consequence — and this is what makes the decision recoverable:
+every unmeasured number (Appendix B, B1–B16) is **venue configuration, never a constant.**
 
 ---
 
@@ -33,7 +34,7 @@ the merchant's own POS.
 | **W2 · Food wait** | Ordered, phone out, receptive | 10–25 min | **Attach rate and mix shift** — the core window |
 | **W3 · Bill wait** | Fed, warm, phone out | 5–15 min | Review capture; return-visit hook |
 
-V1 is **W2-first**, with W3 shipping in M5. W1 is out of V1 scope.
+V1 is **W2-first**, with W3 shipping in wave 3. W1 is out of V1 scope.
 
 ---
 
@@ -58,7 +59,7 @@ A fifth internal surface (`/admin`) exists for venue onboarding and is not a cus
 
 ---
 
-## 4. V1 scope — three mechanics, two screens, one number
+## 4. V1 scope — two mechanics, one screen, one number
 
 Locked per §12. Anything not on this list is out.
 
@@ -66,14 +67,19 @@ Locked per §12. Anything not on this list is out.
 |---|---|---|
 | **#5** | Kitchen-timed round | Countdown fed by order-fired time + a 60–90s food quiz. "Your food is 7 minutes out — beat the kitchen." Manual-timer fallback when no POS |
 | **#2** | Mystery plate | Win the right to *buy* a ₹99 kitchen's-choice small plate. A fixed-price product, never a draw. Chef veto honoured live |
-| **#7** | Table-vs-table | Winner's table gets the dessert free, loser's at half. Both tables add an item; nobody leaves punished. Auto-disabled off-peak |
-| **#12** | Beat-the-house | The async, solo, off-peak fallback for #7. Needs no second table |
 | Screen | Voice review | At the bill: speak → draft → approve your own words → deep-link to Google. No incentive, prompted to every table |
-| Screen | Server card | "3rd visit — ordered the Korean fried chicken twice." Not a game; routes data to a human at the right moment |
-| Dashboard | One number | Attach-rate delta vs. same-night control + a Monday morning email |
+| Dashboard | One number | Net contribution ₹ on night one; attach-rate delta vs. same-night control once bills are imported. Plus a Monday morning email |
 
-**Ships in V1, not V2:** kitchen-load input and the chef veto switch (§5.2, §12). Pushing a dying
-dessert at 9pm Saturday without them makes the chef the product's enemy by 9:15.
+**Ships in wave 1, not later:** kitchen-load input and the chef veto switch (§5.2, §12). Pushing a
+dying dessert at 9pm Saturday without them makes the chef the product's enemy by 9:15.
+
+**Cut from V1 by owner decision:** #7 table-vs-table and #12 beat-the-house. **Multiplayer is out
+entirely** — new mechanics are single-player. This removes match lobbies, pairing, server-authoritative
+match state and abandon handling from the build, and removes `Match` from the data model. The
+match-availability gate in *Metrics and gates* below is consequently dormant.
+
+**Deferred, not cancelled:** the server recognition card, and `/admin` venue onboarding. Both are
+wanted; neither fits the wave budget.
 
 ---
 
@@ -88,7 +94,7 @@ decidePrizePool({
   kitchenLoad,    // GREEN | AMBER | RED, live from the pass
   chefVetoes,     // never promote these
   depthCaps,      // maximum value conceded, per item and per service
-  mechanic,       // #5 | #2 | #7 | #12
+  mechanic,       // #5 | #2
   serviceClock,   // where we are in the night
 }): {
   entries:  { itemId, mechanic, depth, reason }[]
@@ -147,8 +153,11 @@ interface PosAdapter {
 ## 8. Data model
 
 `Venue` · `Table` · `Service` · `TableArmAssignment` · `MenuItem` · `KitchenLoad` · `PrizePool` ·
-`GuestSession` · `Play` · `Award` · `AddOnRequest` · `Ticket` · `GuestIdentity` · `Match` ·
+`GuestSession` · `Play` · `Award` · `AddOnRequest` · `Ticket` · `GuestIdentity` ·
 `ReviewPrompt` · `QuizPack` / `QuizQuestion` · `StaffUser` · `OperatorUser`
+
+`Match` is gone with multiplayer (see *V1 scope* above). `GuestIdentity` arrives with the voice
+review in wave 3.
 
 Notes on the two that carry weight:
 
@@ -174,6 +183,20 @@ nothing. The alternating-table design only pays off measured as intent-to-treat.
 | **ITT delta** | All tented tables vs. all untented tables | The honest number. Price against this. Show this to a buyer |
 | **Engaged delta** | Scanned tables vs. untented tables | Shown with an explicit self-selection caveat. Never the headline |
 
+**Night one has no POS export, so the dashboard is two tiers.** The pilot operator has to see his
+own benefit in rupees on the first night, before any bill import exists. Tier 1 is computed from the
+app's own rows; tier 2 is the POS-backed truth above. They are shown together and **never merged
+into one number.**
+
+| Tier | Source | Shows |
+|---|---|---|
+| **1 — app-native** | Confirmed `AddOnRequest` and `Award` rows × the venue's own margin config | Add-on gross ₹, add-on contribution ₹, prize cost ₹, and **net contribution ₹** as the headline. Live from night one. Labelled an app-side estimate |
+| **2 — POS-backed** | CSV bill export | ITT delta, engaged delta, ticket delta. Takes over the headline the moment the first export lands |
+
+Tier 1 assumes the add-on was incremental — that the guest would not have ordered it anyway. That
+assumption is precisely what the control arm exists to test, so tier 1 is directional until tier 2
+arrives. Say that to the operator before he reads the number, not after.
+
 | Metric | Definition | Gate |
 |---|---|---|
 | Attach-rate delta | pp difference, same service | ≥5pp to proceed |
@@ -182,7 +205,7 @@ nothing. The alternating-table design only pays off measured as intent-to-treat.
 | Completion rate | finished ÷ started | ≥60% |
 | Add-on conversion | add-ons ÷ scanning tables | measure; no gate yet |
 | Review velocity × | reviews/week during ÷ before | ≥2× |
-| Match availability | matchable pairs per peak service | ≥1 to keep #7 |
+| ~~Match availability~~ | ~~matchable pairs per peak service~~ | Dormant — multiplayer is cut |
 | Plays per returning guest | trajectory across visits | watch the slope — content-decay warning |
 
 Gates are **venue config**, seeded from the doc and editable in `/dash`.
@@ -193,7 +216,7 @@ Gates are **venue config**, seeded from the doc and editable in `/dash`.
 
 Every Appendix B number is seeded from the business doc's estimate and then editable per venue:
 food-wait/prep times by category, margin bands, prize depth caps, mystery-plate price, quiz length,
-countdown buffer, peak-hours definition, match-liquidity floor, and all §11 gates.
+countdown buffer, peak-hours definition, and all §11 gates.
 
 When T0/T1 eventually run, the numbers change. The code does not.
 
@@ -211,7 +234,7 @@ src/
     api/
   core/
     prize-engine/          # pure, deterministic, unit-tested
-    mechanics/             # #5 #2 #7 #12 rules — pure logic, no I/O
+    mechanics/             # #5 #2 rules — pure logic, no I/O. Single-player only
     measurement/           # arm assignment, ITT + engaged delta, gate evaluation
     pos/                   # port + Manual | CsvImport | Mock | vendor stubs
     consent/               # DPDP consent, phone hashing, venue siloing
@@ -219,9 +242,8 @@ src/
 ```
 
 **Realtime is polling, not websockets.** Venue wifi is unreliable and serverless does not hold
-sockets. Countdown (#5) and match state (#7) poll every 2s and are driven by a **server-issued end
-timestamp**, so client clock skew and tab-suspend cannot desync a game. Animation is local; truth
-is server-side.
+sockets. The #5 countdown polls every 2s and is driven by a **server-issued end timestamp**, so
+client clock skew and tab-suspend cannot desync a game. Animation is local; truth is server-side.
 
 **Stack:** Next.js 15 App Router · TypeScript strict · Postgres + Prisma · Vercel (incl. Cron for
 the Monday email) · Resend · Vitest + Playwright.
@@ -238,14 +260,20 @@ spin wheels / scratch cards / any pure-chance mechanic · incentivised or gated 
 payment processing · discounts on hero items · licensed-property games without a licence ·
 a native app.
 
+**Added by the V1 scope cut above: multiplayer of any kind.** Table-vs-table, beat-the-house, match
+lobbies, pairing, opponent state. New mechanics are single-player. This is a scope decision rather
+than a graveyard entry, so it is reversible — but it is out of V1 and out of brainstorms for V1.
+
 ---
 
 ## 13. Open decisions
 
 | Decision | Status |
 |---|---|
+| Validation gate (T0–T2) | **Settled: lifted.** We ship a staged MLP and validate from live pilot data. The cost is that every Appendix B number is an unmeasured estimate — which is exactly why §10's config rule is load-bearing rather than tidy |
+| Multiplayer | **Settled: cut.** #7 and #12 out; single-player only. See *V1 scope* and *Never built* |
 | Working name | `interlude` placeholder; isolated in `src/brand.ts` |
 | Shared screen (#17) | Out of V1. V1.5 hardware pilot |
 | Phone verification | Off by default. Redemption is staff-confirmed. DLT/WhatsApp approval is 1–3 weeks and does not belong on the critical path |
-| Hindi strings | English-first, strings externalised from M0 so Hindi is a translation job, not a refactor |
-| Repo location | **Settled:** `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by explicit choice. The known cost stands — OneDrive sync causes `node_modules` file locks and slow installs — so `node_modules` **must** be kept out of sync before the first `npm install` (see M0) |
+| Hindi strings | English-first, strings externalised from the first commit so Hindi is a translation job, not a refactor |
+| Repo location | **Settled:** `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by explicit choice. The known cost stands — OneDrive sync causes `node_modules` file locks and slow installs — so `node_modules` **must** be kept out of sync before the first `npm install` (see TODO.md wave 1) |
