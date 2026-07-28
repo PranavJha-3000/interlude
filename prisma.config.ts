@@ -8,7 +8,11 @@ import { defineConfig, env } from 'prisma/config'
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   datasource: {
-    url: env('DATABASE_URL'),
+    // Migrations need a real session, which a pooled connection cannot give
+    // them — PgBouncer in transaction mode breaks the advisory locks and
+    // prepared statements the migration engine relies on. Runtime uses the
+    // pooled URL (src/lib/db.ts); migrations use the direct one.
+    url: env('DIRECT_URL'),
   },
   migrations: {
     seed: 'tsx prisma/seed.ts',

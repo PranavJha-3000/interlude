@@ -36,8 +36,10 @@ for f in $staged; do
   match=$(grep -nE '(postgres(ql)?|mysql)://[^:/@[:space:]]+:[^@[:space:]]+@' "$f" | grep -vE 'user:password|USER:PASSWORD|placeholder|<[^>]+>|\$\{' | head -1)
   [ -n "$match" ] && report "Database URL with embedded credentials" "$f" "${match%%:*}"
 
-  # Well-known provider key shapes.
-  match=$(grep -nE '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|re_[A-Za-z0-9_]{20,})' "$f" | head -1)
+  # Well-known provider key shapes. The prefixes must start a token, or
+  # ordinary identifiers match them — "OrderFire_serviceId_firedAt_idx"
+  # contains "re_" and would otherwise look like a Resend key.
+  match=$(grep -nE '(^|[^A-Za-z0-9_])(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|re_[A-Za-z0-9]{24,})' "$f" | head -1)
   [ -n "$match" ] && report "Provider API key" "$f" "${match%%:*}"
 
   # A long opaque value assigned to a secret-ish name.
