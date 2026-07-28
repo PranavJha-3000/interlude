@@ -1,26 +1,54 @@
 @import 'tailwindcss';
 
+/*
+ * Guest-first. One-handed, thumb-reachable, readable in a dim restaurant on a
+ * phone at 20% brightness. No web font and no imagery anywhere in the guest
+ * route: the competitor is Instagram Reels and it loads instantly, so the
+ * budget is under 100KB of JS and interactive in under 2s on 3G.
+ */
+
+@theme {
+  --color-ink: #16130f;
+  --color-paper: #fbf7f0;
+  --color-warm: #f4ede1;
+  --color-line: #e2d8c8;
+  --color-muted: #6f665a;
+  --color-accent: #b4451f;
+  --color-accent-soft: #f6e4dc;
+  --color-good: #2f6b4f;
+  --color-amber: #b8860b;
+  --color-bad: #9b2c2c;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+
+/* Staff surfaces are read at arm's length on a mounted tablet, mid-service. */
+.surface-staff {
+  background: #14120f;
+  color: #f6f1e8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
