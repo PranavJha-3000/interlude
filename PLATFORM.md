@@ -50,8 +50,9 @@ V1 is **W2-first**, with W3 shipping in wave 3. W1 is out of V1 scope.
 A fifth internal surface (`/admin`) exists for venue onboarding and is not a customer-facing product.
 
 **Design rule per archetype**
-- Guest: no accounts, no signup, no app. Under 100KB JS, interactive in under 2s on 3G. The
-  competitor is Instagram Reels and it loads instantly.
+- Guest: no accounts, no signup, no app. The competitor is Instagram Reels and it loads instantly,
+  so weight is a product concern, not an engineering nicety. **The original "<100KB JS, interactive
+  <2s on 3G" target is not achievable on this stack and has been revised — see below.**
 - Server: never shown a dashboard or a metric. Only: what to do, at which table, right now.
 - Chef: one control that matters (kitchen load) and one list (vetoes). Readable at a glance,
   mid-service, with wet hands.
@@ -242,10 +243,23 @@ src/
 ```
 
 **Realtime is polling, not websockets.** Venue wifi is unreliable and serverless does not hold
-sockets. The #5 countdown polls every 2s and is driven by a **server-issued end timestamp**, so
-client clock skew and tab-suspend cannot desync a game. Animation is local; truth is server-side.
+sockets. The #5 countdown is driven by a **server-issued end timestamp**, so client clock skew and
+tab-suspend cannot desync a game. Animation is local; truth is server-side.
 
-**Stack:** Next.js 15 App Router · TypeScript strict · Postgres + Prisma · Vercel (incl. Cron for
+Intervals are **per-surface, not a blanket 2s**. With multiplayer cut, a running countdown needs no
+polling at all — only state *changes* do. A 30-table service polling everything at 2s is ~54,000
+requests per service; the table below is roughly an 80% reduction for no loss of responsiveness.
+All polling pauses when the tab is hidden.
+
+| Surface | Interval | Why |
+|---|---|---|
+| Guest, waiting for order-fired | 5s | Nobody notices five seconds here |
+| Guest, mid-round | none | Countdown runs locally off the end timestamp |
+| Guest, awaiting redemption | 3s | Short-lived, and the guest is watching |
+| Floor | 2s | Staff act on it in real time |
+| Pass | 10s | Load and vetoes change rarely |
+
+**Stack:** Next.js 16 App Router · TypeScript strict · Postgres + Prisma · Vercel (incl. Cron for
 the Monday email) · Resend · Vitest + Playwright.
 
 ---

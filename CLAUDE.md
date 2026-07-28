@@ -46,7 +46,9 @@ These come from PLATFORM.md §5–§7 and §12. They are the reason the product 
 
 **Phone numbers are HMAC'd with a per-venue salt.** No cross-venue join is possible in V1 by construction (DPDP).
 
-**Realtime is 2s polling, not websockets** — venue wifi is unreliable and serverless does not hold sockets. The countdown is driven by a **server-issued end timestamp** so client clock skew and tab-suspend cannot desync a game. Animation is local; truth is server-side.
+**Realtime is polling, not websockets** — venue wifi is unreliable and serverless does not hold sockets. The countdown is driven by a **server-issued end timestamp** so client clock skew and tab-suspend cannot desync a game. Animation is local; truth is server-side. Intervals are **per-surface, not a blanket 2s** (PLATFORM.md §11): 5s waiting for order-fired, none mid-round, 3s awaiting redemption, 2s on `/floor`, 10s on `/pass`, and all of it paused when the tab is hidden.
+
+**The guest JS budget was measured and revised.** "<100KB, interactive <2s on 3G" is unreachable on the App Router: an empty page ships **181.7KB gzipped** because React's hydration runtime loads regardless of whether a route has any client component. The full guest route is **184.5KB**. The enforceable rule is now **our own code must add ≤15KB over that floor**, with a 200KB regression ceiling. Accepted for V1 with eyes open; revisit if wave-1 scan rate lands under the 15% kill line. Do not "fix" this by adding client components — the floor is the framework, and every client component you add is spending the 15KB that is actually ours.
 
 **Nothing may depend on a vendor POS API existing.** T3 is unrun. Work through the `PosAdapter` port; `Manual` and `CsvImport` are the adapters that actually ship. Petpooja/Restroworks are interface-conforming stubs with no live calls.
 
@@ -62,7 +64,7 @@ Four archetypes, four different design contracts. Building the wrong one into a 
 
 | Route | For | Contract |
 |---|---|---|
-| `/t/[qrToken]` | Guest | Anonymous, no account, no app. <100KB JS, interactive <2s on 3G — checked at the wave 1 gate |
+| `/t/[qrToken]` | Guest | Anonymous, no account, no app. Payload budget **revised** — see below |
 | `/floor` | Server | Never shown a dashboard or a metric. Only: what to do, at which table, right now |
 | `/pass` | Chef | One control (kitchen load) and one list (vetoes). Glanceable mid-service, wet hands |
 | `/dash` | Owner | Leads with one number; everything else collapsible |
