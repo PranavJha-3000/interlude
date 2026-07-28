@@ -1,0 +1,495 @@
+// Interlude — wave 1 data model.
+// PLATFORM.md §8. Money is stored in paise as integers; never a float.
+// `Match` is absent by design: multiplayer is cut from V1.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts for CLI/migrate, and
+// reaches the client through a driver adapter. It is deliberately not here.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Venue, tables, staff
+// ---------------------------------------------------------------------------
+
+model Venue {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  timezone  String   @default("Asia/Kolkata")
+  /// Per-venue HMAC salt. Makes a cross-venue phone join impossible by
+  /// construction (DPDP, PLATFORM.md §7). Never leaves the server.
+  phoneSalt String
+  /// Google Place ID for the wave-3 review deep link.
+  googlePlaceId String?
+  createdAt DateTime @default(now())
+
+  config       VenueConfig?
+  tables       Table[]
+  menuItems    MenuItem[]
+  services     Service[]
+  staff        StaffUser[]
+  operators    OperatorUser[]
+  quizPacks    QuizPack[]
+  vetoes       ChefVeto[]
+  guestIdents  GuestIdentity[]
+}
+
+/// Every number here is seeded from the business doc's Appendix B estimate and
+/// edited per venue in /dash. PLATFORM.md §10 — none of this is a constant.
+model VenueConfig {
+  id      String @id @default(cuid())
+  venueId String @unique
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  // Round shape
+  quizLengthSec      Int @default(75)
+  countdownBufferSec Int @default(60)
+  quizQuestionCount  Int @default(8)
+  /// Percentage of questions that must be right to beat the kitchen.
+  winThresholdPct    Int @default(70)
+
+  /// Category -> minutes. Drives the Manual POS adapter's ready estimate.
+  prepMinutesByCategory Json @default("{}")
+
+  // Prize depth fences
+  depthCapPerItemPct     Int @default(100)
+  depthCapPerServicePaise Int @default(500000)
+  mysteryPlatePricePaise Int @default(9900)
+
+  // Peak window, minutes from midnight, venue local time
+  peakStartMinute Int @default(1140)
+  peakEndMinute   Int @default(1380)
+
+  // §11 gates — evaluated in wave 2, configurable from day one
+  attachDeltaGatePp       Float @default(5)
+  ticketDeltaKillPct      Float @default(4)
+  ticketDeltaProceedPct   Float @default(6)
+  scanRateKillPct         Float @default(15)
+  scanRateGoodPct         Float @default(25)
+  completionRateGatePct   Float @default(60)
+  reviewVelocityGateX     Float @default(2)
+
+  updatedAt DateTime @updatedAt
+}
+
+model Table {
+  id       String  @id @default(cuid())
+  venueId  String
+  venue    Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  label    String
+  qrToken  String  @unique
+  seats    Int     @default(4)
+  active   Boolean @default(true)
+
+  armAssignments TableArmAssignment[]
+  guestSessions  GuestSession[]
+  orderFires     OrderFire[]
+  tickets        Ticket[]
+
+  @@unique([venueId, label])
+  @@index([venueId])
+}
+
+model StaffUser {
+  id      String    @id @default(cuid())
+  venueId String
+  venue   Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name    String
+  role    StaffRole
+  pinHash String
+
+  orderFires      OrderFire[]
+  confirmedAwards Award[]
+  kitchenLoads    KitchenLoad[]
+
+  @@index([venueId])
+}
+
+model OperatorUser {
+  id        String   @id @default(cuid())
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Service and the measurement arm
+// ---------------------------------------------------------------------------
+
+model Service {
+  id        String    @id @default(cuid())
+  venueId   String
+  venue     Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  armAssignments TableArmAssignment[]
+  guestSessions  GuestSession[]
+  kitchenLoads   KitchenLoad[]
+  prizePools     PrizePool[]
+  orderFires     OrderFire[]
+  tickets        Ticket[]
+
+  @@index([venueId, startedAt])
+}
+
+/// The entire evidentiary basis of the business (PLATFORM.md §8). A recorded
+/// row, never a computed guess, and never rewritten — a mid-service swap
+/// closes the current row with `effectiveTo` and opens a new one.
+model TableArmAssignment {
+  id          String    @id @default(cuid())
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tableId     String
+  table       Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  arm         Arm
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+  /// Why this table is on this arm — "alternating seed, odd label" etc.
+  reason      String
+  createdAt   DateTime  @default(now())
+
+  guestSessions GuestSession[]
+
+  @@index([serviceId, tableId])
+  @@index([tableId, effectiveFrom])
+}
+
+// ---------------------------------------------------------------------------
+// Menu, kitchen state
+// ---------------------------------------------------------------------------
+
+model MenuItem {
+  id             String     @id @default(cuid())
+  venueId        String
+  venue          Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name           String
+  category       String
+  pricePaise     Int
+  foodCostPaise  Int
+  marginTier     MarginTier
+  prepBurden     PrepBurden @default(LOW)
+  /// If true, awarding this costs the kitchen work — suppressed when load is RED.
+  requiresKitchenWork Boolean @default(true)
+  /// Hero items are never discounted (PLATFORM.md §12).
+  isHero         Boolean    @default(false)
+  active         Boolean    @default(true)
+  /// Units sold in the trailing window. Fed by CSV import in wave 2.
+  trailingSales  Int        @default(0)
+  lastSoldAt     DateTime?
+
+  vetoes        ChefVeto[]
+  awards        Award[]
+  addOnRequests AddOnRequest[]
+
+  @@unique([venueId, name])
+  @@index([venueId, active])
+}
+
+model ChefVeto {
+  id         String    @id @default(cuid())
+  venueId    String
+  venue      Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  active     Boolean   @default(true)
+  note       String?
+  createdAt  DateTime  @default(now())
+  clearedAt  DateTime?
+
+  @@unique([menuItemId])
+  @@index([venueId, active])
+}
+
+model KitchenLoad {
+  id        String    @id @default(cuid())
+  venueId   String
+  serviceId String?
+  service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  level     LoadLevel
+  setAt     DateTime  @default(now())
+  setById   String?
+  setBy     StaffUser? @relation(fields: [setById], references: [id], onDelete: SetNull)
+
+  @@index([venueId, setAt])
+}
+
+/// Per-service snapshot of the prize engine's whole output, entries and
+/// exclusions with their `reason` strings. This is the operator's audit trail
+/// and the product promise in §14.3 — it is load-bearing, not logging.
+model PrizePool {
+  id             String    @id @default(cuid())
+  serviceId      String
+  service        Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  mechanic       Mechanic
+  kitchenLoad    LoadLevel
+  snapshotAt     DateTime  @default(now())
+  /// { itemId, mechanic, depth, reason }[]
+  entries        Json
+  /// { itemId, reason }[]
+  excluded       Json
+
+  awards Award[]
+
+  @@index([serviceId, snapshotAt])
+}
+
+// ---------------------------------------------------------------------------
+// Guest play
+// ---------------------------------------------------------------------------
+
+model GuestSession {
+  id        String   @id @default(cuid())
+  tableId   String
+  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  /// Which arm the table was on at scan time. Denormalised deliberately so a
+  /// later swap cannot retroactively change what this session counted as.
+  armAssignmentId String?
+  armAssignment   TableArmAssignment? @relation(fields: [armAssignmentId], references: [id], onDelete: SetNull)
+  armAtScan Arm
+
+  /// Nothing above this line is written before consent is given.
+  consentAt DateTime
+  startedAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  plays         Play[]
+  addOnRequests AddOnRequest[]
+  reviewPrompts ReviewPrompt[]
+
+  @@index([serviceId, startedAt])
+  @@index([tableId])
+}
+
+model Play {
+  id             String       @id @default(cuid())
+  guestSessionId String
+  guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  mechanic       Mechanic
+  quizPackId     String?
+  quizPack       QuizPack?    @relation(fields: [quizPackId], references: [id], onDelete: SetNull)
+
+  /// Server-issued. The client never decides when the round ends
+  /// (PLATFORM.md §11) — clock skew and tab-suspend cannot desync it.
+  startedAt   DateTime  @default(now())
+  endsAt      DateTime
+  completedAt DateTime?
+
+  score       Int       @default(0)
+  maxScore    Int
+  outcome     Outcome?
+  /// Ordered question ids + the answer index given, for replay and dispute.
+  answers     Json      @default("[]")
+
+  award Award?
+
+  @@index([guestSessionId])
+}
+
+model Award {
+  id          String   @id @default(cuid())
+  playId      String   @unique
+  play        Play     @relation(fields: [playId], references: [id], onDelete: Cascade)
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  prizePoolId String?
+  prizePool   PrizePool? @relation(fields: [prizePoolId], references: [id], onDelete: SetNull)
+
+  kind        AwardKind
+  /// Value conceded to the guest, and what it actually costs the kitchen.
+  /// Both snapshotted so a later menu edit cannot rewrite history.
+  valuePaise    Int
+  foodCostPaise Int
+  /// Why the engine chose this item. Never null — PLATFORM.md §5.
+  reason      String
+
+  status      AwardStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  confirmedAt DateTime?
+  confirmedById String?
+  confirmedBy   StaffUser? @relation(fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model AddOnRequest {
+  id             String       @id @default(cuid())
+  guestSessionId String
+  guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  menuItemId     String
+  menuItem       MenuItem     @relation(fields: [menuItemId], references: [id])
+  qty            Int          @default(1)
+  /// Snapshotted at request time so the dashboard's money maths is stable.
+  pricePaise     Int
+  foodCostPaise  Int
+
+  status      AddOnStatus @default(REQUESTED)
+  requestedAt DateTime    @default(now())
+  ackedAt     DateTime?
+
+  @@index([status, requestedAt])
+  @@index([guestSessionId])
+}
+
+model OrderFire {
+  id        String     @id @default(cuid())
+  tableId   String
+  table     Table      @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  firedAt   DateTime   @default(now())
+  /// Server-computed from the venue's configured prep minutes.
+  estReadyAt DateTime
+  firedById String?
+  firedBy   StaffUser? @relation(fields: [firedById], references: [id], onDelete: SetNull)
+
+  @@index([serviceId, firedAt])
+  @@index([tableId, firedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Quiz content
+// ---------------------------------------------------------------------------
+
+model QuizPack {
+  id      String  @id @default(cuid())
+  venueId String?
+  venue   Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name    String
+  active  Boolean @default(true)
+
+  questions QuizQuestion[]
+  plays     Play[]
+}
+
+model QuizQuestion {
+  id         String @id @default(cuid())
+  packId     String
+  pack       QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  prompt     String
+  /// string[] — rendered in order.
+  options    Json
+  answerIndex Int
+  difficulty Int    @default(1)
+  orderHint  Int    @default(0)
+
+  @@index([packId, orderHint])
+}
+
+// ---------------------------------------------------------------------------
+// Wave 2 / wave 3 — modelled now so neither needs a migration later
+// ---------------------------------------------------------------------------
+
+/// Closed bill lines from the venue's end-of-day POS export (CSV). Wave 2.
+model Ticket {
+  id          String   @id @default(cuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tableId     String?
+  table       Table?   @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  externalRef String
+  closedAt    DateTime
+  totalPaise  Int
+  /// { name, qty, pricePaise }[] as exported. Parsed, never trusted.
+  lines       Json
+  importedAt  DateTime @default(now())
+
+  @@unique([serviceId, externalRef])
+  @@index([serviceId, closedAt])
+}
+
+/// Funnel counts only — shown, drafted, handed off. No rating is stored, ever,
+/// because storing sentiment would create the ability to gate on it
+/// (PLATFORM.md §7). This model must never reference Award or PrizePool.
+model ReviewPrompt {
+  id             String       @id @default(cuid())
+  guestSessionId String
+  guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  shownAt        DateTime     @default(now())
+  draftedAt      DateTime?
+  handedOffAt    DateTime?
+
+  @@index([shownAt])
+}
+
+/// Phone stored only as an HMAC with the venue's own salt. No cross-venue join
+/// is possible in V1 by construction. Wave 3.
+model GuestIdentity {
+  id         String   @id @default(cuid())
+  venueId    String
+  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  phoneHmac  String
+  visitCount Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([venueId, phoneHmac])
+}
+
+// ---------------------------------------------------------------------------
+
+enum Arm {
+  TREATMENT
+  CONTROL
+}
+
+enum StaffRole {
+  SERVER
+  KITCHEN
+}
+
+enum MarginTier {
+  HIGH
+  MID
+  LOW
+}
+
+enum PrepBurden {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LoadLevel {
+  GREEN
+  AMBER
+  RED
+}
+
+enum Mechanic {
+  KITCHEN_ROUND
+  MYSTERY_PLATE
+}
+
+enum Outcome {
+  WIN
+  LOSE
+}
+
+enum AwardKind {
+  FREE
+  HALF_PRICE
+  FIXED_PRICE
+}
+
+enum AwardStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+}
+
+enum AddOnStatus {
+  REQUESTED
+  ACKED
+  CANCELLED
+}
