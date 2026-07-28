@@ -248,4 +248,4 @@ a native app.
 | Shared screen (#17) | Out of V1. V1.5 hardware pilot |
 | Phone verification | Off by default. Redemption is staff-confirmed. DLT/WhatsApp approval is 1–3 weeks and does not belong on the critical path |
 | Hindi strings | English-first, strings externalised from M0 so Hindi is a translation job, not a refactor |
-| Repo location | **Settled.** `C:\Users\prana\Code\interlude`, outside OneDrive — sync causes `node_modules` file locks and slow installs |
+| Repo location | **Settled:** `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by explicit choice. The known cost stands — OneDrive sync causes `node_modules` file locks and slow installs — so `node_modules` **must** be kept out of sync before the first `npm install` (see M0) |

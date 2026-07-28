@@ -15,7 +15,8 @@ A third document, *INTERLUDE — Business Foundation v1.0*, is referenced throug
 
 ## Before starting M0
 
-- **Repo location is settled** — `C:\Users\prana\Code\interlude`, deliberately outside OneDrive, because `node_modules` under OneDrive sync causes file locks and slow installs. Do not move this repo back under `OneDrive\`, and do not scaffold a second copy there.
+- **Repo location is settled** — `C:\Users\prana\OneDrive\Desktop\Code\interlude`. The repo lives under OneDrive by the owner's explicit choice; this was decided with the tradeoff on the table, so do not relitigate it or propose moving it.
+- **The tradeoff it accepts is real and unmitigated as of now.** OneDrive sync locks files inside `node_modules` and makes installs slow, which shows up as spurious `EPERM`/`EBUSY` errors during `npm install`, dev-server rebuilds, and Prisma client generation. Before the first `npm install`, `node_modules` must be kept out of sync — either excluded in OneDrive's settings or held on a non-synced path and junctioned in (`mklink /J node_modules C:\dev\interlude-node_modules`). If you hit inexplicable file-lock errors in this repo, check this first; it is the most likely cause and it is not a code bug.
 - The product name is still a placeholder (PLATFORM.md §13). It lives in `src/brand.ts` and nowhere else — never hardcode "Interlude" into UI strings, routes, or copy.
 
 ## Planned stack

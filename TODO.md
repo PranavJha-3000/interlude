@@ -19,7 +19,8 @@ business doc's Appendix C numbers.
 
 ## M0 — Foundation
 
-- [x] Decide repo location — `C:\Users\prana\Code\interlude`, outside OneDrive sync
+- [x] Decide repo location — `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by choice
+- [ ] **Keep `node_modules` out of OneDrive sync — do this before the first `npm install`.** Either exclude it in OneDrive's sync settings, or keep it on a non-synced path and junction it in (`mklink /J node_modules C:\dev\interlude-node_modules`). Skipping this is what causes the file locks and slow installs
 - [ ] Next.js 15 + TypeScript strict + ESLint + Prettier
 - [ ] Prisma schema, Postgres (Neon/Supabase), migrations
 - [ ] `src/brand.ts` — the product name lives here and nowhere else
