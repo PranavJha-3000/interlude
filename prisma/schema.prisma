@@ -3,8 +3,9 @@
 // `Match` is absent by design: multiplayer is cut from V1.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 // Prisma 7: the connection URL lives in prisma.config.ts for CLI/migrate, and

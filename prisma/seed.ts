@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
+import { hashPin } from '../src/lib/pin'
 
 /**
  * Seeds one realistic Delhi casual-dining venue.
@@ -482,13 +483,15 @@ async function main() {
   })
   console.log(`  quiz: ${QUESTIONS.length} questions`)
 
+  // Dev PINs, scrypt-hashed like real ones. The venue sets its own before the
+  // pilot; these exist so the floor and pass consoles are reachable today.
   await db.staffUser.createMany({
     data: [
-      { venueId: venue.id, name: 'Floor', role: 'SERVER', pinHash: 'dev:1234' },
-      { venueId: venue.id, name: 'Kitchen', role: 'KITCHEN', pinHash: 'dev:5678' },
+      { venueId: venue.id, name: 'Floor', role: 'SERVER', pinHash: hashPin('1234') },
+      { venueId: venue.id, name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin('5678') },
     ],
   })
-  console.log('  staff: 2 dev accounts (PINs are placeholders until auth lands)')
+  console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
 
   const tokens = await db.table.findMany({
     where: { venueId: venue.id },
