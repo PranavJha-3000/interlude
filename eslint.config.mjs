@@ -40,15 +40,51 @@ const NO_AMBIENT_CLOCK = [
   },
 ]
 
+/**
+ * `NEXT_PUBLIC_` is not a namespace — it is an instruction to inline the value
+ * into the JavaScript bundle every guest downloads. A secret behind that prefix
+ * is a published secret, so naming one is an error rather than a warning.
+ */
+const NO_PUBLIC_SECRETS = [
+  {
+    selector:
+      "MemberExpression[object.property.name='env'] > Identifier[name=/^NEXT_PUBLIC_.*(KEY|SECRET|TOKEN|PASSWORD|SALT|CREDENTIAL|DATABASE)/i]",
+    message:
+      'NEXT_PUBLIC_ inlines this into the client bundle — it would ship the secret to every guest phone. Drop the prefix and read it in a server component or route handler.',
+  },
+  {
+    selector:
+      "MemberExpression[object.property.name='env'][property.value=/^NEXT_PUBLIC_.*(KEY|SECRET|TOKEN|PASSWORD|SALT|CREDENTIAL|DATABASE)/i]",
+    message:
+      'NEXT_PUBLIC_ inlines this into the client bundle — it would ship the secret to every guest phone. Drop the prefix and read it in a server component or route handler.',
+  },
+]
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
 
   {
+    name: 'interlude/no-public-secrets',
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', ...NO_PUBLIC_SECRETS],
+    },
+  },
+
+  {
     name: 'interlude/pure-core',
     files: PURE_CORE,
     rules: {
-      'no-restricted-syntax': ['error', ...NO_RANDOMNESS, ...NO_AMBIENT_CLOCK],
+      // Flat config replaces a rule's options rather than merging them, so the
+      // public-secret selectors have to be repeated here or they would be
+      // silently dropped for exactly the files we care most about.
+      'no-restricted-syntax': [
+        'error',
+        ...NO_PUBLIC_SECRETS,
+        ...NO_RANDOMNESS,
+        ...NO_AMBIENT_CLOCK,
+      ],
       'no-restricted-imports': [
         'error',
         {
