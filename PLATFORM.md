@@ -272,6 +272,7 @@ than a graveyard entry, so it is reversible — but it is out of V1 and out of b
 |---|---|
 | Validation gate (T0–T2) | **Settled: lifted.** We ship a staged MLP and validate from live pilot data. The cost is that every Appendix B number is an unmeasured estimate — which is exactly why §10's config rule is load-bearing rather than tidy |
 | Multiplayer | **Settled: cut.** #7 and #12 out; single-player only. See *V1 scope* and *Never built* |
+| Database at scale | **Settled for V1: Neon Postgres**, Singapore, free tier. Revisit **Cloudflare D1 at multi-venue scale** — the schema validates unchanged on SQLite, and D1 allows *a database per venue*, which would turn the DPDP cross-venue guarantee from a logical one (per-venue HMAC salt) into a physical one. The blocker today is hosting, not the data model: D1 binds to Workers, so adopting it means moving off Vercel. Keep all access behind Prisma so the port stays cheap |
 | Working name | `interlude` placeholder; isolated in `src/brand.ts` |
 | Shared screen (#17) | Out of V1. V1.5 hardware pilot |
 | Phone verification | Off by default. Redemption is staff-confirmed. DLT/WhatsApp approval is 1–3 weeks and does not belong on the critical path |

@@ -130,23 +130,35 @@ describe('outcome is a pure function of skill (PLATFORM.md §7)', () => {
   const window = computeRoundWindow(NOW, null, config)
 
   it('wins at or above the configured threshold', () => {
-    const scored = scoreRound(qs, qs.map((q, i) => (i < 7 ? q.answerIndex : 99)))
+    const scored = scoreRound(
+      qs,
+      qs.map((q, i) => (i < 7 ? q.answerIndex : 99))
+    )
     expect(scored.score).toBe(7)
     expect(decideOutcome(scored, NOW + 1000, window, config)).toBe('WIN')
   })
 
   it('loses just below the threshold', () => {
-    const scored = scoreRound(qs, qs.map((q, i) => (i < 6 ? q.answerIndex : 99)))
+    const scored = scoreRound(
+      qs,
+      qs.map((q, i) => (i < 6 ? q.answerIndex : 99))
+    )
     expect(decideOutcome(scored, NOW + 1000, window, config)).toBe('LOSE')
   })
 
   it('loses a perfect round submitted after the countdown', () => {
-    const scored = scoreRound(qs, qs.map((q) => q.answerIndex))
+    const scored = scoreRound(
+      qs,
+      qs.map((q) => q.answerIndex)
+    )
     expect(decideOutcome(scored, window.endsAtMs + 1, window, config)).toBe('LOSE')
   })
 
   it('returns the same verdict every time for the same inputs', () => {
-    const scored = scoreRound(qs, qs.map((q, i) => (i < 7 ? q.answerIndex : 99)))
+    const scored = scoreRound(
+      qs,
+      qs.map((q, i) => (i < 7 ? q.answerIndex : 99))
+    )
     const verdicts = new Set(
       Array.from({ length: 100 }, () => decideOutcome(scored, NOW + 1000, window, config))
     )
@@ -154,7 +166,10 @@ describe('outcome is a pure function of skill (PLATFORM.md §7)', () => {
   })
 
   it('honours a changed threshold rather than a hardcoded one', () => {
-    const scored = scoreRound(qs, qs.map((q, i) => (i < 5 ? q.answerIndex : 99)))
+    const scored = scoreRound(
+      qs,
+      qs.map((q, i) => (i < 5 ? q.answerIndex : 99))
+    )
     expect(decideOutcome(scored, NOW + 1000, window, config)).toBe('LOSE')
     expect(decideOutcome(scored, NOW + 1000, window, { ...config, winThresholdPct: 50 })).toBe(
       'WIN'
