@@ -372,6 +372,204 @@ git commit -m "test(tenancy): a second venue, so isolation is a claim a test can
 
 ---
 
+## Task 1b: A staff PIN is checked against one venue, not all of them
+
+**Added mid-plan.** Task 1's second venue exposed a real cross-tenant hole, and the owner chose to
+fix it in this wave rather than defer it.
+
+**Files:**
+- Modify: `src/app/(staff)/floor/actions.ts`
+- Modify: `src/app/(staff)/floor/page.tsx`
+- Create: `src/app/(staff)/floor/[venueSlug]/page.tsx`
+- Modify: `src/app/(kitchen)/pass/page.tsx` (signed-out branch only)
+- Modify: `src/strings/en.ts`
+- Modify: `prisma/seed.ts` (the console hint only)
+- Test: `e2e/tenancy.spec.ts` (the third test goes green), plus every spec that signs in as staff
+
+**Interfaces:**
+- Consumes: `verifyPin`, `setStaffSessionCookie` from `src/lib/staff-session.ts`.
+- Produces: `signIn(venueSlug: string, formData: FormData)` — the action now takes the venue it is
+  signing into. `/floor/[venueSlug]` is the sign-in surface; `/floor` and `/pass` remain the consoles
+  and are unchanged for a staff member who already holds a session.
+
+### The defect
+
+`src/app/(staff)/floor/actions.ts`:
+
+```ts
+  // One venue in V1, so the PIN identifies the staff member directly. With
+  // /admin and multiple venues this becomes venue-scoped.
+  const staff = await db.staffUser.findMany()
+  let match: (typeof staff)[number] | undefined
+  for (const s of staff) {
+    if (verifyPin(pin, s.pinHash)) match = s
+  }
+```
+
+No `where`. Every staff PIN in the database is a candidate, and the loop keeps the **last** hash that
+verifies. The comment names the assumption it was written under; multi-tenancy arrived and this never
+followed. Two venues picking the same four digits — which is not unlikely, it is inevitable — means a
+server at venue A types their own PIN and lands on venue B's floor, with venue B's tables, able to
+fire venue B's orders. The session it mints is `venueId: match.venueId`, so every downstream query is
+correctly scoped to the *wrong* venue, which is why nothing else catches it.
+
+### The fix, and why this shape
+
+**The sign-in page becomes venue-addressed: `/floor/[venueSlug]`.** The venue is then known before
+any hash is checked, so the PIN is only ever compared against that venue's staff.
+
+- The slug is **not a secret and does not need to be.** An attacker who guesses `pilot` still needs a
+  valid PIN for that venue — exactly the security level the product already intends. What the slug
+  buys is that the PIN can no longer be checked against a pool the venue does not control.
+- **Do not use `Venue.qrToken`.** That token is printed on guest-facing material, and reusing it here
+  would put the staff sign-in one scan away from every guest in the room.
+- **Bare `/floor` while signed out must not list venues.** A venue picker is an enumeration of every
+  restaurant that is a customer. It shows a short line telling staff to open their venue's own floor
+  link, and nothing else.
+- `/floor` and `/pass` are unchanged for a staff member who already holds a session — the cookie
+  carries `venueId`, and both consoles already read it.
+
+- [ ] **Step 1: Watch the existing test fail**
+
+Run: `npx playwright test e2e/tenancy.spec.ts -g "staff PIN"`
+Expected: FAIL — Copper's PIN `4321` currently signs in at the pilot venue's floor. Task 1 left this
+test failing deliberately; it is your RED.
+
+- [ ] **Step 2: Scope the action to one venue**
+
+In `src/app/(staff)/floor/actions.ts`:
+
+```ts
+export async function signIn(venueSlug: string, formData: FormData): Promise<void> {
+  const pin = String(formData.get('pin') ?? '')
+  if (!pin) redirect(`/floor/${venueSlug}?e=1`)
+
+  // Scoped to the venue in the path. Unscoped, every staff PIN in the database
+  // was a candidate and the loop kept the last match — so two venues choosing
+  // the same four digits put a server on another restaurant's floor, with a
+  // session correctly scoped to the wrong venue (SECURITY.md §8).
+  //
+  // Every stored hash is still checked rather than short-circuiting on the
+  // first match, so the response time does not leak how many staff exist.
+  const staff = await db.staffUser.findMany({ where: { venue: { slug: venueSlug } } })
+
+  let match: (typeof staff)[number] | undefined
+  let matches = 0
+  for (const s of staff) {
+    if (verifyPin(pin, s.pinHash)) {
+      match = s
+      matches++
+    }
+  }
+
+  // Two staff at one venue sharing a PIN is the venue's own mistake, but
+  // silently picking one of them would hand someone the other's role. Refuse,
+  // and say the same thing a wrong PIN says.
+  if (!match || matches > 1) redirect(`/floor/${venueSlug}?e=1`)
+```
+
+The rest of the function — minting the session and redirecting by role — is unchanged.
+
+Check whether `StaffUser` has a `venue` relation field before using `{ venue: { slug } }`; if it does
+not, resolve the venue id first and filter on `venueId`. Verify against `prisma/schema.prisma` rather
+than assuming.
+
+- [ ] **Step 3: Move the PIN pad to the venue-addressed route**
+
+Create `src/app/(staff)/floor/[venueSlug]/page.tsx`. It renders the same PIN pad the `SignIn`
+component in `src/app/(staff)/floor/page.tsx` renders today — move that markup rather than writing a
+second copy, and have it bind the slug into the action:
+
+```tsx
+export default async function FloorSignInPage({
+  params,
+}: {
+  params: Promise<{ venueSlug: string }>
+}) {
+  const { venueSlug } = await params
+
+  // Resolved so an unknown slug is a 404 rather than a PIN pad that can never
+  // succeed. It reveals only that a slug exists, which the guest QR already
+  // does for anyone holding a menu.
+  const venue = await db.venue.findUnique({ where: { slug: venueSlug }, select: { name: true } })
+  if (!venue) notFound()
+
+  // A staff member who is already signed in does not need to be here.
+  const staff = await readStaffSession()
+  if (staff) redirect(staff.role === 'KITCHEN' ? '/pass' : '/floor')
+
+  …the PIN pad, with action={signIn.bind(null, venueSlug)}…
+}
+```
+
+Keep the venue name on screen so someone signing in on a shared tablet can see which venue they are
+about to open. Match the existing floor surface's visual treatment exactly — it is a dark, large-tap
+console, and this is not the place to introduce a new look.
+
+- [ ] **Step 4: Make the signed-out consoles point at the link instead of a picker**
+
+In `src/app/(staff)/floor/page.tsx`, the signed-out branch no longer renders a PIN pad. It renders
+the new copy. Do the same for `/pass`'s signed-out branch — check what it currently does first; if it
+redirects to `/floor`, that redirect now lands on a message rather than a form, which is correct.
+
+Add to `src/strings/en.ts`, inside `floor.signIn`:
+
+```ts
+      // No venue picker here, deliberately: a list of venues is a list of every
+      // restaurant that is a customer.
+      needsVenueLink: 'Open your venue’s own floor link to sign in. Your manager has it.',
+      venueHeading: (venueName: string) => `Sign in — ${venueName}`,
+```
+
+- [ ] **Step 5: Print the link in the seed**
+
+`prisma/seed.ts` ends with a `Try these:` block of URLs. Add the floor sign-in link for each seeded
+venue, so the console tells a developer where to go now that `/floor` is not a form:
+
+```ts
+  console.log(`  floor:     /floor/${venue.slug}   (PIN ${v.serverPin})`)
+```
+
+Put it inside `seedVenue` or beside the existing hints — wherever it reads naturally alongside what
+is already printed.
+
+- [ ] **Step 6: Update every spec that signs in as staff**
+
+`git grep -n "Your PIN" e2e/` finds them. Each navigates to a surface expecting a PIN pad and must
+now go to `/floor/pilot` (or `/floor/copper` for the tenancy spec). Change the navigation, not the
+assertions — if an assertion no longer holds, that is a finding, not a licence to edit it.
+
+The tenancy spec's third test becomes: go to `/floor/pilot`, enter Copper's PIN `4321`, and be
+refused with the same message a wrong PIN gives.
+
+Add one more case to `e2e/tenancy.spec.ts` while you are there — the positive control that proves the
+refusal above is about scoping and not about the PIN being wrong everywhere:
+
+```ts
+test("a venue's own PIN opens its own floor", async ({ page }) => {
+  await page.context().clearCookies()
+  await page.goto('/floor/copper')
+  await page.getByLabel('Your PIN').fill('4321')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect(page.getByText("That PIN didn't work.")).toHaveCount(0)
+})
+```
+
+- [ ] **Step 7: Run the full gate**
+
+Run: `npm run db:seed && npm run typecheck && npm run lint && npm test && npm run test:e2e`
+Expected: all green, including all four tenancy tests.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add "src/app/(staff)" "src/app/(kitchen)" src/strings/en.ts prisma/seed.ts e2e/tenancy.spec.ts e2e/happy-path.spec.ts e2e/operator-auth.spec.ts e2e/games.spec.ts
+git commit -m "fix(auth): a staff PIN opens its own venue and no other"
+```
+
+---
+
 ## Task 2: The activity read is bounded, and the funnel stays true
 
 **Files:**
