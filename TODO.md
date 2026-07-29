@@ -134,8 +134,12 @@ is refused at the exact millisecond; a used-and-expired link reads as used.
 By hand: request a link for `owner@example.com`, copy the URL out of the dev console, open it, land
 signed-in. Open it a second time — refused.
 
-**Still open:** `operator-session.test.ts` for cookie tampering, and the cross-venue 404 test, both of
-which need a second seeded venue. Do these with phase 8.
+**Still open:** `operator-session.test.ts` for cookie tampering, which needs a second seeded venue.
+Do this with phase 8.
+
+The cross-venue 404 test proposed here did not happen as described — no operator route accepts a
+venue id, so a 404 is not a request that can be made. Phase 8b records what was proven instead and
+why.
 
 ---
 
