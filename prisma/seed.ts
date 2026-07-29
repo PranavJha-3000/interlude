@@ -534,6 +534,10 @@ async function main() {
   for (const t of tokens) {
     console.log(`  table ${t.label}: /t/${t.qrToken}`)
   }
+  // Sign-in is venue-addressed, so bare /floor is no longer a form. Print the
+  // link a developer actually needs, per venue.
+  console.log(`  floor:     /floor/${venue.slug}   (PIN 1234)`)
+  console.log(`  floor:     /floor/${second.slug}   (PIN 4321)`)
 }
 
 main()

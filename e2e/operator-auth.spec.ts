@@ -47,7 +47,7 @@ test('a first-time signup with no venue lands on the dashboard empty state', asy
 })
 
 test('a staff session is redirected away from /dash, to /floor', async ({ page }) => {
-  await page.goto('/floor')
+  await page.goto('/floor/pilot')
   await page.getByLabel('Your PIN').fill('1234')
   await Promise.all([
     page.waitForResponse((r) => r.request().method() === 'POST'),

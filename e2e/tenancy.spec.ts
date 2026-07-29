@@ -103,11 +103,35 @@ test("a venue's QR resolves only to its own tables", async ({ page }) => {
 
 test("one venue's staff PIN does not open the other venue's floor", async ({ page }) => {
   // Copper's server PIN is 4321. The pilot venue's is 1234. A PIN is scoped to
-  // the venue that issued it, so Copper's must be refused here.
+  // the venue that issued it, so Copper's must be refused here — and refused
+  // with the same words a wrong PIN gets, or the message would tell someone
+  // probing which venue a PIN belongs to.
   await page.context().clearCookies()
-  await page.goto('/floor')
+  await page.goto('/floor/pilot')
   await page.getByLabel('Your PIN').fill('4321')
   await page.getByRole('button', { name: 'Sign in' }).click()
 
   await expect(page.getByText("That PIN didn't work.")).toBeVisible()
+  await expect(page).toHaveURL(/\/floor\/pilot/)
+})
+
+/**
+ * The positive control. Without it the refusal above would also pass if PIN
+ * 4321 simply worked nowhere — it proves the refusal is about scoping.
+ */
+test("a venue's own PIN opens its own floor", async ({ page }) => {
+  await page.context().clearCookies()
+  await page.goto('/floor/copper')
+  await page.getByLabel('Your PIN').fill('4321')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+
+  // URL first: it is the assertion that waits for the round trip, so the
+  // "no error shown" check below cannot pass merely by running too early.
+  await expect(page).toHaveURL(/\/floor$/)
+  await expect(page.getByText("That PIN didn't work.")).toHaveCount(0)
+
+  // The session it minted names Copper, not the venue whose floor refused it.
+  const copper = await venueBy('copper')
+  await page.goto('/tents')
+  await expect(page.locator('body')).toContainText(copper.name)
 })

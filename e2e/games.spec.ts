@@ -179,7 +179,7 @@ test('the pass previews a pool for every game the venue is running', async ({ pa
   await enableGames(['KITCHEN_ROUND', 'MYSTERY_PLATE'])
 
   // The kitchen PIN lands on /pass directly.
-  await page.goto('/floor')
+  await page.goto('/floor/pilot')
   await page.getByLabel('Your PIN').fill('5678')
   await page.getByRole('button', { name: 'Sign in' }).click()
 

@@ -140,6 +140,10 @@ export const en = {
       pinLabel: 'Your PIN',
       submit: 'Sign in',
       wrongPin: "That PIN didn't work.",
+      // No venue picker here, deliberately: a list of venues is a list of every
+      // restaurant that is a customer.
+      needsVenueLink: 'Open your venue’s own floor link to sign in. Your manager has it.',
+      venueHeading: (venueName: string) => `Sign in — ${venueName}`,
     },
     tables: {
       heading: 'Tables',

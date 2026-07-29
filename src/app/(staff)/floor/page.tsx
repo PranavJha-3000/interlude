@@ -5,15 +5,7 @@ import { readStaffSession } from '@/lib/staff-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { armAt } from '@/core/measurement/arm-assignment'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
-import {
-  ackAddOn,
-  closeService,
-  confirmAward,
-  fireOrder,
-  openService,
-  signIn,
-  swapArms,
-} from './actions'
+import { ackAddOn, closeService, confirmAward, fireOrder, openService, swapArms } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +19,7 @@ export const dynamic = 'force-dynamic'
  */
 export default async function FloorPage() {
   const staff = await readStaffSession()
-  if (!staff) return <SignIn />
+  if (!staff) return <NeedsVenueLink />
 
   const service = await getOpenService(staff.venueId)
 
@@ -271,26 +263,19 @@ function BigButton({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SignIn() {
+/**
+ * The signed-out console. Not a PIN pad and deliberately not a venue picker —
+ * sign-in lives at `/floor/[venueSlug]`, because a PIN can only be checked
+ * against one venue's staff, and a list of venues is a list of every restaurant
+ * that is a customer.
+ */
+function NeedsVenueLink() {
   return (
     <main className="surface-staff flex min-h-dvh items-center justify-center px-6">
-      <form action={signIn} className="w-full max-w-xs">
+      <div className="w-full max-w-xs">
         <h1 className="text-2xl font-semibold">{en.floor.signIn.heading}</h1>
-        <label htmlFor="pin" className="mt-6 block text-sm text-white/50">
-          {en.floor.signIn.pinLabel}
-        </label>
-        <input
-          id="pin"
-          name="pin"
-          type="password"
-          inputMode="numeric"
-          autoComplete="off"
-          className="mt-2 min-h-14 w-full rounded-xl border border-white/20 bg-white/10 px-4 text-2xl tracking-widest"
-        />
-        <div className="mt-4">
-          <BigButton>{en.floor.signIn.submit}</BigButton>
-        </div>
-      </form>
+        <p className="mt-4 text-lg text-white/60">{en.floor.signIn.needsVenueLink}</p>
+      </div>
     </main>
   )
 }

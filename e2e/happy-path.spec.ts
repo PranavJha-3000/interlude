@@ -85,7 +85,7 @@ test('a guest scans, beats the kitchen, adds a dessert, and staff confirms it', 
   expect(addOn.pricePaise, 'price is snapshotted at request time').toBeGreaterThan(0)
 
   // ── Staff confirms ─────────────────────────────────────────────────────
-  await page.goto('/floor')
+  await page.goto('/floor/pilot')
   await page.getByLabel('Your PIN').fill('1234')
   await page.getByRole('button', { name: 'Sign in' }).click()
 

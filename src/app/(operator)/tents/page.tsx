@@ -23,7 +23,7 @@ export default async function TentsPage() {
   // Two sessions can legitimately reach this page. The owner reaches it from
   // the /dash nav on their own laptop; a manager reaches it from the venue
   // tablet, which only ever holds a staff PIN session. Guarding on staff alone
-  // bounced every operator to the floor PIN pad.
+  // bounced every operator to the floor console.
   //
   // Operator first, so an owner signed into both on one machine is scoped to
   // the venue their own session names.
@@ -32,7 +32,10 @@ export default async function TentsPage() {
   const venueId = operator?.venueId ?? staff?.venueId ?? null
 
   // A signed-in operator with no venue yet has nothing to print — send them to
-  // the dashboard's empty state, not to a PIN pad they cannot satisfy.
+  // the dashboard's empty state. Everyone else goes to the bare floor console,
+  // which now names no venue and so tells them to open their own venue's link;
+  // this page cannot offer a PIN pad because it does not know which venue to
+  // check the PIN against.
   if (!venueId) redirect(operator ? '/dash' : '/floor')
 
   const [venue, tables] = await Promise.all([

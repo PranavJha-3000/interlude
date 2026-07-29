@@ -33,6 +33,9 @@ export const dynamic = 'force-dynamic'
  */
 export default async function PassPage() {
   const staff = await readStaffSession()
+  // Sign-in is venue-addressed (`/floor/[venueSlug]`) and this page has no
+  // venue to name yet, so bounce to the bare console — which tells staff to
+  // open their venue's own link rather than showing a PIN pad or a picker.
   if (!staff) redirect('/floor')
 
   // eslint-disable-next-line react-hooks/purity
