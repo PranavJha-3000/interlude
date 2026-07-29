@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { getArmRows } from '@/lib/service'
-import { partitionByArm } from '@/core/measurement/arm-assignment'
+import { compareLabels, partitionByArm } from '@/core/measurement/arm-assignment'
 import { summariseFunnel, type FunnelSummary } from '@/core/measurement/funnel'
 
 /**
@@ -41,11 +41,33 @@ export interface ServiceActivity {
   funnel: FunnelSummary
 }
 
+const EMPTY_FUNNEL: FunnelSummary = {
+  tentedTables: 0,
+  scannedTables: 0,
+  scannedSessions: 0,
+  played: 0,
+  completed: 0,
+  won: 0,
+  awarded: 0,
+  claimed: 0,
+}
+
 export async function getServiceActivity(
   serviceId: string,
   venueId: string,
   nowMs: number
 ): Promise<ServiceActivity> {
+  // The venue scope is re-checked here rather than trusted from the caller.
+  // Today the only caller derives `serviceId` from the operator's own session,
+  // so this cannot fire — which is exactly when to make it structural, before a
+  // second caller passes an id from somewhere less careful and this function
+  // happily reads another restaurant's service (SECURITY.md §8).
+  const service = await db.service.findFirst({
+    where: { id: serviceId, venueId },
+    select: { id: true },
+  })
+  if (!service) return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL }
+
   const [sessions, tables, armRows] = await Promise.all([
     db.guestSession.findMany({
       where: { serviceId },
@@ -55,7 +77,9 @@ export async function getServiceActivity(
         addOnRequests: { select: { id: true } },
         plays: {
           orderBy: { startedAt: 'desc' },
-          include: { award: { include: { menuItem: { select: { name: true, pricePaise: true } } } } },
+          include: {
+            award: { include: { menuItem: { select: { name: true, pricePaise: true } } } },
+          },
         },
       },
     }),
@@ -116,9 +140,7 @@ export async function getServiceActivity(
 
   return {
     rows,
-    controlTableLabels: control
-      .map((id) => labelById.get(id) ?? id)
-      .sort((a, b) => Number(a) - Number(b)),
+    controlTableLabels: control.map((id) => labelById.get(id) ?? id).sort(compareLabels),
     funnel: summariseFunnel({ tentedTableIds: treatment, sessions: funnelSessions }),
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { summariseFunnel, type FunnelSessionInput } from './funnel'
+import { countScannedTreatmentTables, summariseFunnel, type FunnelSessionInput } from './funnel'
+import { summariseEngagement } from './contribution'
 
 function session(over: Partial<FunnelSessionInput> & { tableId: string }): FunnelSessionInput {
   return {
@@ -86,5 +87,45 @@ describe('summariseFunnel', () => {
     for (let i = 0; i < 50; i++) {
       expect(JSON.stringify(summariseFunnel(input))).toBe(first)
     }
+  })
+})
+
+describe('countScannedTreatmentTables', () => {
+  it('ignores a session from a table that is not on the treatment arm', () => {
+    // A table deactivated after it scanned, or moved by a mid-service swap.
+    expect(
+      countScannedTreatmentTables(['t1', 't2'], [{ tableId: 't1' }, { tableId: 'gone' }])
+    ).toBe(1)
+  })
+
+  it('cannot report a scan rate above 100%', () => {
+    const tented = ['t1', 't2']
+    const scannedTables = countScannedTreatmentTables(tented, [
+      { tableId: 't1' },
+      { tableId: 't2' },
+      { tableId: 'deactivated-after-scanning' },
+      { tableId: 'swapped-to-control' },
+    ])
+
+    const engagement = summariseEngagement({
+      tentedTables: tented.length,
+      scannedTables,
+      roundsStarted: 0,
+      roundsCompleted: 0,
+    })
+    expect(engagement.scanRatePct).toBe(100)
+    expect(engagement.scanRatePct).toBeLessThanOrEqual(100)
+  })
+
+  it('is the same count /dash/activity prints, so the two pages cannot disagree', () => {
+    const tented = ['t1', 't2']
+    const sessions = [
+      session({ tableId: 't1' }),
+      session({ tableId: 'not-tented' }),
+      session({ tableId: 'not-tented' }),
+    ]
+    expect(countScannedTreatmentTables(tented, sessions)).toBe(
+      summariseFunnel({ tentedTableIds: tented, sessions }).scannedTables
+    )
   })
 })

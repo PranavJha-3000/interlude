@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise, guestPaysPaise } from '@/lib/money'
-import { getOperator } from '@/lib/operator-session'
+import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getOpenService } from '@/lib/service'
 import { getServiceActivity, type ActivityRow } from '@/lib/activity'
 
@@ -14,35 +14,37 @@ export const dynamic = 'force-dynamic'
  * Anonymous by construction — a row is a table and a session, never a person.
  */
 export default async function ActivityPage() {
-  const operator = await getOperator()
+  // Venue-less is a signed-in state, not a signed-out one: signup and sign-in
+  // are the same request, so a first-time operator has a valid session and no
+  // venue. Bouncing them to /signin would send someone who *is* signed in to a
+  // sign-in form. They get the same empty state /dash gives them.
+  const operator = await getOperatorWithoutVenue()
   if (!operator) redirect('/signin')
+
+  if (!operator.venueId) return <Empty />
+
+  const venueId = operator.venueId
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
 
   const service =
-    (await getOpenService(operator.venueId)) ??
+    (await getOpenService(venueId)) ??
     (await db.service.findFirst({
-      where: { venueId: operator.venueId },
+      where: { venueId },
       orderBy: { startedAt: 'desc' },
     }))
 
-  if (!service) {
-    return (
-      <main className="mx-auto w-full max-w-4xl px-6 py-10">
-        <h1 className="mb-8 text-xs tracking-widest text-muted uppercase">
-          {en.dash.activity.heading}
-        </h1>
-        <p className="text-lg text-muted">{en.dash.empty}</p>
-      </main>
-    )
-  }
+  if (!service) return <Empty />
 
-  const { rows, controlTableLabels, funnel } = await getServiceActivity(
-    service.id,
-    operator.venueId,
-    now
-  )
+  // Rendered in the venue's own timezone, never the server's. On Vercel the
+  // server is UTC, which would stamp every scan 5h30m early on a page whose
+  // entire job is "which table, when".
+  const [{ rows, controlTableLabels, funnel }, venue] = await Promise.all([
+    getServiceActivity(service.id, venueId, now),
+    db.venue.findUniqueOrThrow({ where: { id: venueId }, select: { timezone: true } }),
+  ])
+  const tz = venue.timezone
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
@@ -67,10 +69,10 @@ export default async function ActivityPage() {
               {rows.map((r) => (
                 <tr key={r.sessionId} className="border-t border-line align-top">
                   <td className="py-3 pr-4 text-lg font-semibold tabular-nums">{r.tableLabel}</td>
-                  <td className="py-3 pr-4 tabular-nums text-muted">{timeOf(r.scannedAt)}</td>
+                  <td className="py-3 pr-4 tabular-nums text-muted">{timeOf(r.scannedAt, tz)}</td>
                   <td className="py-3 pr-4">{gameLabel(r.mechanic)}</td>
                   <td className="py-3 pr-4">{resultLabel(r)}</td>
-                  <td className="py-3">{claimLabel(r)}</td>
+                  <td className="py-3">{claimLabel(r, tz)}</td>
                 </tr>
               ))}
             </tbody>
@@ -88,14 +90,29 @@ export default async function ActivityPage() {
   )
 }
 
-function timeOf(d: Date): string {
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+function Empty() {
+  return (
+    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+      <h1 className="mb-8 text-xs tracking-widest text-muted uppercase">
+        {en.dash.activity.heading}
+      </h1>
+      <p className="text-lg text-muted">{en.dash.empty}</p>
+    </main>
+  )
+}
+
+function timeOf(d: Date, timezone: string): string {
+  return d.toLocaleTimeString('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function gameLabel(mechanic: ActivityRow['mechanic']): string {
   if (mechanic === 'KITCHEN_ROUND') return en.dash.activity.gameKitchenRound
   if (mechanic === 'MYSTERY_PLATE') return en.dash.activity.gameMysteryPlate
-  return '—'
+  return en.common.none
 }
 
 function resultLabel(r: ActivityRow): string {
@@ -111,14 +128,16 @@ function resultLabel(r: ActivityRow): string {
     r.awardPercentOff ?? undefined,
     r.awardFixedPricePaise ?? undefined
   )
-  const depth = r.awardKind === 'FREE' ? 'free' : formatPaise(pays)
+  const depth = r.awardKind === 'FREE' ? en.dash.activity.free : formatPaise(pays)
   return `${score} · ${r.awardItemName}, ${depth}`
 }
 
-function claimLabel(r: ActivityRow): string {
-  if (r.awardStatus === null) return '—'
+function claimLabel(r: ActivityRow, timezone: string): string {
+  if (r.awardStatus === null) return en.common.none
   if (r.awardStatus === 'CONFIRMED') {
-    return r.confirmedAt ? `✓ ${timeOf(r.confirmedAt)}` : '✓'
+    return r.confirmedAt
+      ? en.dash.activity.claimedAt(timeOf(r.confirmedAt, timezone))
+      : en.dash.activity.claimedMark
   }
   return en.dash.activity.pending
 }

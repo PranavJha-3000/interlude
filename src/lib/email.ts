@@ -5,11 +5,16 @@ import { BRAND } from '@/brand'
 /**
  * Outbound email.
  *
- * **In development there is no API key and no network call** — the message is
- * written to the console and the sign-in link is also parked in memory for the
- * E2E test to read. That is a convenience, but it is also the reason a
- * developer never needs production email credentials on their laptop
- * (SECURITY.md §7).
+ * **In development there is no API key and no network call** — the message,
+ * sign-in link included, is written to the console you ran `npm run dev` in.
+ * That is a convenience, but it is also the reason a developer never needs
+ * production email credentials on their laptop (SECURITY.md §7).
+ *
+ * There is deliberately no in-memory outbox and no route that serves the last
+ * link. The E2E suite runs `next build && next start`, which is production, so
+ * a dev-only outbox could not serve it anyway — `e2e/fixtures.ts` writes the
+ * token row directly instead, which exercises the real consume path and adds no
+ * production surface.
  *
  * `RESEND_API_KEY` is read only here, and this module imports `server-only`, so
  * the build fails rather than shipping it to a guest's phone.
@@ -20,9 +25,6 @@ export interface Email {
   subject: string
   text: string
 }
-
-/** The last link sent, in development only. Read by `/api/dev/last-magic-link`. */
-const devOutbox: { to: string; url: string; sentAtMs: number }[] = []
 
 export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY)
@@ -65,11 +67,6 @@ export async function sendEmail(email: Email): Promise<void> {
  * recipient has that someone is guessing at their address.
  */
 export async function sendMagicLink(to: string, url: string, ttlMinutes: number): Promise<void> {
-  if (process.env.NODE_ENV !== 'production') {
-    devOutbox.push({ to, url, sentAtMs: Date.now() })
-    if (devOutbox.length > 20) devOutbox.shift()
-  }
-
   await sendEmail({
     to,
     subject: `Sign in to ${BRAND.name}`,
@@ -79,12 +76,4 @@ export async function sendMagicLink(to: string, url: string, ttlMinutes: number)
       `If you did not ask to sign in, ignore this — the link does nothing until it is opened, ` +
       `and nobody can request another on your behalf without your address.\n`,
   })
-}
-
-/** Development only. Returns the most recent link sent to an address. */
-export function lastDevMagicLink(to?: string): { to: string; url: string } | null {
-  if (process.env.NODE_ENV === 'production') return null
-  const matches = to ? devOutbox.filter((m) => m.to === to) : devOutbox
-  const last = matches.at(-1)
-  return last ? { to: last.to, url: last.url } : null
 }

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { BRAND } from '@/brand'
 import { en } from '@/strings/en'
-import { getOperator } from '@/lib/operator-session'
+import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { signOut } from './signin/actions'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,11 @@ export const dynamic = 'force-dynamic'
  * `(guest)` is a payload-budget regression.
  */
 export default async function OperatorLayout({ children }: { children: React.ReactNode }) {
-  const operator = await getOperator()
+  // `getOperatorWithoutVenue`, not `getOperator`: signup and sign-in are the
+  // same request, so a brand-new operator holds a valid session with no venue
+  // yet. `getOperator` returns null for them, which would render the shell with
+  // no nav and — worse — no way to sign out of a session they demonstrably have.
+  const operator = await getOperatorWithoutVenue()
 
   return (
     <div className="min-h-dvh">
@@ -33,7 +37,7 @@ export default async function OperatorLayout({ children }: { children: React.Rea
                 {en.dash.activity.heading}
               </Link>
               <Link href="/tents" className="text-sm">
-                Tents
+                {en.dash.tents}
               </Link>
               <form action={signOut} className="ml-auto">
                 <button type="submit" className="text-sm text-muted">

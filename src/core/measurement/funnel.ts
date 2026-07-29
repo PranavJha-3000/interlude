@@ -38,9 +38,28 @@ export interface FunnelSummary {
   claimed: number
 }
 
+/**
+ * Distinct **treatment** tables that opened at least one session.
+ *
+ * The filter is the whole point and it is exported so there is exactly one of
+ * it. A table can hold a session and not be on the treatment arm: it was
+ * deactivated after the scan, or a mid-service swap moved it. Counting those
+ * puts a numerator above its own denominator and prints a scan rate over 100%,
+ * and two pages computing "scanned tables" two ways is how a dashboard whose
+ * pitch is honest measurement starts contradicting itself.
+ */
+export function countScannedTreatmentTables(
+  tentedTableIds: readonly string[],
+  sessions: readonly { tableId: string }[]
+): number {
+  const tented = new Set(tentedTableIds)
+  const scanned = new Set<string>()
+  for (const s of sessions) if (tented.has(s.tableId)) scanned.add(s.tableId)
+  return scanned.size
+}
+
 export function summariseFunnel(input: FunnelInput): FunnelSummary {
   const tented = new Set(input.tentedTableIds)
-  const scanned = new Set<string>()
 
   let played = 0
   let completed = 0
@@ -49,9 +68,6 @@ export function summariseFunnel(input: FunnelInput): FunnelSummary {
   let claimed = 0
 
   for (const s of input.sessions) {
-    // Only tented tables count as reach. A session from anywhere else is
-    // recorded but must not inflate the denominator's numerator.
-    if (tented.has(s.tableId)) scanned.add(s.tableId)
     played += s.playCount
     completed += s.completedCount
     won += s.wonCount
@@ -61,7 +77,7 @@ export function summariseFunnel(input: FunnelInput): FunnelSummary {
 
   return {
     tentedTables: tented.size,
-    scannedTables: scanned.size,
+    scannedTables: countScannedTreatmentTables(input.tentedTableIds, input.sessions),
     scannedSessions: input.sessions.length,
     played,
     completed,

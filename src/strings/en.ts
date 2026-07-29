@@ -18,6 +18,8 @@ export const en = {
     confirm: 'Confirm',
     retry: 'Try again',
     loading: 'One moment…',
+    /** Nothing to show in this cell. An em dash, never an empty cell. */
+    none: '—',
     offline: "You're offline. We'll pick up where you left off.",
     genericError: "Something went wrong at our end. Your table's fine — try again.",
   },
@@ -180,6 +182,7 @@ export const en = {
 
   dash: {
     heading: 'Tonight',
+    tents: 'Tents',
     tier1: {
       headline: 'Net contribution',
       // The honesty caveat is not optional copy — PLATFORM.md §9.
@@ -210,6 +213,11 @@ export const en = {
       colClaimed: 'Claimed',
       controlNote: 'Control table — cannot play',
       pending: 'Pending',
+      /** The award depth when the guest pays nothing. */
+      free: 'free',
+      /** Marks a prize a member of staff actually handed over. */
+      claimedMark: '✓',
+      claimedAt: (time: string) => `✓ ${time}`,
       notPlayed: 'Scanned, did not play',
       inProgress: 'Playing now',
       gameKitchenRound: 'Kitchen round',

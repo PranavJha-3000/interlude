@@ -7,6 +7,7 @@ import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { partitionByArm } from '@/core/measurement/arm-assignment'
 import { summariseContribution, summariseEngagement } from '@/core/measurement/contribution'
+import { countScannedTreatmentTables } from '@/core/measurement/funnel'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +95,10 @@ export default async function DashPage() {
   )
   const engagement = summariseEngagement({
     tentedTables: treatment.length,
-    scannedTables: new Set(sessions.map((s) => s.tableId)).size,
+    // The same treatment-filtered count `/dash/activity` prints, from the same
+    // function — an unfiltered set here counts tables that are not in the
+    // denominator and can report a scan rate above 100%.
+    scannedTables: countScannedTreatmentTables(treatment, sessions),
     roundsStarted: plays.length,
     roundsCompleted: plays.filter((p) => p.completedAt !== null).length,
   })
