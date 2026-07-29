@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultPrizeRules } from '@/core/prize-engine'
+import { MECHANICS, defaultPrizeRules } from '@/core/prize-engine'
 import {
   ONBOARDING_ORDER,
   defaultVenueGames,
@@ -129,5 +129,14 @@ describe('the games a venue is born with', () => {
   it('leads with the kitchen round, which is the game the copy explains', () => {
     const first = [...defaultVenueGames()].sort((a, b) => a.displayOrder - b.displayOrder)[0]
     expect(first?.mechanic).toBe('KITCHEN_ROUND')
+  })
+
+  // `/dash/games` lists MECHANICS and `setVenueGameEnabled` upserts the row, so
+  // a mechanic missing from here would still be switchable — but it would be
+  // born off, and a venue created after it shipped would not offer it until
+  // someone noticed. The two lists have to stay in step.
+  it('has a starting row for every mechanic the platform knows', () => {
+    const defaults = defaultVenueGames().map((g) => g.mechanic)
+    expect([...MECHANICS].sort()).toEqual([...defaults].sort())
   })
 })

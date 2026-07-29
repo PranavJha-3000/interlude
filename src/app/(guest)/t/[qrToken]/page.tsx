@@ -40,15 +40,12 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   if (scan.kind === 'UNKNOWN_TABLE') notFound()
 
-  // A venue with every game switched off is closed to play, and says so in the
-  // same words a control table and a closed venue get. Read before the consent
-  // screen so nothing is written for a venue that cannot offer a round.
-  const enabledGames = scan.kind === 'OK' ? await getEnabledGames(scan.venueId) : []
-
   // A control table and a closed venue look identical on purpose. A guest who
   // learns they are in a control group behaves differently, and that would
-  // contaminate the very comparison the control exists to provide.
-  if (scan.kind === 'NO_SERVICE' || scan.kind === 'BLOCKED' || enabledGames.length === 0) {
+  // contaminate the very comparison the control exists to provide. This branch
+  // short-circuits before any session read for exactly that reason — nothing
+  // below may make a control table observably different.
+  if (scan.kind === 'NO_SERVICE' || scan.kind === 'BLOCKED') {
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.closed.heading}</Heading>
@@ -67,6 +64,27 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
         },
       })
     : null
+
+  // Switching every game off closes the door to *new* rounds; it does not
+  // reach in and end one that is already running. A guest mid-quiz, or sitting
+  // on an award their server has not confirmed yet, keeps the screen they were
+  // on — the operator is told as much on `/dash/games`, and their award row
+  // exists and is on `/floor` regardless of what this page decides to render.
+  //
+  // Reading the session cookie is not a write, so the "an all-off venue records
+  // nothing" property still holds: a guest with no session for this service
+  // gets the closed screen, and the consent tap is never reachable.
+  const enabledGames = await getEnabledGames(scan.venueId)
+  const hasLiveRound = session?.serviceId === scan.serviceId && session.plays.length > 0
+
+  if (enabledGames.length === 0 && !hasLiveRound) {
+    return (
+      <Screen venueName={scan.venueName}>
+        <Heading>{en.guest.closed.heading}</Heading>
+        <Body>{en.guest.closed.body}</Body>
+      </Screen>
+    )
+  }
 
   // ── 1. Consent ─────────────────────────────────────────────────────────
   // Nothing has been recorded at this point, and the copy says so.
@@ -364,9 +382,17 @@ function gameName(mechanic: Mechanic): string {
 }
 
 /**
- * The mystery plate's price is the venue's own `VenueConfig` number, passed in
- * rather than looked up, so the copy can never drift from the price the prize
- * rule actually charges.
+ * The price in the blurb is `VenueConfig.mysteryPlatePricePaise`, which is
+ * **not** the row the award is charged from — that is the matching
+ * `PrizeRule.fixedPricePaise`. The two agree because `createVenue` seeds the
+ * rule from the config value, and they will keep agreeing only while
+ * `/dash/prizes` writes both together. It must, and this is the trap it has to
+ * avoid springing.
+ *
+ * Not derived from the rules instead, because "the" mystery-plate price is not
+ * a single row: rules match by margin tier, category and peak window, so the
+ * price the guest is finally charged is only known once an item is chosen —
+ * after the round they have not started yet.
  */
 function gameBlurb(mechanic: Mechanic, mysteryPlatePricePaise: number): string {
   return mechanic === 'MYSTERY_PLATE'

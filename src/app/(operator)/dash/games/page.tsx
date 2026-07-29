@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { en } from '@/strings/en'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { listVenueGames } from '@/lib/service'
-import type { Mechanic } from '@/core/prize-engine'
+import { MECHANICS, type Mechanic } from '@/core/prize-engine'
 import { toggleGame } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -20,10 +20,27 @@ export default async function GamesPage() {
   // venue yet.
   const operator = await getOperatorWithoutVenue()
   if (!operator) redirect('/signin')
-  if (!operator.venueId) return <Shell>{<p className="text-lg text-muted">{en.dash.empty}</p>}</Shell>
+  if (!operator.venueId)
+    return (
+      <Shell>
+        <p className="text-lg text-muted">{en.dash.empty}</p>
+      </Shell>
+    )
 
-  const games = await listVenueGames(operator.venueId)
-  const allOff = games.length > 0 && games.every((g) => !g.enabled)
+  // Every mechanic the platform knows, with this venue's rows joined onto it —
+  // not the rows alone. A mechanic with no row reads as off and its toggle
+  // writes one, so a venue that somehow has no rows is a venue with everything
+  // switched off rather than a venue with an empty screen and a guest surface
+  // that says it is closed.
+  const rows = await listVenueGames(operator.venueId)
+  const games = [
+    ...rows,
+    ...MECHANICS.filter((m) => !rows.some((r) => r.mechanic === m)).map((mechanic) => ({
+      mechanic,
+      enabled: false,
+    })),
+  ]
+  const allOff = games.every((g) => !g.enabled)
 
   return (
     <Shell>
@@ -51,7 +68,10 @@ export default async function GamesPage() {
             <form action={toggleGame}>
               <input type="hidden" name="mechanic" value={game.mechanic} />
               <input type="hidden" name="enabled" value={game.enabled ? 'false' : 'true'} />
-              <button type="submit" className="min-h-11 rounded-xl border-2 border-line px-4 text-sm">
+              <button
+                type="submit"
+                className="min-h-11 rounded-xl border-2 border-line px-4 text-sm"
+              >
                 {game.enabled ? en.dash.games.turnOff : en.dash.games.turnOn}
               </button>
             </form>

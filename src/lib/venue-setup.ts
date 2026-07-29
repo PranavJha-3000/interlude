@@ -17,10 +17,7 @@ import { defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
  * argument, which also makes it directly testable.
  */
 
-type Db = Pick<
-  PrismaClient,
-  'venue' | 'table' | 'menuItem' | 'staffUser' | 'prizeRule' | 'venueGame'
->
+type Db = Pick<PrismaClient, 'venue' | 'table' | 'menuItem' | 'staffUser' | 'prizeRule'>
 
 /**
  * Appendix B estimates, seeded into `VenueConfig` and editable in
@@ -84,12 +81,21 @@ export interface CreateVenueInput {
 }
 
 /**
- * Create a venue, its config, and its starting prize rules, atomically.
+ * Create a venue, its config and its games in one statement, then its starting
+ * prize rules.
  *
  * A venue is **born configured**. There is no state in which a venue exists but
  * has no `VenueConfig` row — every read of config would otherwise need a
  * fallback, and a fallback in code is exactly the hardcoded constant §10
  * forbids.
+ *
+ * The `VenueGame` rows are nested in the same `create` for a sharper reason: a
+ * venue with no game rows is **closed to guests**, so a half-written venue
+ * would be a venue nobody can play at. Nesting makes them arrive with the venue
+ * or not at all. The prize rules cannot join them — they are priced from the
+ * config row's own `mysteryPlatePricePaise`, which does not exist until the
+ * insert returns — but a venue with no prize rules merely offers nothing and
+ * says why, which is recoverable from `/dash/prizes`.
  */
 export async function createVenue(db: Db, input: CreateVenueInput) {
   const slug = input.slug ?? slugify(input.name)
@@ -103,16 +109,13 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
       qrToken: newQrToken(),
       onboardingStep: 'TABLES',
       config: { create: { prepMinutesByCategory: DEFAULT_PREP_MINUTES } },
+      games: { create: defaultVenueGames() },
       ...(input.operatorId ? { operators: { connect: { id: input.operatorId } } } : {}),
     },
     include: { config: true },
   })
 
   await createDefaultPrizeRules(db, venue.id, venue.config!.mysteryPlatePricePaise)
-
-  await db.venueGame.createMany({
-    data: defaultVenueGames().map((g) => ({ venueId: venue.id, ...g })),
-  })
 
   return venue
 }

@@ -93,8 +93,12 @@ export const en = {
       kitchenRound: 'Beat the kitchen',
       kitchenRoundBlurb: 'Win something off tonight’s menu before your food lands.',
       mysteryPlate: 'Tonight’s chef’s plate',
+      // Deliberately does not repeat the other button's heading. Two adjacent
+      // buttons whose accessible names each contain the other's are ambiguous
+      // on screen and to a screen reader — and the E2E locators had to be
+      // contorted around it.
       mysteryPlateBlurb: (price: string) =>
-        `Beat the kitchen and you can have the chef’s pick for ${price}.`,
+        `Win the chef’s pick for ${price} if you take the round.`,
     },
     outcome: {
       wonHeading: 'You beat the kitchen',
@@ -189,6 +193,14 @@ export const en = {
       veto: 'Veto',
       unveto: 'Allow',
       excludedHeading: 'Not in the pool',
+      // A pool per game the venue is running. The two genuinely differ — a
+      // mystery plate is a fixed price, so different items qualify — and the
+      // chef is the one person who has to know what is actually being given
+      // away. Only shown when there is more than one, so a venue running a
+      // single game keeps the plain list it had.
+      gameKitchenRound: 'Kitchen round',
+      gameMysteryPlate: 'Mystery plate',
+      noGames: 'No game is on. Nothing is being offered.',
     },
   },
 

@@ -43,6 +43,14 @@ export async function giveConsent(qrToken: string): Promise<void> {
     if (live && live.serviceId === scan.serviceId) return
   }
 
+  // A venue with no game switched on is closed to play, and the page renders
+  // the closed screen rather than this form. Re-checked here anyway: the page
+  // deciding not to show a button is not the same thing as the action refusing
+  // to act, and a consent POST replayed against an all-off venue would
+  // otherwise create the one row that venue is supposed to have none of.
+  const enabled = await getEnabledGames(scan.venueId)
+  if (enabled.length === 0) return
+
   const arm = await armForTable(scan.serviceId, scan.tableId, now)
   if (arm !== 'TREATMENT') return
 

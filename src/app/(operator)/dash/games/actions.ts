@@ -3,9 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireOperator } from '@/lib/operator-session'
 import { setVenueGameEnabled } from '@/lib/service'
-import type { Mechanic } from '@/core/prize-engine'
-
-const MECHANICS: readonly Mechanic[] = ['KITCHEN_ROUND', 'MYSTERY_PLATE']
+import { MECHANICS } from '@/core/prize-engine'
 
 /**
  * Turn one game on or off.

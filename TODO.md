@@ -470,7 +470,9 @@ Covers: the picker appears with both games on and accepts either choice; a singl
 
 **Mystery Plate is a stake, not a second mechanic.** The eight questions are identical; only the prize rule differs. `VenueGame` and the picker are the seam a genuinely different mechanic would plug into later — both in the quiz content and in the prize engine's own decisions.
 
-**A venue with every game off is closed to guests.** That is deliberate — an empty enabled list is an operator decision, not an absence of preference. The guest surface renders the same neutral screen a control table and a closed venue get, and it is asserted in `e2e/games.spec.ts` that no session row is written when the guest taps in. An operator who turns every game off is making an intentional choice to stop play, and the platform honours it.
+**A venue with every game off is closed to *new* guests.** That is deliberate — an empty enabled list is an operator decision, not an absence of preference. The guest surface renders the same neutral screen a control table and a closed venue get, and it is asserted in `e2e/games.spec.ts` that no session row is written when the guest taps in. It closes the door rather than clearing the room: a guest already mid-round, or holding an award their server has not confirmed yet, finishes on the rules they started under — also asserted there, because the operator is promised exactly that on `/dash/games`.
+
+**A missing `VenueGame` row is not a missing game.** `/dash/games` lists every mechanic the platform knows (`MECHANICS` in `src/core/prize-engine`) with the venue's rows joined onto it, and the toggle upserts. A venue whose rows never got written, or one created before a new mechanic shipped, stays recoverable from its own dashboard — and a new mechanic needs no backfill migration.
 
 ---
 

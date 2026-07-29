@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assignment'
 import type { RoundConfig } from '@/core/mechanics/kitchen-round'
 import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
+import { defaultVenueGames } from '@/lib/venue-setup'
 
 /**
  * Reads the live state a guest surface needs. Everything here is I/O; the
@@ -312,16 +313,26 @@ export async function listVenueGames(
 /**
  * Turn a game on or off for one venue.
  *
- * `updateMany` with the venue in the `where` rather than `update` by id: the
- * venue id comes off the operator's session, and putting it in the filter means
- * a mechanic name arriving from a form can only ever affect the caller's own
- * venue. A no-op when the row does not exist, which is the correct outcome for a
- * mechanic this venue does not have.
+ * Keyed on `[venueId, mechanic]` rather than a row id: the venue id comes off
+ * the operator's session, so a mechanic name arriving from a form can only ever
+ * affect the caller's own venue.
+ *
+ * An upsert rather than an update, because a missing row is not a no-op state.
+ * A venue with no rows is closed to guests, and a mechanic that shipped after
+ * the venue was created has no row at all — in both cases the operator's tap
+ * has to be able to write one, or the venue is stuck. The display order comes
+ * from `defaultVenueGames()` so a row written here sorts where it would have if
+ * it had been born with the venue.
  */
 export async function setVenueGameEnabled(
   venueId: string,
   mechanic: Mechanic,
   enabled: boolean
 ): Promise<void> {
-  await db.venueGame.updateMany({ where: { venueId, mechanic }, data: { enabled } })
+  const displayOrder = defaultVenueGames().find((g) => g.mechanic === mechanic)?.displayOrder ?? 0
+  await db.venueGame.upsert({
+    where: { venueId_mechanic: { venueId, mechanic } },
+    update: { enabled },
+    create: { venueId, mechanic, enabled, displayOrder },
+  })
 }

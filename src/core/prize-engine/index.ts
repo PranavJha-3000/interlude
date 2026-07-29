@@ -1,5 +1,6 @@
 export { decidePrizePool } from './decide-prize-pool'
 export { defaultPrizeRules } from './default-rules'
+export { MECHANICS } from './mechanics'
 export type {
   AwardKind,
   DepthCaps,
