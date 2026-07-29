@@ -46,7 +46,6 @@ model Venue {
   vetoes       ChefVeto[]
   guestIdents  GuestIdentity[]
   prizeRules   PrizeRule[]
-  games        VenueGame[]
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -232,25 +231,6 @@ model MenuItem {
 
   @@unique([venueId, name])
   @@index([venueId, active])
-}
-
-/// Which games this venue runs, and in what order the guest sees them.
-///
-/// A row per mechanic rather than a flag on `VenueConfig`: a venue turning a
-/// game off mid-service is an operational decision worth having a timestamp on,
-/// and a new mechanic later is a row rather than a migration.
-model VenueGame {
-  id       String   @id @default(cuid())
-  venueId  String
-  venue    Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  mechanic Mechanic
-  enabled  Boolean  @default(true)
-  /// Ascending. Decides the order of the guest's picker.
-  displayOrder Int  @default(0)
-  updatedAt DateTime @updatedAt
-
-  @@unique([venueId, mechanic])
-  @@index([venueId, enabled])
 }
 
 /// The restaurant's own prize policy, as data rather than as our opinion.
