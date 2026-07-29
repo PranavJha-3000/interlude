@@ -254,10 +254,10 @@ export const en = {
       funnel: (f: {
         tentedTables: number
         scannedTables: number
-        played: number
-        claimed: number
+        playedSessions: number
+        claimedSessions: number
       }) =>
-        `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.played} played · ${f.claimed} claimed`,
+        `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.playedSessions} played · ${f.claimedSessions} claimed`,
     },
     games: {
       heading: 'Games',

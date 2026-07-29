@@ -32,25 +32,34 @@ export interface ActivityRow {
   awardItemPricePaise: number | null
   awardStatus: 'PENDING' | 'CONFIRMED' | 'EXPIRED' | null
   confirmedAt: Date | null
-  addOnCount: number
 }
 
 export interface ServiceActivity {
   rows: ActivityRow[]
   controlTableLabels: string[]
   funnel: FunnelSummary
+  /** True when the service has more sessions than `rows` shows. */
+  truncated: boolean
 }
 
 const EMPTY_FUNNEL: FunnelSummary = {
   tentedTables: 0,
   scannedTables: 0,
   scannedSessions: 0,
-  played: 0,
-  completed: 0,
-  won: 0,
-  awarded: 0,
-  claimed: 0,
+  playedSessions: 0,
+  claimedSessions: 0,
 }
+
+/**
+ * How many sessions the activity table renders.
+ *
+ * A service at one venue does not approach this. It exists so that the query
+ * cannot grow without limit as venues are added, and it is deliberately *not*
+ * the same read the funnel counts from — bounding a list that a summary is
+ * derived from is how a dashboard starts under-reporting a busy night and
+ * saying nothing about it.
+ */
+export const ACTIVITY_ROW_LIMIT = 250
 
 export async function getServiceActivity(
   serviceId: string,
@@ -66,29 +75,44 @@ export async function getServiceActivity(
     where: { id: serviceId, venueId },
     select: { id: true },
   })
-  if (!service) return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL }
+  if (!service)
+    return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL, truncated: false }
 
-  const [sessions, tables, armRows] = await Promise.all([
-    db.guestSession.findMany({
-      where: { serviceId },
-      orderBy: { startedAt: 'desc' },
-      include: {
-        table: { select: { id: true, label: true } },
-        addOnRequests: { select: { id: true } },
-        plays: {
-          orderBy: { startedAt: 'desc' },
-          include: {
-            award: { include: { menuItem: { select: { name: true, pricePaise: true } } } },
+  // The rendered rows are bounded; the funnel is not. These are deliberately
+  // separate reads — see ACTIVITY_ROW_LIMIT and the funnel.ts docblock for why
+  // deriving the funnel from the bounded row array would silently under-report
+  // a busy service the moment `take` is added to it.
+  const [sessions, tables, armRows, tableCounts, playedSessions, claimedSessions, sessionTotal] =
+    await Promise.all([
+      db.guestSession.findMany({
+        where: { serviceId },
+        orderBy: { startedAt: 'desc' },
+        take: ACTIVITY_ROW_LIMIT,
+        include: {
+          table: { select: { id: true, label: true } },
+          plays: {
+            orderBy: { startedAt: 'desc' },
+            include: {
+              award: { include: { menuItem: { select: { name: true, pricePaise: true } } } },
+            },
           },
         },
-      },
-    }),
-    db.table.findMany({
-      where: { venueId, active: true },
-      select: { id: true, label: true },
-    }),
-    getArmRows(serviceId),
-  ])
+      }),
+      db.table.findMany({
+        where: { venueId, active: true },
+        select: { id: true, label: true },
+      }),
+      getArmRows(serviceId),
+      // One row per table that opened a session — the input
+      // countScannedTreatmentTables wants, over every session, not just the
+      // bounded rows the table renders.
+      db.guestSession.groupBy({ by: ['tableId'], where: { serviceId } }),
+      db.guestSession.count({ where: { serviceId, plays: { some: {} } } }),
+      db.guestSession.count({
+        where: { serviceId, plays: { some: { award: { status: 'CONFIRMED' } } } },
+      }),
+      db.guestSession.count({ where: { serviceId } }),
+    ])
 
   // One pass gives both arms — do not also filter with `armAt`, which would
   // walk the same rows again and give a second place for the split to drift.
@@ -119,28 +143,19 @@ export async function getServiceActivity(
       awardItemPricePaise: award?.menuItem.pricePaise ?? null,
       awardStatus: award?.status ?? null,
       confirmedAt: award?.confirmedAt ?? null,
-      addOnCount: s.addOnRequests.length,
-    }
-  })
-
-  // Counting is a pure function taking these rows as arguments — no I/O in it,
-  // so the arithmetic is unit-tested without a database.
-  const funnelSessions = sessions.map((s) => {
-    const plays = s.plays
-    const awards = plays.map((p) => p.award).filter((a) => a !== null)
-    return {
-      tableId: s.tableId,
-      playCount: plays.length,
-      completedCount: plays.filter((p) => p.completedAt !== null).length,
-      wonCount: plays.filter((p) => p.outcome === 'WIN').length,
-      awardCount: awards.length,
-      claimedCount: awards.filter((a) => a.status === 'CONFIRMED').length,
     }
   })
 
   return {
     rows,
     controlTableLabels: control.map((id) => labelById.get(id) ?? id).sort(compareLabels),
-    funnel: summariseFunnel({ tentedTableIds: treatment, sessions: funnelSessions }),
+    funnel: summariseFunnel({
+      tentedTableIds: treatment,
+      scannedTableIds: tableCounts.map((g) => g.tableId),
+      scannedSessions: sessionTotal,
+      playedSessions,
+      claimedSessions,
+    }),
+    truncated: sessionTotal > ACTIVITY_ROW_LIMIT,
   }
 }

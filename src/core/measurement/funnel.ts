@@ -5,24 +5,28 @@
  * `contribution.ts` already owns rate maths, and two sources for one number is
  * how a dashboard starts contradicting itself.
  *
- * Pure: no I/O, no clock (PLATFORM.md §5).
+ * Every stage after the table counts is a **session** count, not a count of
+ * plays or awards. A session can start more than one round, and a future
+ * reader will be tempted to "fix" `playedSessions` back into summing plays —
+ * that is the bug this file exists to prevent: `startRound` happens to allow
+ * only one play per session today, so summing plays and counting
+ * sessions-that-played give the same number now, but the moment that
+ * constraint relaxes a summed count can exceed `scannedSessions` and the
+ * funnel stops being monotonic. Count sessions at every stage past the table
+ * ones, and it can't happen.
+ *
+ * Pure: no I/O, no clock (PLATFORM.md §5). The caller does the counting that
+ * requires a database — this only totals what it is handed.
  */
-
-export interface FunnelSessionInput {
-  tableId: string
-  playCount: number
-  completedCount: number
-  wonCount: number
-  /** Awards issued, whatever their status. */
-  awardCount: number
-  /** Awards a member of staff actually confirmed. */
-  claimedCount: number
-}
 
 export interface FunnelInput {
   /** Tables on the treatment arm — the reachable population. */
   tentedTableIds: readonly string[]
-  sessions: readonly FunnelSessionInput[]
+  /** One entry per table that opened a session, before any arm filtering. */
+  scannedTableIds: readonly string[]
+  scannedSessions: number
+  playedSessions: number
+  claimedSessions: number
 }
 
 export interface FunnelSummary {
@@ -31,11 +35,10 @@ export interface FunnelSummary {
   scannedTables: number
   /** Sessions. Two phones at one table are two, and are never merged. */
   scannedSessions: number
-  played: number
-  completed: number
-  won: number
-  awarded: number
-  claimed: number
+  /** Sessions that started a round — **sessions**, not rounds. */
+  playedSessions: number
+  /** Sessions whose prize a member of staff handed over. */
+  claimedSessions: number
 }
 
 /**
@@ -59,30 +62,14 @@ export function countScannedTreatmentTables(
 }
 
 export function summariseFunnel(input: FunnelInput): FunnelSummary {
-  const tented = new Set(input.tentedTableIds)
-
-  let played = 0
-  let completed = 0
-  let won = 0
-  let awarded = 0
-  let claimed = 0
-
-  for (const s of input.sessions) {
-    played += s.playCount
-    completed += s.completedCount
-    won += s.wonCount
-    awarded += s.awardCount
-    claimed += s.claimedCount
-  }
-
   return {
-    tentedTables: tented.size,
-    scannedTables: countScannedTreatmentTables(input.tentedTableIds, input.sessions),
-    scannedSessions: input.sessions.length,
-    played,
-    completed,
-    won,
-    awarded,
-    claimed,
+    tentedTables: new Set(input.tentedTableIds).size,
+    scannedTables: countScannedTreatmentTables(
+      input.tentedTableIds,
+      input.scannedTableIds.map((tableId) => ({ tableId }))
+    ),
+    scannedSessions: input.scannedSessions,
+    playedSessions: input.playedSessions,
+    claimedSessions: input.claimedSessions,
   }
 }
