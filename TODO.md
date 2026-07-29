@@ -443,6 +443,37 @@ venue — do it with phase 5.
 
 ---
 
+## Phase 9 — Game selection · backend and guest UI
+
+**Goal:** a restaurant can choose which games they run, and a guest picks their stake when more than one is available.
+
+- [x] `VenueGame` model — `venueId`, `mechanic`, `enabled`, `displayOrder`. A venue with every game off is closed to guests, deliberately
+- [x] Migration with backfill — existing venues get both `KITCHEN_ROUND` and `MYSTERY_PLATE` enabled
+- [x] `defaultVenueGames()` in `src/lib/venue-setup.ts` — both games on at creation, so a new venue gets the picker without config
+- [x] `getEnabledGames` / `listVenueGames` / `setVenueGameEnabled` in `src/lib/service.ts`
+- [x] Guest stake picker — `/t/[qrToken]` waiting screen offers one button per enabled game when more than one is on; collapses to **"Start the round"** when exactly one
+- [x] `startRound` takes the chosen mechanic and re-validates it server-side
+- [x] `awardFor` reads the mechanic off the `Play` row instead of hardcoding it
+- [x] `/dash/games` — operator surface with one row per mechanic. Toggle on/off; an all-off venue shows a warning. Nav link added to operator layout
+- [x] `e2e/games.spec.ts` — new test file covering the picker, single-game collapse, all-off closure, and the operator toggle
+
+**How to test**
+
+```bash
+npm run typecheck && npm run lint && npm test && npm run test:e2e
+npx playwright test e2e/games.spec.ts
+```
+
+Covers: the picker appears with both games on and accepts either choice; a single enabled game skips the picker; all games off renders the neutral "nothing running" screen and writes no session row; the operator toggle changes what the guest is offered immediately and completely.
+
+**Two things to hold onto honestly**
+
+**Mystery Plate is a stake, not a second mechanic.** The eight questions are identical; only the prize rule differs. `VenueGame` and the picker are the seam a genuinely different mechanic would plug into later — both in the quiz content and in the prize engine's own decisions.
+
+**A venue with every game off is closed to guests.** That is deliberate — an empty enabled list is an operator decision, not an absence of preference. The guest surface renders the same neutral screen a control table and a closed venue get, and it is asserted in `e2e/games.spec.ts` that no session row is written when the guest taps in. An operator who turns every game off is making an intentional choice to stop play, and the platform honours it.
+
+---
+
 ## Later
 
 Carried across intact from the old waves 2–3. Each keeps its one-line test note.
