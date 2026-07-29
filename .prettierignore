@@ -1,0 +1,10 @@
+.next
+node_modules
+src/generated
+playwright-report
+test-results
+package-lock.json
+
+# The planning docs are hand-wrapped at 100 cols with aligned tables.
+# Prettier reflows both and makes the diffs unreadable.
+*.md

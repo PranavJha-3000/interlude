@@ -54,3 +54,6 @@ Thumbs.db
 
 # claude code local overrides (shared settings.json is committed)
 .claude/settings.local.json
+
+# prisma generated client
+/src/generated/

@@ -1,0 +1,61 @@
+#!/bin/sh
+# Blocks a commit that contains something shaped like a live credential.
+#
+# This is a backstop, not the primary defence — .gitignore keeps .env out, and
+# the ESLint rules stop secrets reaching the client bundle. This catches the
+# case those two miss: a connection string pasted into a source file, a script,
+# or a markdown doc.
+#
+# Enabled by:  git config core.hooksPath .githooks
+# Bypass once: git commit --no-verify   (use it knowingly)
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# .env.example is meant to hold placeholders; lockfiles hold registry hashes.
+staged=$(printf '%s\n' "$staged" | grep -Ev '(^|/)(\.env\.example|package-lock\.json|\.githooks/pre-commit)$')
+[ -z "$staged" ] && exit 0
+
+fail=0
+report() {
+  if [ "$fail" -eq 0 ]; then
+    echo ""
+    echo "  Commit blocked: something in the staged changes looks like a live credential."
+    echo ""
+  fi
+  fail=1
+  echo "    $1"
+  echo "      $2:$3"
+  echo ""
+}
+
+for f in $staged; do
+  [ -f "$f" ] || continue
+
+  # Postgres/MySQL URL carrying real-looking credentials.
+  match=$(grep -nE '(postgres(ql)?|mysql)://[^:/@[:space:]]+:[^@[:space:]]+@' "$f" | grep -vE 'user:password|USER:PASSWORD|placeholder|<[^>]+>|\$\{' | head -1)
+  [ -n "$match" ] && report "Database URL with embedded credentials" "$f" "${match%%:*}"
+
+  # Well-known provider key shapes. The prefixes must start a token, or
+  # ordinary identifiers match them — "OrderFire_serviceId_firedAt_idx"
+  # contains "re_" and would otherwise look like a Resend key.
+  match=$(grep -nE '(^|[^A-Za-z0-9_])(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|re_[A-Za-z0-9]{24,})' "$f" | head -1)
+  [ -n "$match" ] && report "Provider API key" "$f" "${match%%:*}"
+
+  # A long opaque value assigned to a secret-ish name.
+  match=$(grep -nEi '(SECRET|PRIVATE_KEY|ACCESS_TOKEN|AUTH_TOKEN|API_KEY|PHONE_SALT)[A-Z_]*[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9+/=_-]{24,}["'"'"']' "$f" | grep -vE 'process\.env|example|placeholder|EXAMPLE|xxx|XXX|\$\{' | head -1)
+  [ -n "$match" ] && report "Hardcoded secret value" "$f" "${match%%:*}"
+
+  # PEM private keys.
+  match=$(grep -nE 'BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY' "$f" | head -1)
+  [ -n "$match" ] && report "Private key block" "$f" "${match%%:*}"
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "  If it is genuinely a placeholder, make that obvious in the value."
+  echo "  If you are certain, re-run with --no-verify."
+  echo ""
+  exit 1
+fi
+
+exit 0
