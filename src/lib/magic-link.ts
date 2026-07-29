@@ -25,6 +25,31 @@ export const MAGIC_LINK_TTL_MS = 15 * 60 * 1000
 export const MAGIC_LINK_MAX_PER_WINDOW = 5
 export const MAGIC_LINK_RATE_WINDOW_MS = 15 * 60 * 1000
 
+/**
+ * How many links one *client IP* may request inside the same window.
+ *
+ * The per-address limit alone is no limit at all: a list of ten thousand
+ * addresses is ten thousand separate buckets, so it sends ten thousand emails
+ * from our sending domain and leaves ten thousand junk `OperatorUser` rows
+ * behind. Higher than the per-address cap because a venue behind one NAT is a
+ * real customer, and low enough that a list is not a viable relay.
+ */
+export const MAGIC_LINK_MAX_PER_IP_PER_WINDOW = 20
+
+/**
+ * The client IP, from the proxy header the platform sets.
+ *
+ * `x-forwarded-for` is a comma-separated chain and the *first* entry is the
+ * original client. Everything after it was appended by a hop we do not control,
+ * so only the first is worth anything — and even that is spoofable by a client
+ * talking to us directly, which is why this limit is a brake on volume rather
+ * than an authorisation decision.
+ */
+export function clientIpFrom(forwardedFor: string | null | undefined): string | undefined {
+  const first = forwardedFor?.split(',')[0]?.trim()
+  return first && first.length > 0 && first.length <= 64 ? first : undefined
+}
+
 /** 32 random bytes, base64url. Never stored — only its hash is. */
 export function generateMagicToken(): string {
   return randomBytes(32).toString('base64url')

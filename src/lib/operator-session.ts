@@ -1,9 +1,14 @@
 import 'server-only'
 
-import { createHmac, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
+import {
+  OPERATOR_SESSION_TTL_MS,
+  decodeOperatorSession,
+  encodeOperatorSession,
+  type OperatorSession,
+} from '@/lib/operator-session-token'
 
 /**
  * Operator auth: an email magic link, exchanged for an httpOnly session cookie.
@@ -15,7 +20,6 @@ import { db } from '@/lib/db'
  */
 
 const COOKIE = 'op'
-const SEPARATOR = '.'
 
 function secret(): string {
   const s = process.env.SESSION_SECRET
@@ -23,27 +27,18 @@ function secret(): string {
   return s
 }
 
-function sign(value: string): string {
-  return createHmac('sha256', secret()).update(value).digest('base64url')
-}
-
-export interface OperatorSession {
-  operatorId: string
-  /** Null until they have created their venue — signup precedes onboarding. */
-  venueId: string | null
-}
+export type { OperatorSession }
 
 export async function setOperatorSessionCookie(session: OperatorSession): Promise<void> {
-  const payload = Buffer.from(JSON.stringify(session)).toString('base64url')
   const jar = await cookies()
-  jar.set(COOKIE, `${payload}${SEPARATOR}${sign(payload)}`, {
+  jar.set(COOKIE, encodeOperatorSession(session, secret(), Date.now()), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    // Longer than a staff shift — an owner checking last night's number on a
-    // Sunday morning should not have to ask for another email.
-    maxAge: 60 * 60 * 24 * 14,
+    // The browser's copy of the same window that is signed into the payload.
+    // `maxAge` is the courtesy; the issued-at is the enforcement.
+    maxAge: Math.floor(OPERATOR_SESSION_TTL_MS / 1000),
   })
 }
 
@@ -51,25 +46,7 @@ export async function readOperatorSession(): Promise<OperatorSession | null> {
   const jar = await cookies()
   const raw = jar.get(COOKIE)?.value
   if (!raw) return null
-
-  const idx = raw.lastIndexOf(SEPARATOR)
-  if (idx <= 0) return null
-
-  const payload = raw.slice(0, idx)
-  const given = Buffer.from(raw.slice(idx + 1))
-  const expected = Buffer.from(sign(payload))
-  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null
-
-  try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString()) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const { operatorId, venueId } = parsed as Record<string, unknown>
-    if (typeof operatorId !== 'string' || operatorId.length === 0) return null
-    if (venueId !== null && typeof venueId !== 'string') return null
-    return { operatorId, venueId }
-  } catch {
-    return null
-  }
+  return decodeOperatorSession(raw, secret(), Date.now())
 }
 
 export async function clearOperatorSessionCookie(): Promise<void> {

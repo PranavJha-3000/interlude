@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { sendMagicLink } from '@/lib/email'
 import { setOperatorSessionCookie } from '@/lib/operator-session'
 import {
+  MAGIC_LINK_MAX_PER_IP_PER_WINDOW,
   MAGIC_LINK_MAX_PER_WINDOW,
   MAGIC_LINK_RATE_WINDOW_MS,
   MAGIC_LINK_TTL_MS,
@@ -36,6 +37,21 @@ export async function requestMagicLink(
   const email = normaliseEmail(rawEmail)
   if (!looksLikeEmail(email)) return { ok: false, reason: 'INVALID_EMAIL' }
 
+  const since = new Date(nowMs - MAGIC_LINK_RATE_WINDOW_MS)
+
+  // Checked *before* the upsert, deliberately. A per-address limit is not a
+  // limit when the attacker supplies the addresses — each one is its own empty
+  // bucket. Refusing after creating the row would still leave the junk
+  // `OperatorUser` behind, which is half the damage.
+  if (fromIp) {
+    const fromThisIp = await db.magicLinkToken.count({
+      where: { requestedFromIp: fromIp, createdAt: { gte: since } },
+    })
+    if (fromThisIp >= MAGIC_LINK_MAX_PER_IP_PER_WINDOW) {
+      return { ok: false, reason: 'RATE_LIMITED' }
+    }
+  }
+
   const operator = await db.operatorUser.upsert({
     where: { email },
     update: {},
@@ -44,10 +60,7 @@ export async function requestMagicLink(
   })
 
   const recent = await db.magicLinkToken.count({
-    where: {
-      operatorUserId: operator.id,
-      createdAt: { gte: new Date(nowMs - MAGIC_LINK_RATE_WINDOW_MS) },
-    },
+    where: { operatorUserId: operator.id, createdAt: { gte: since } },
   })
   if (recent >= MAGIC_LINK_MAX_PER_WINDOW) return { ok: false, reason: 'RATE_LIMITED' }
 
