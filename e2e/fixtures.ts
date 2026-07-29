@@ -147,13 +147,22 @@ export async function optionsFor(prompt: string): Promise<string[]> {
  * `withVenue: false` models a genuine first-time signup: `requestMagicLink`
  * creates the `OperatorUser` with no venue at all, since signup and sign-in
  * are the same request.
+ *
+ * `venueSlug` is resolved explicitly, the same way `venueBy`/`arrangeServiceFor`
+ * are, rather than taking "whichever venue the database hands back first" —
+ * that was the bug here: the email argument implied a venue but never
+ * selected one, so every call silently bound Pilot regardless of which
+ * operator was being signed in. It happened to be invisible with one venue
+ * seeded and stayed invisible with two, because Pilot is seeded first. It
+ * defaults to `'pilot'` so every caller written before this fix keeps
+ * signing Pilot in without having to say so.
  */
 export async function issueMagicLinkFor(
   email: string,
-  options: { expiresInMs?: number; withVenue?: boolean } = {}
+  options: { expiresInMs?: number; withVenue?: boolean; venueSlug?: string } = {}
 ): Promise<string> {
   const withVenue = options.withVenue ?? true
-  const venueId = withVenue ? (await db.venue.findFirstOrThrow({ select: { id: true } })).id : null
+  const venueId = withVenue ? (await venueBy(options.venueSlug ?? 'pilot')).id : null
 
   const operator = await db.operatorUser.upsert({
     where: { email },
