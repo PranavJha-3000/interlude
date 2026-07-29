@@ -106,17 +106,22 @@ export async function optionsFor(prompt: string): Promise<string[]> {
  * is off by design. Rather than ship a dev-only route that exists in production
  * code purely for tests, the fixture writes the row itself — which exercises the
  * real consume path and adds no production surface.
+ *
+ * `withVenue: false` models a genuine first-time signup: `requestMagicLink`
+ * creates the `OperatorUser` with no venue at all, since signup and sign-in
+ * are the same request.
  */
 export async function issueMagicLinkFor(
   email: string,
-  options: { expiresInMs?: number } = {}
+  options: { expiresInMs?: number; withVenue?: boolean } = {}
 ): Promise<string> {
-  const venue = await db.venue.findFirstOrThrow({ select: { id: true } })
+  const withVenue = options.withVenue ?? true
+  const venueId = withVenue ? (await db.venue.findFirstOrThrow({ select: { id: true } })).id : null
 
   const operator = await db.operatorUser.upsert({
     where: { email },
-    update: { venueId: venue.id },
-    create: { email, venueId: venue.id },
+    update: { venueId },
+    create: { email, venueId },
     select: { id: true },
   })
 

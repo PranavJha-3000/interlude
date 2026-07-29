@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
-import { getOperator } from '@/lib/operator-session'
+import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { partitionByArm } from '@/core/measurement/arm-assignment'
 import { summariseContribution, summariseEngagement } from '@/core/measurement/contribution'
@@ -23,14 +23,30 @@ export const dynamic = 'force-dynamic'
  * caveat on tier 1 is not optional copy.
  */
 export default async function DashPage() {
-  // Prefer the operator's own magic-link session; fall back to a staff
-  // session so a floor tablet mid-shift is not locked out. Neither present
-  // means nobody has signed in at all.
-  const operator = await getOperator()
-  const staff = operator ? null : await readStaffSession()
-  if (!operator && !staff) redirect('/signin')
+  // Staff lose access to /dash — a server must never be shown a metric
+  // (PLATFORM.md §3). Only an operator's own magic-link session gets in; a
+  // staff session that lands here is sent back to the floor, not shown a
+  // partial dashboard.
+  const operator = await getOperatorWithoutVenue()
+  if (!operator) {
+    const staff = await readStaffSession()
+    if (staff) redirect('/floor')
+    redirect('/signin')
+  }
 
-  const venueId = operator ? operator.venueId : staff!.venueId
+  // Signup and sign-in are the same request (see operator-auth.ts), so a
+  // brand-new operator has a session but no venue yet. Onboarding does not
+  // exist yet, so they land on the same empty state as a venue with no
+  // service, rather than being bounced back to /signin with no explanation.
+  if (!operator.venueId) {
+    return (
+      <Shell>
+        <p className="text-lg text-muted">{en.dash.empty}</p>
+      </Shell>
+    )
+  }
+
+  const venueId = operator.venueId
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
