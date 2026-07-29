@@ -34,7 +34,14 @@ test('a guest scans, beats the kitchen, adds a dessert, and staff confirms it', 
   expect(await db.guestSession.count({ where: { serviceId } })).toBe(1)
 
   // ── The round ──────────────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Start the round' }).click()
+  // Both games are seeded on, so the waiting screen offers the stake picker.
+  // Not a plain accessible-name match: the mystery-plate blurb also contains
+  // the substring "Beat the kitchen", so the locator is filtered to the
+  // button whose heading span is exactly that text.
+  await page
+    .getByRole('button')
+    .filter({ has: page.getByText('Beat the kitchen', { exact: true }) })
+    .click()
   await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
 
   const play = await db.play.findFirstOrThrow({

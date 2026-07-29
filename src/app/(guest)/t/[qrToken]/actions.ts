@@ -7,6 +7,7 @@ import {
   armForTable,
   getActiveVetoes,
   getConcededSoFarPaise,
+  getEnabledGames,
   getKitchenLoad,
   getLatestOrderFire,
   getMenuForEngine,
@@ -17,6 +18,7 @@ import {
   toRoundConfig,
 } from '@/lib/service'
 import { decidePrizePool } from '@/core/prize-engine'
+import type { Mechanic } from '@/core/prize-engine'
 import {
   computeRoundWindow,
   decideOutcome,
@@ -59,10 +61,17 @@ export async function giveConsent(qrToken: string): Promise<void> {
   revalidatePath(`/t/${qrToken}`)
 }
 
-export async function startRound(qrToken: string): Promise<void> {
+export async function startRound(qrToken: string, mechanic: Mechanic): Promise<void> {
   const now = Date.now()
   const scan = await resolveScan(qrToken, now)
   if (scan.kind !== 'OK') return
+
+  // Re-checked here, not just in the page that rendered the form. A game the
+  // operator switched off mid-service must not still be startable from a screen
+  // that was rendered a minute earlier — every guest action in this file
+  // re-resolves and re-validates for the same reason.
+  const enabled = await getEnabledGames(scan.venueId)
+  if (!enabled.includes(mechanic)) return
 
   const sessionId = await readGuestSessionId()
   if (!sessionId) return
@@ -100,7 +109,7 @@ export async function startRound(qrToken: string): Promise<void> {
   await db.play.create({
     data: {
       guestSessionId: session.id,
-      mechanic: 'KITCHEN_ROUND',
+      mechanic,
       quizPackId: pack.id,
       // Server-issued. The client never decides when the round ends.
       endsAt: new Date(window.endsAtMs),
@@ -169,7 +178,7 @@ export async function submitRound(qrToken: string, formData: FormData): Promise<
     },
   })
 
-  await awardFor(play.id, scan.venueId, scan.serviceId, outcome, now)
+  await awardFor(play.id, scan.venueId, scan.serviceId, play.mechanic, outcome, now)
   revalidatePath(`/t/${qrToken}`)
 }
 
@@ -186,6 +195,7 @@ async function awardFor(
   playId: string,
   venueId: string,
   serviceId: string,
+  mechanic: Mechanic,
   outcome: 'WIN' | 'LOSE',
   nowMs: number
 ): Promise<void> {
@@ -210,7 +220,7 @@ async function awardFor(
       perItemPct: config.depthCapPerItemPct,
       perServicePaise: config.depthCapPerServicePaise,
     },
-    mechanic: 'KITCHEN_ROUND',
+    mechanic,
     outcome,
     prizeRules,
     concededSoFarPaise: conceded,
@@ -224,7 +234,7 @@ async function awardFor(
   const snapshot = await db.prizePool.create({
     data: {
       serviceId,
-      mechanic: 'KITCHEN_ROUND',
+      mechanic,
       kitchenLoad: load,
       // Prisma's Json input wants an index-signature shape; the engine returns
       // typed structs. Map explicitly rather than casting, so a field added to

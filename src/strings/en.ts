@@ -84,6 +84,18 @@ export const en = {
       tableLabel: (label: string) => `Table ${label}`,
       noTables: 'Nothing set up here yet. Enjoy your meal.',
     },
+    // Which stake, not which game — the eight questions are the same either
+    // way. Nothing here may imply a draw or a wheel: the mystery plate is a
+    // fixed-price dish the guest wins the *right to buy* (PLATFORM.md §7).
+    gamePicker: {
+      heading: 'Pick your stake',
+      body: 'Same questions either way. Different thing riding on them.',
+      kitchenRound: 'Beat the kitchen',
+      kitchenRoundBlurb: 'Win something off tonight’s menu before your food lands.',
+      mysteryPlate: 'Tonight’s chef’s plate',
+      mysteryPlateBlurb: (price: string) =>
+        `Beat the kitchen and you can have the chef’s pick for ${price}.`,
+    },
     outcome: {
       wonHeading: 'You beat the kitchen',
       wonInstruction: 'Show this screen to your server.',

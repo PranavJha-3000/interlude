@@ -2,12 +2,19 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { readGuestSessionId } from '@/lib/session'
-import { getLatestOrderFire, getVenueConfig, resolveScan, toRoundConfig } from '@/lib/service'
+import {
+  getEnabledGames,
+  getLatestOrderFire,
+  getVenueConfig,
+  resolveScan,
+  toRoundConfig,
+} from '@/lib/service'
 import {
   computeRoundWindow,
   isRoundWorthStarting,
   minutesUntilReady,
 } from '@/core/mechanics/kitchen-round'
+import type { Mechanic } from '@/core/prize-engine'
 import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { giveConsent, requestAddOn, startRound, submitRound } from './actions'
 import { Round, type RoundQuestion } from './Round'
@@ -33,10 +40,15 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   if (scan.kind === 'UNKNOWN_TABLE') notFound()
 
+  // A venue with every game switched off is closed to play, and says so in the
+  // same words a control table and a closed venue get. Read before the consent
+  // screen so nothing is written for a venue that cannot offer a round.
+  const enabledGames = scan.kind === 'OK' ? await getEnabledGames(scan.venueId) : []
+
   // A control table and a closed venue look identical on purpose. A guest who
   // learns they are in a control group behaves differently, and that would
   // contaminate the very comparison the control exists to provide.
-  if (scan.kind === 'NO_SERVICE' || scan.kind === 'BLOCKED') {
+  if (scan.kind === 'NO_SERVICE' || scan.kind === 'BLOCKED' || enabledGames.length === 0) {
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.closed.heading}</Heading>
@@ -217,14 +229,43 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
           : en.guest.waiting.subheadNoTimer}
       </Body>
       <div className="flex-1" />
-      <form
-        action={async () => {
-          'use server'
-          await startRound(qrToken)
-        }}
-      >
-        <PrimaryButton type="submit">{en.guest.waiting.start}</PrimaryButton>
-      </form>
+
+      {enabledGames.length === 1 ? (
+        <form
+          action={async () => {
+            'use server'
+            await startRound(qrToken, enabledGames[0]!)
+          }}
+        >
+          <PrimaryButton type="submit">{en.guest.waiting.start}</PrimaryButton>
+        </form>
+      ) : (
+        <>
+          <h2 className="mb-1 text-xl font-semibold">{en.guest.gamePicker.heading}</h2>
+          <p className="mb-4 text-sm text-muted">{en.guest.gamePicker.body}</p>
+          <div className="grid gap-3">
+            {enabledGames.map((mechanic) => (
+              <form
+                key={mechanic}
+                action={async () => {
+                  'use server'
+                  await startRound(qrToken, mechanic)
+                }}
+              >
+                <button
+                  type="submit"
+                  className="min-h-14 w-full rounded-xl border-2 border-line bg-warm px-5 py-4 text-left active:border-accent active:bg-accent-soft"
+                >
+                  <span className="block text-lg font-semibold">{gameName(mechanic)}</span>
+                  <span className="mt-1 block text-sm text-muted">
+                    {gameBlurb(mechanic, config.mysteryPlatePricePaise)}
+                  </span>
+                </button>
+              </form>
+            ))}
+          </div>
+        </>
+      )}
     </Screen>
   )
 }
@@ -314,4 +355,21 @@ function outcomeLine(
       return won ? o.wonFixed(itemName, price) : o.lostFixed(itemName, price)
     }
   }
+}
+
+function gameName(mechanic: Mechanic): string {
+  return mechanic === 'MYSTERY_PLATE'
+    ? en.guest.gamePicker.mysteryPlate
+    : en.guest.gamePicker.kitchenRound
+}
+
+/**
+ * The mystery plate's price is the venue's own `VenueConfig` number, passed in
+ * rather than looked up, so the copy can never drift from the price the prize
+ * rule actually charges.
+ */
+function gameBlurb(mechanic: Mechanic, mysteryPlatePricePaise: number): string {
+  return mechanic === 'MYSTERY_PLATE'
+    ? en.guest.gamePicker.mysteryPlateBlurb(formatPaise(mysteryPlatePricePaise))
+    : en.guest.gamePicker.kitchenRoundBlurb
 }
