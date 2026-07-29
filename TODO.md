@@ -425,21 +425,78 @@ requesting a link responds identically for known and unknown addresses; an opera
 tent sheet from the nav; a scan without a play shows as a row; two sessions at one table are two
 rows.
 
-**Still open, found by the whole-branch review and deliberately deferred:**
+**Closed by the tenancy-and-debts wave below:**
 
-- [ ] The per-IP magic-link rate limit has no dedicated test. The code path is structurally identical
-      to the per-address branch, which is tested, but the response-parity assertion does not cover it
-- [ ] `guestSession.findMany` in `activity.ts` has no `take` limit — fine at one-venue scale, wrong
-      at ten
-- [ ] `ActivityRow.addOnCount` is queried and mapped but never rendered. Either show it or drop it
-- [ ] `funnel.ts` sums every play on a session while the displayed row shows only the most recent.
-      Safe today because `startRound` allows one play per session; a trap if that ever relaxes
+- [x] The per-IP magic-link rate limit has a dedicated test — `e4e771a`. No production change was
+      needed; the code path was already correct, the test coverage was not
+- [x] `guestSession.findMany` in `activity.ts` and `funnel.ts`'s mixed units were one defect, not
+      two, fixed together — `590d843`. Bounding the row list with `take` and deriving the funnel's
+      counts from that same bounded array would have silently under-reported a busy night; the fix
+      instead bounds `activity.ts`'s rendered rows with `ACTIVITY_ROW_LIMIT` while `FunnelSummary`
+      counts sessions at every stage (`scannedSessions`, `playedSessions`, `claimedSessions`) from
+      separate, unbounded aggregate queries. The dead `completed` / `won` / `awarded` fields are gone
+- [x] `ActivityRow.addOnCount` was dropped rather than rendered — `590d843`. It comes back when the
+      activity table gets its own UI phase
 
 By hand: run a full service on a seeded venue and confirm the headline number equals add-on
 contribution minus prize cost, computed by hand from the rows.
 
-**Not yet covered:** signed in as venue A, assert venue B's dashboard 404s. Needs a second seeded
-venue — do it with phase 5.
+**Covered by `e2e/tenancy.spec.ts`, added below.** Not as a 404: no operator route accepts a venue id
+— the session is the only source of one, via `requireOperator()` — so "request venue B and get a 404"
+is not a request that can be made. What is asserted instead is that an operator signed into venue A
+sees only venue A's data while venue B's data exists in the same database at the same moment. If a
+route ever does take a venue id, `assertVenueScope` is the guard, and it will need its own test.
+
+---
+
+## Phase 8b — A second venue, and what it revealed
+
+**Goal:** stop taking tenant isolation on faith. Seed a second venue and let it falsify any isolation
+claim the code makes — and fix what it found.
+
+- [x] `prisma/seed.ts` builds two venues through one shared `seedVenue` function — `The Pilot Kitchen`
+      (slug `pilot`, unchanged: same operator, same PINs, 30 tables) and `Copper & Clove` (slug
+      `copper`, 8 tables, PINs `4321`/`8765`, operator `owner-two@example.com`)
+- [x] `e2e/tenancy.spec.ts` — an operator signed into venue A sees only venue A's activity, dashboard
+      and tents while venue B's rows exist in the same database at the same moment
+- [x] `e2e/fixtures.ts` gained `venueBy(slug)` and `arrangeServiceFor(slug)`, and `clearAllPlayState`
+      became `clearPlayStateFor(venueId)` — the old wipe cleared every venue's play state, which would
+      have let a leak between venues pass as a clean run
+- [x] **The isolation assertions were absence-only** and would have passed against a page that
+      rendered nothing at all. Fixed by asserting each venue's own data is present before asserting
+      the other venue's data is absent
+- [x] **The security fix this second venue exposed:** a staff PIN checked against *every* venue's
+      staff, not just its own — a PIN collision across venues opened the wrong restaurant's floor.
+      One venue in V1 made this invisible; the code comment that introduced the check said so
+      directly ("One venue in V1... With /admin and multiple venues this becomes venue-scoped"), and
+      multi-tenancy arrived without that follow-up ever happening
+- [x] Staff sign-in moved to `/floor/[venueSlug]`. The PIN is checked only against that venue's staff,
+      still walking every hash so response time leaks nothing, and refusing outright if two hashes
+      verify
+- [x] Bare `/floor` shows one line pointing staff at their own venue's link — deliberately **not** a
+      venue picker. A venue list is a list of every restaurant that is a customer, and that is not
+      staff's information to have
+
+**The tenancy test proves scoping, not a 404.** No operator route accepts a venue id — the session,
+via `requireOperator()`, is the only source of one — so "request venue B and get a 404" is not
+expressible as a request. What `e2e/tenancy.spec.ts` asserts instead is that an operator signed into
+venue A sees only venue A while venue B's data exists in the same database at the same moment. If a
+route ever does take a venue id, `assertVenueScope` is the guard, and it will need its own test the
+day that happens.
+
+**The staff-PIN hole was invisible until a second venue existed.** It could not have been found by
+auditing venue A alone — a single-venue database has no wrong venue for a PIN to open. Seeding a
+second tenant before believing any isolation claim is the reason this wave exists.
+
+**How to test**
+
+```bash
+npm run db:seed
+npm run typecheck && npm run lint && npm test && npm run test:e2e
+npx playwright test e2e/tenancy.spec.ts
+```
+
+125 unit tests, 33 E2E tests, all passing.
 
 ---
 
