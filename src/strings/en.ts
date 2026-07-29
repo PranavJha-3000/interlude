@@ -243,7 +243,22 @@ export const en = {
       }) =>
         `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.played} played · ${f.claimed} claimed`,
     },
+    games: {
+      heading: 'Games',
+      body: 'Turn a game off and new rounds stop offering it. A round already in progress finishes normally.',
+      on: 'On',
+      off: 'Off',
+      turnOn: 'Turn on',
+      turnOff: 'Turn off',
+      kitchenRound: 'Kitchen round',
+      kitchenRoundBlurb: 'The guest races the kitchen and wins something off your menu.',
+      mysteryPlate: 'Mystery plate',
+      mysteryPlateBlurb:
+        'Same questions, different stake — the guest wins the right to buy tonight’s chef’s pick at your fixed price.',
+      allOffWarning: 'Every game is off. Guests see the same screen a closed venue shows.',
+    },
     empty: 'No service running.',
+    gamesNav: 'Games',
   },
 } as const
 

@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { arrangeService, correctAnswerFor, db, fireOrderFor, optionsFor } from './fixtures'
+import {
+  arrangeService,
+  correctAnswerFor,
+  db,
+  fireOrderFor,
+  issueMagicLinkFor,
+  optionsFor,
+} from './fixtures'
 
 /**
  * Game selection. The guest chooses a stake; the operator chooses whether there
@@ -108,4 +115,39 @@ test('with every game off, the venue looks closed and nothing is recorded', asyn
   await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0)
 
   expect(await db.guestSession.count({ where: { serviceId } })).toBe(0)
+})
+
+test('the operator turns a game off and the guest stops being offered it', async ({ page }) => {
+  await enableGames(['KITCHEN_ROUND', 'MYSTERY_PLATE'])
+
+  const token = await issueMagicLinkFor('games-operator@example.com')
+  await page.goto(`/signin/verify?token=${token}`)
+  await page.goto('/dash/games')
+
+  await expect(page.getByRole('heading', { name: 'Games' })).toBeVisible()
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: 'Mystery plate' })
+    .getByRole('button', { name: 'Turn off' })
+    .click()
+
+  await expect
+    .poll(async () => {
+      const venue = await db.venue.findFirstOrThrow()
+      const row = await db.venueGame.findFirstOrThrow({
+        where: { venueId: venue.id, mechanic: 'MYSTERY_PLATE' },
+      })
+      return row.enabled
+    })
+    .toBe(false)
+
+  // And the guest surface follows immediately — no picker, straight to the round.
+  const { serviceId, treatmentToken, treatmentTableId } = await arrangeService()
+  await fireOrderFor(serviceId, treatmentTableId)
+
+  await page.context().clearCookies()
+  await page.goto(`/t/${treatmentToken}`)
+  await page.getByRole('button', { name: 'Start' }).click()
+  await expect(page.getByRole('button', { name: 'Tonight’s chef’s plate' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Start the round' })).toBeVisible()
 })
