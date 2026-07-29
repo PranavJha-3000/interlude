@@ -281,12 +281,16 @@ Create `e2e/landing.spec.ts`:
 ```ts
 import { expect, test } from '@playwright/test'
 
-test('the landing page leads to sign-in', async ({ page }) => {
+test('the landing page offers one way in', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('unsold inventory')
 
-  await page.getByRole('link', { name: 'Get started' }).click()
-  await expect(page).toHaveURL(/\/signin$/)
+  // Asserts the href rather than clicking it: /signin arrives in Task 3, and a
+  // test that only passes once a later task lands is a test that gets disabled.
+  await expect(page.getByRole('link', { name: 'Get started' })).toHaveAttribute(
+    'href',
+    '/signin'
+  )
 })
 
 test('the landing page implies no draw, wheel or lottery', async ({ page }) => {
@@ -359,9 +363,7 @@ export default function LandingPage() {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx playwright test e2e/landing.spec.ts`
-Expected: the first test still FAILS on the `/signin` navigation (that route arrives in Task 3); the second test PASSES.
-
-This is expected. Comment out the two `getByRole('link')` lines in the first test with a `// TASK 3` note, re-run to confirm both pass, and restore them at the start of Task 3.
+Expected: PASS, 2 tests. Both assertions hold without `/signin` existing yet.
 
 - [ ] **Step 6: Run the full gate**
 
@@ -562,9 +564,8 @@ export default async function OperatorLayout({ children }: { children: React.Rea
               <Link href="/dash" className="text-sm">
                 {en.dash.heading}
               </Link>
-              <Link href="/dash/activity" className="text-sm">
-                {en.dash.activity.heading}
-              </Link>
+              {/* The activity link is added in Task 5, with the route and the
+                  strings it needs. Linking to it here would not typecheck. */}
               <Link href="/tents" className="text-sm">
                 Tents
               </Link>
@@ -717,14 +718,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 ```
 
-- [ ] **Step 8: Restore the Task 2 assertions**
+- [ ] **Step 8: Add the navigation test now that `/signin` exists**
 
-In `e2e/landing.spec.ts`, uncomment the two `getByRole('link', { name: 'Get started' })` lines and remove the `// TASK 3` note.
+Append to `e2e/landing.spec.ts`:
+
+```ts
+test('Get started reaches the sign-in form', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Get started' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+  await expect(page.getByLabel('Your email')).toBeVisible()
+})
+```
 
 - [ ] **Step 9: Run tests to verify they pass**
 
 Run: `npx playwright test e2e/operator-auth.spec.ts e2e/landing.spec.ts`
-Expected: PASS, 7 tests
+Expected: PASS, 8 tests
 
 - [ ] **Step 10: Run the full gate**
 
@@ -1198,20 +1208,30 @@ function claimLabel(r: ActivityRow): string {
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 6: Add the activity link to the operator nav**
+
+In `src/app/(operator)/layout.tsx`, replace the two-line comment that reads "The activity link is added in Task 5…" with the link itself:
+
+```tsx
+              <Link href="/dash/activity" className="text-sm">
+                {en.dash.activity.heading}
+              </Link>
+```
+
+- [ ] **Step 7: Run tests to verify they pass**
 
 Run: `npx playwright test e2e/activity.spec.ts`
 Expected: PASS, 2 tests
 
-- [ ] **Step 7: Run the whole suite**
+- [ ] **Step 8: Run the whole suite**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run test:e2e`
-Expected: all pass — unit 108, e2e 15
+Expected: all pass — unit 108, e2e 16
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/lib/activity.ts "src/app/(operator)/dash/activity" src/strings/en.ts e2e/activity.spec.ts
+git add src/lib/activity.ts "src/app/(operator)/dash/activity" "src/app/(operator)/layout.tsx" src/strings/en.ts e2e/activity.spec.ts
 git commit -m "feat(dash): per-session activity tracking — scanned, played, claimed"
 ```
 
