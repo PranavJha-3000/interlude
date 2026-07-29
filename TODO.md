@@ -260,17 +260,24 @@ restaurant owners.
 **Design contract: [UI-SPEC.md](UI-SPEC.md) §6 locks the hero.** Read it before building — the
 signature element, the section order, and what must not appear are all decided there.
 
+**Shipped as a skeleton, deliberately.** The palette is under review — the owner rejected the
+cream-and-terracotta direction and no replacement is chosen — so structure and copy are locked and
+the visual treatment is not. UI-SPEC §6 still governs when it is.
+
+- [x] Replaces the `create-next-app` scaffold
+- [x] Section order per UI-SPEC §6: guest experience → what the restaurant controls → the honest
+      measurement note → one CTA
+- [x] One primary action — **Get started** → `/signin`
+- [x] `(operator)/layout.tsx` exists with nav and sign-out
+- [x] All copy from `src/strings/en.ts`; product name from `src/brand.ts`, never a literal
+- [x] Zero client components — the whole app still has only two, both on the guest round
+- [x] Nothing that implies a draw, a wheel or a lottery, anywhere on the page — asserted by a test
+      that scans the rendered text for eight banned words
 - [ ] The **decision card** hero — a rendered fragment of the engine's own audit trail, showing what
       it put in tonight's pool and what it refused, each with its `reason`. Not a phone mockup, not a
-      stat with a gradient. The refusal is the pitch
-- [ ] Section order per UI-SPEC §6: guest experience → what the restaurant controls → the honest
-      measurement note → one CTA
-- [ ] One primary action — **Get started** → `/signin`
-- [ ] `(operator)/layout.tsx` with IBM Plex Sans + Mono via `next/font`. **Only here** — a
-      `next/font` import under `(guest)` is a budget regression
-- [ ] All copy from `src/strings/en.ts`; product name from `src/brand.ts`, never a literal
-- [ ] Zero client components. The ≤15KB-over-floor rule applies here too
-- [ ] Nothing that implies a draw, a wheel or a lottery, anywhere on the page
+      stat with a gradient. The refusal is the pitch. **Deferred with the palette decision**
+- [ ] IBM Plex Sans + Mono via `next/font`, operator routes only — a `next/font` import under
+      `(guest)` is a budget regression. **Deferred with the palette decision**
 - [ ] **No pricing table, no logo wall, no testimonials.** There are no customers yet, and inventing
       social proof on the front door of an honest-measurement product is the most expensive lie
       available
@@ -387,25 +394,52 @@ matches — no rebuild, no redeploy.
 
 **Goal:** `/dash` belongs to the owner, not to whoever happens to hold a staff PIN.
 
-- [ ] `/dash` moves from `readStaffSession()` to `requireOperator()`
+- [x] `/dash` moves off the staff PIN onto the operator session. A staff session that lands there is
+      sent back to `/floor` — a server must never be shown a metric
+- [x] A first-time operator, who has a session but no venue yet, gets the empty state rather than
+      being bounced to a sign-in form they are already past. All three operator surfaces agree
+- [x] Tier-1 headline unchanged — net contribution ₹, captioned an app-side estimate
+- [x] Tier-2 placeholder unchanged, so tier 1 is never mistaken for the POS-verified number
+- [x] **`/dash/activity`** — one row per `GuestSession`: table, scan time, game, score, prize and
+      whether staff confirmed it. Two phones at one table are two rows, never merged. Anonymous by
+      construction; a row is a table and a session, never a person
+- [x] Control tables listed separately for the owner. The owner may see the arm split; the guest
+      never may — the opposite rule, enforced separately on the guest surfaces
+- [x] `/tents` accepts either session, so a manager printing tents on the venue tablet needs no
+      email round-trip
+- [x] `/floor` and `/pass` keep the staff PIN
 - [ ] Venue switcher if one operator owns more than one venue
-- [ ] Tier-1 headline unchanged — net contribution ₹, captioned an app-side estimate
-- [ ] Tier-2 placeholder unchanged, so tier 1 is never mistaken for the POS-verified number
-- [ ] Nav to `/dash/menu`, `/dash/prizes`, `/tents`
-- [ ] `/floor` and `/pass` keep the staff PIN. A server must never reach a metric
+- [ ] Nav to `/dash/menu`, `/dash/prizes` — those routes do not exist yet (phases 6–7)
 
 **How to test**
 
 ```bash
-npm run test:e2e
+npm run test:e2e     # 21 pass
+npm test             # 119 pass
 ```
 
-- Signed in as venue A's owner, assert venue B's dashboard 404s
-- Signed in with a staff PIN only, assert `/dash` redirects and does not render a number
-- Assert `/floor` and `/pass` still work with a staff PIN and no operator session
+Covered: a valid link signs in and lands on `/dash`; a link works exactly once; expired and garbage
+tokens are refused; a venue-less operator keeps nav and sign-out and is not bounced off activity; a
+staff session is redirected away from `/dash` to `/floor`; a signed-out visitor goes to `/signin`;
+requesting a link responds identically for known and unknown addresses; an operator can open the
+tent sheet from the nav; a scan without a play shows as a row; two sessions at one table are two
+rows.
 
-By hand: run a full service on a seeded venue and confirm the headline number equals
-add-on contribution minus prize cost, computed by hand from the rows.
+**Still open, found by the whole-branch review and deliberately deferred:**
+
+- [ ] The per-IP magic-link rate limit has no dedicated test. The code path is structurally identical
+      to the per-address branch, which is tested, but the response-parity assertion does not cover it
+- [ ] `guestSession.findMany` in `activity.ts` has no `take` limit — fine at one-venue scale, wrong
+      at ten
+- [ ] `ActivityRow.addOnCount` is queried and mapped but never rendered. Either show it or drop it
+- [ ] `funnel.ts` sums every play on a session while the displayed row shows only the most recent.
+      Safe today because `startRound` allows one play per session; a trap if that ever relaxes
+
+By hand: run a full service on a seeded venue and confirm the headline number equals add-on
+contribution minus prize cost, computed by hand from the rows.
+
+**Not yet covered:** signed in as venue A, assert venue B's dashboard 404s. Needs a second seeded
+venue — do it with phase 5.
 
 ---
 
