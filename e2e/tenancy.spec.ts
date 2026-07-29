@@ -70,6 +70,15 @@ test('an operator signed into one venue sees none of the other', async ({ page }
   await page.goto('/tents')
 
   const tentsText = await page.locator('body').innerText()
+
+  // Presence before absence. Every check below is `not.toContain`, so a
+  // redirect, a 404 or a render error would satisfy all of them at once and
+  // report an isolation this test never performed. Pilot's own treatment table
+  // is on this sheet — its token is printed under the QR — so this pins the
+  // sheet as genuinely rendered and genuinely Pilot's before anything is
+  // asserted to be missing from it.
+  expect(tentsText, "venue A's own tent sheet did not render").toContain(a.treatmentToken)
+
   expect(tentsText).not.toContain(copper.qrToken)
   for (const t of copperTables) {
     const stillCopper = await db.table.findFirst({
@@ -91,9 +100,21 @@ test("a venue's QR resolves only to its own tables", async ({ page }) => {
   const copperTokens = (
     await db.table.findMany({ where: { venueId: copper.id }, select: { qrToken: true } })
   ).map((t) => t.qrToken)
+  const pilotTable = await db.table.findFirstOrThrow({
+    where: { venueId: pilot.id, active: true },
+    select: { qrToken: true },
+  })
 
   await page.goto(`/v/${pilot.qrToken}`)
   const html = await page.content()
+
+  // Presence before absence. The picker renders a `noTables` empty state
+  // whenever the list comes back empty, so any regression that returns zero
+  // tables — a broken `resolveVenueScan`, a changed `active` filter, an
+  // over-narrowed scoping fix — would make every `not.toContain` below pass
+  // and report an isolation that was never checked.
+  expect(html, "venue A's own tables must be in its own picker").toContain(pilotTable.qrToken)
+
   for (const token of copperTokens) {
     expect(html, "the other venue's table tokens must not appear in this picker").not.toContain(
       token

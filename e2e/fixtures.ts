@@ -26,21 +26,25 @@ export interface Arranged {
 }
 
 /**
- * Clears all prior play state, globally, across every venue.
+ * Clears prior play state for one venue, and only that venue.
  *
- * Kept separate from `arrangeServiceFor` because it is what lets two venues'
- * services coexist in one test: calling it once per test run (not once per
- * venue arranged) is what makes `arrangeServiceFor('pilot')` followed by
- * `arrangeServiceFor('copper')` leave *both* services open, instead of the
- * second wiping the first's.
+ * This used to be a global wipe, which was a footgun in a fixture two venues
+ * now share: arranging venue A, playing, then arranging venue B silently
+ * deleted A's sessions, plays and awards. Every row here reaches a venue —
+ * play state hangs off `GuestSession -> Table -> venueId`, vetoes and kitchen
+ * load carry `venueId` directly — so scoping it costs nothing and makes
+ * arranging a second venue a genuinely independent act.
+ *
+ * Deletes are ordered child-first. The cascades would cover it, but being
+ * explicit means a new model added to this list cannot quietly depend on one.
  */
-async function clearAllPlayState() {
-  await db.award.deleteMany()
-  await db.addOnRequest.deleteMany()
-  await db.play.deleteMany()
-  await db.guestSession.deleteMany()
-  await db.chefVeto.deleteMany()
-  await db.kitchenLoad.deleteMany()
+async function clearPlayStateFor(venueId: string) {
+  await db.award.deleteMany({ where: { play: { guestSession: { table: { venueId } } } } })
+  await db.addOnRequest.deleteMany({ where: { guestSession: { table: { venueId } } } })
+  await db.play.deleteMany({ where: { guestSession: { table: { venueId } } } })
+  await db.guestSession.deleteMany({ where: { table: { venueId } } })
+  await db.chefVeto.deleteMany({ where: { venueId } })
+  await db.kitchenLoad.deleteMany({ where: { venueId } })
 }
 
 /** A seeded venue by slug. Named rather than "the first one" — there are two now. */
@@ -48,7 +52,17 @@ export async function venueBy(slug: string) {
   return db.venue.findFirstOrThrow({ where: { slug } })
 }
 
-/** Opens a fresh service at one venue, splits the arms, and clears prior play state. */
+/**
+ * Opens a fresh service at one venue, splits the arms, and clears that venue's
+ * prior play state.
+ *
+ * Both steps are scoped to `venue.id`, and that scoping is the whole mechanism
+ * by which two venues' services coexist: closing Pilot's open service touches
+ * no row of Copper's, so `arrangeServiceFor('pilot')` followed by
+ * `arrangeServiceFor('copper')` leaves *both* services open. There is no
+ * ordering constraint and no once-per-run rule — call it per venue, in any
+ * order, as often as a test needs.
+ */
 export async function arrangeServiceFor(slug: string): Promise<Arranged> {
   const venue = await venueBy(slug)
 
@@ -57,10 +71,8 @@ export async function arrangeServiceFor(slug: string): Promise<Arranged> {
     data: { endedAt: new Date() },
   })
 
-  // Old play data would make the assertions ambiguous. Global by design (see
-  // `clearAllPlayState`) — safe here because both venues' services are closed
-  // above before either is arranged.
-  await clearAllPlayState()
+  // Old play data would make the assertions ambiguous — but only this venue's.
+  await clearPlayStateFor(venue.id)
 
   const service = await db.service.create({
     data: { venueId: venue.id, name: 'e2e' },
