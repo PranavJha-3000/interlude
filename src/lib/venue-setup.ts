@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { PrismaClient } from '@/generated/prisma/client'
-import { defaultPrizeRules } from '@/core/prize-engine'
+import { defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
 
 /**
  * Creating a venue — the one code path, used by both the seed script and
@@ -17,7 +17,10 @@ import { defaultPrizeRules } from '@/core/prize-engine'
  * argument, which also makes it directly testable.
  */
 
-type Db = Pick<PrismaClient, 'venue' | 'table' | 'menuItem' | 'staffUser' | 'prizeRule'>
+type Db = Pick<
+  PrismaClient,
+  'venue' | 'table' | 'menuItem' | 'staffUser' | 'prizeRule' | 'venueGame'
+>
 
 /**
  * Appendix B estimates, seeded into `VenueConfig` and editable in
@@ -31,6 +34,25 @@ export const DEFAULT_PREP_MINUTES: Record<string, number> = {
   sides: 5,
   desserts: 4,
   beverages: 3,
+}
+
+/**
+ * The games a venue starts with. Both on, so a new venue gets the picker
+ * without configuring anything.
+ *
+ * Pure, and separate from the write, for the same reason `defaultPrizeRules` is:
+ * a starting point written into rows the operator then owns — never a constant
+ * consulted at runtime (PLATFORM.md §10).
+ */
+export function defaultVenueGames(): Array<{
+  mechanic: Mechanic
+  enabled: boolean
+  displayOrder: number
+}> {
+  return [
+    { mechanic: 'KITCHEN_ROUND', enabled: true, displayOrder: 0 },
+    { mechanic: 'MYSTERY_PLATE', enabled: true, displayOrder: 1 },
+  ]
 }
 
 /** Long enough that a QR token cannot be guessed or enumerated. */
@@ -87,6 +109,11 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
   })
 
   await createDefaultPrizeRules(db, venue.id, venue.config!.mysteryPlatePricePaise)
+
+  await db.venueGame.createMany({
+    data: defaultVenueGames().map((g) => ({ venueId: venue.id, ...g })),
+  })
+
   return venue
 }
 

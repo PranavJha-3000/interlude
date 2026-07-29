@@ -3,7 +3,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assignment'
 import type { RoundConfig } from '@/core/mechanics/kitchen-round'
-import type { PrizeRuleInput } from '@/core/prize-engine'
+import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
 
 /**
  * Reads the live state a guest surface needs. Everything here is I/O; the
@@ -278,4 +278,50 @@ export function estimateReadyAt(
   const longest = categories.reduce((max, c) => Math.max(max, prepMinutes[c] ?? 0), 0)
   const minutes = longest > 0 ? longest : fallbackMinutes
   return new Date(firedAtMs + minutes * 60_000)
+}
+
+/**
+ * The games this venue is currently running, in the order the guest sees them.
+ *
+ * An empty array is a real state and means the venue is closed to play — the
+ * guest surface renders the same neutral screen a control table and a closed
+ * venue get. It must not be treated as "no preference, show everything", which
+ * would turn a deliberate operator decision into a no-op.
+ */
+export async function getEnabledGames(venueId: string): Promise<Mechanic[]> {
+  const rows = await db.venueGame.findMany({
+    where: { venueId, enabled: true },
+    orderBy: [{ displayOrder: 'asc' }, { mechanic: 'asc' }],
+    select: { mechanic: true },
+  })
+  return rows.map((r) => r.mechanic)
+}
+
+/** Every game, on or off — what the operator's toggle page lists. */
+export async function listVenueGames(
+  venueId: string
+): Promise<Array<{ mechanic: Mechanic; enabled: boolean }>> {
+  const rows = await db.venueGame.findMany({
+    where: { venueId },
+    orderBy: [{ displayOrder: 'asc' }, { mechanic: 'asc' }],
+    select: { mechanic: true, enabled: true },
+  })
+  return rows
+}
+
+/**
+ * Turn a game on or off for one venue.
+ *
+ * `updateMany` with the venue in the `where` rather than `update` by id: the
+ * venue id comes off the operator's session, and putting it in the filter means
+ * a mechanic name arriving from a form can only ever affect the caller's own
+ * venue. A no-op when the row does not exist, which is the correct outcome for a
+ * mechanic this venue does not have.
+ */
+export async function setVenueGameEnabled(
+  venueId: string,
+  mechanic: Mechanic,
+  enabled: boolean
+): Promise<void> {
+  await db.venueGame.updateMany({ where: { venueId, mechanic }, data: { enabled } })
 }

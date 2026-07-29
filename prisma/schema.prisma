@@ -46,6 +46,7 @@ model Venue {
   vetoes       ChefVeto[]
   guestIdents  GuestIdentity[]
   prizeRules   PrizeRule[]
+  games        VenueGame[]
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -84,6 +85,22 @@ model VenueConfig {
   reviewVelocityGateX     Float @default(2)
 
   updatedAt DateTime @updatedAt
+}
+
+/// Which games this venue runs. A row per mechanic rather than flags on
+/// VenueConfig: turning a game off mid-service is an operational decision worth
+/// a timestamp, and a future mechanic becomes a row rather than a migration.
+model VenueGame {
+  id           String   @id @default(cuid())
+  venueId      String
+  venue        Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  mechanic     Mechanic
+  enabled      Boolean  @default(true)
+  displayOrder Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([venueId, mechanic])
+  @@index([venueId, enabled])
 }
 
 model Table {

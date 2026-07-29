@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defaultPrizeRules } from '@/core/prize-engine'
 import {
   ONBOARDING_ORDER,
+  defaultVenueGames,
   isAtOrPast,
   newQrToken,
   nextOnboardingStep,
@@ -110,5 +111,23 @@ describe('the starting prize policy', () => {
     for (const r of defaultPrizeRules(9900)) {
       expect(r.label.trim().length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('the games a venue is born with', () => {
+  it('enables both mechanics, so a new venue gets the picker without configuring anything', () => {
+    const games = defaultVenueGames()
+    expect(games.map((g) => g.mechanic).sort()).toEqual(['KITCHEN_ROUND', 'MYSTERY_PLATE'])
+    expect(games.every((g) => g.enabled)).toBe(true)
+  })
+
+  it('gives every game a distinct display order, so the picker is not arbitrary', () => {
+    const orders = defaultVenueGames().map((g) => g.displayOrder)
+    expect(new Set(orders).size).toBe(orders.length)
+  })
+
+  it('leads with the kitchen round, which is the game the copy explains', () => {
+    const first = [...defaultVenueGames()].sort((a, b) => a.displayOrder - b.displayOrder)[0]
+    expect(first?.mechanic).toBe('KITCHEN_ROUND')
   })
 })
