@@ -35,6 +35,22 @@ export const en = {
     cta: 'Get started',
   },
 
+  signin: {
+    heading: 'Sign in',
+    body: 'We’ll email you a link. No password to remember or lose.',
+    emailLabel: 'Your email',
+    submit: 'Email me a link',
+    // Identical whether or not the address is known — a different message here
+    // would tell anyone who asks which restaurants are customers.
+    sent: 'Check your email. The link works once and expires in 15 minutes.',
+    sentAgain: 'Didn’t arrive? Check spam, or request another.',
+    invalidEmail: 'That doesn’t look like an email address.',
+    linkExpired: 'That link has expired. Request another and it’ll be sent straight away.',
+    linkUsed: 'That link has already been used. Request another.',
+    linkUnknown: 'That link isn’t valid. Request another.',
+    signOut: 'Sign out',
+  },
+
   guest: {
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,

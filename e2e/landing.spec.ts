@@ -25,3 +25,10 @@ test('the landing page implies no draw, wheel or lottery', async ({ page }) => {
     expect(text, `landing copy must not contain "${banned}" (PLATFORM.md §7)`).not.toContain(banned)
   }
 })
+
+test('Get started reaches the sign-in form', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Get started' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+  await expect(page.getByLabel('Your email')).toBeVisible()
+})

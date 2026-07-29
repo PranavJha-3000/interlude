@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
+import { getOperator } from '@/lib/operator-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { partitionByArm } from '@/core/measurement/arm-assignment'
 import { summariseContribution, summariseEngagement } from '@/core/measurement/contribution'
@@ -22,20 +23,23 @@ export const dynamic = 'force-dynamic'
  * caveat on tier 1 is not optional copy.
  */
 export default async function DashPage() {
-  // V1 has no magic-link auth yet, so the dashboard reuses the staff session.
-  // Deliberately noted rather than quietly shipped: an owner-only login is
-  // wave 2, alongside the config UI that actually needs it.
-  const staff = await readStaffSession()
-  if (!staff) redirect('/floor')
+  // Prefer the operator's own magic-link session; fall back to a staff
+  // session so a floor tablet mid-shift is not locked out. Neither present
+  // means nobody has signed in at all.
+  const operator = await getOperator()
+  const staff = operator ? null : await readStaffSession()
+  if (!operator && !staff) redirect('/signin')
+
+  const venueId = operator ? operator.venueId : staff!.venueId
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
-  const service = await getOpenService(staff.venueId)
+  const service = await getOpenService(venueId)
 
   const target =
     service ??
     (await db.service.findFirst({
-      where: { venueId: staff.venueId },
+      where: { venueId },
       orderBy: { startedAt: 'desc' },
     }))
 
@@ -57,7 +61,7 @@ export default async function DashPage() {
       select: { kind: true, valuePaise: true, foodCostPaise: true },
     }),
     getArmRows(target.id),
-    db.table.findMany({ where: { venueId: staff.venueId, active: true }, select: { id: true } }),
+    db.table.findMany({ where: { venueId, active: true }, select: { id: true } }),
     db.guestSession.findMany({ where: { serviceId: target.id }, select: { tableId: true } }),
     db.play.findMany({
       where: { guestSession: { serviceId: target.id } },

@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { createHash, randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { planArmAssignments } from '../src/core/measurement/arm-assignment'
@@ -95,4 +96,38 @@ export async function correctAnswerFor(prompt: string): Promise<number> {
 export async function optionsFor(prompt: string): Promise<string[]> {
   const q = await db.quizQuestion.findFirstOrThrow({ where: { prompt } })
   return q.options as string[]
+}
+
+/**
+ * Issues a real magic-link token and returns it.
+ *
+ * The dev console outbox in `src/lib/email.ts` cannot serve this suite: Playwright
+ * runs `next build && next start`, which is NODE_ENV=production, where the outbox
+ * is off by design. Rather than ship a dev-only route that exists in production
+ * code purely for tests, the fixture writes the row itself — which exercises the
+ * real consume path and adds no production surface.
+ */
+export async function issueMagicLinkFor(
+  email: string,
+  options: { expiresInMs?: number } = {}
+): Promise<string> {
+  const venue = await db.venue.findFirstOrThrow({ select: { id: true } })
+
+  const operator = await db.operatorUser.upsert({
+    where: { email },
+    update: { venueId: venue.id },
+    create: { email, venueId: venue.id },
+    select: { id: true },
+  })
+
+  const token = randomBytes(32).toString('base64url')
+  await db.magicLinkToken.create({
+    data: {
+      operatorUserId: operator.id,
+      tokenHash: createHash('sha256').update(token).digest('hex'),
+      expiresAt: new Date(Date.now() + (options.expiresInMs ?? 15 * 60 * 1000)),
+    },
+  })
+
+  return token
 }
