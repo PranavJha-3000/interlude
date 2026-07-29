@@ -29,8 +29,9 @@ export default async function OperatorLayout({ children }: { children: React.Rea
               <Link href="/dash" className="text-sm">
                 {en.dash.heading}
               </Link>
-              {/* The activity link is added in Task 5, with the route and the
-                  strings it needs. Linking to it here would not typecheck. */}
+              <Link href="/dash/activity" className="text-sm">
+                {en.dash.activity.heading}
+              </Link>
               <Link href="/tents" className="text-sm">
                 Tents
               </Link>

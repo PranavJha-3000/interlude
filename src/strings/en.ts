@@ -200,6 +200,29 @@ export const en = {
       engagedLabel: 'Scanned vs. control',
       engagedCaveat: 'Scanners choose to scan — treat as an upper bound.',
     },
+    activity: {
+      heading: 'Activity',
+      empty: 'No scans yet this service.',
+      colTable: 'Table',
+      colScanned: 'Scanned',
+      colGame: 'Game',
+      colResult: 'Result',
+      colClaimed: 'Claimed',
+      controlNote: 'Control table — cannot play',
+      pending: 'Pending',
+      notPlayed: 'Scanned, did not play',
+      inProgress: 'Playing now',
+      gameKitchenRound: 'Kitchen round',
+      gameMysteryPlate: 'Mystery plate',
+      scoreLine: (score: number, total: number) => `${score}/${total}`,
+      funnel: (f: {
+        tentedTables: number
+        scannedTables: number
+        played: number
+        claimed: number
+      }) =>
+        `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.played} played · ${f.claimed} claimed`,
+    },
     empty: 'No service running.',
   },
 } as const
