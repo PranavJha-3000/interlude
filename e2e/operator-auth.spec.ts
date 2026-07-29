@@ -78,3 +78,9 @@ test('requesting a link responds identically for known and unknown addresses', a
 
   expect(known, 'a different response would be an enumeration oracle').toBe(unknown)
 })
+
+test('a signed-out visitor to the dashboard is sent to sign in', async ({ page }) => {
+  await page.context().clearCookies()
+  await page.goto('/dash')
+  await expect(page).toHaveURL(/\/signin$/)
+})
