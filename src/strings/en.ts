@@ -22,6 +22,19 @@ export const en = {
     genericError: "Something went wrong at our end. Your table's fine — try again.",
   },
 
+  landing: {
+    eyebrow: BRAND.name,
+    heading: 'The wait between ordering and eating is unsold inventory.',
+    body: 'A short skill game on the guest’s own phone while their food cooks. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
+    forGuests:
+      'Your guest scans a code on the table, plays for 60–90 seconds, and wins a named item off your menu.',
+    forYou:
+      'You control the menu, the prizes, the discount depth, and a kill switch for when the kitchen is slammed.',
+    honesty:
+      'On night one the dashboard shows an app-side estimate of net contribution. Upload a bill export and it is replaced by the measured attach-rate delta against same-night control tables.',
+    cta: 'Get started',
+  },
+
   guest: {
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,
