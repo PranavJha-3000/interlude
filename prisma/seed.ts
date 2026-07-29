@@ -387,6 +387,54 @@ const QUESTIONS: Array<{ prompt: string; options: string[]; answer: number }> = 
   },
 ]
 
+interface SeedVenue {
+  name: string
+  slug: string
+  tableCount: number
+  seatsFor?: (index: number) => number
+  menu: typeof MENU
+  operatorEmail: string
+  serverPin: string
+  kitchenPin: string
+}
+
+/**
+ * One builder, two venues. The second venue exists so the tenancy test has
+ * something to *not* see — an isolation test against a database with one tenant
+ * proves nothing at all, because every query returns the only venue there is.
+ */
+async function seedVenue(v: SeedVenue) {
+  const venue = await createVenue(db, { name: v.name, slug: v.slug, timezone: 'Asia/Kolkata' })
+  await db.venue.update({ where: { id: venue.id }, data: { onboardingStep: 'DONE' } })
+
+  await createMenuItems(
+    db,
+    venue.id,
+    v.menu.map((m) => ({
+      name: m.name,
+      category: m.category,
+      pricePaise: m.price * 100,
+      foodCostPaise: m.cost * 100,
+      marginTier: m.tier,
+      prepBurden: m.prep,
+      requiresKitchenWork: m.kitchen ?? true,
+      isHero: m.hero ?? false,
+      trailingSales: m.hero ? 40 : m.category === 'desserts' ? 1 : 8,
+    }))
+  )
+
+  await createTables(db, venue.id, v.tableCount, v.seatsFor)
+  await db.operatorUser.create({
+    data: { email: v.operatorEmail, venueId: venue.id, name: 'Owner' },
+  })
+  await createStaff(db, venue.id, [
+    { name: 'Floor', role: 'SERVER', pinHash: hashPin(v.serverPin) },
+    { name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin(v.kitchenPin) },
+  ])
+
+  return venue
+}
+
 async function main() {
   console.log('Seeding…')
 
@@ -420,41 +468,46 @@ async function main() {
   // The same function self-serve onboarding calls. If these two ever diverge,
   // the venue every test runs against stops resembling the ones real operators
   // create — so there is exactly one path, and a test asserts it.
-  const venue = await createVenue(db, {
+  const operatorEmail = process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com'
+  const venue = await seedVenue({
     name: 'The Pilot Kitchen',
     slug: 'pilot',
-    timezone: 'Asia/Kolkata',
+    tableCount: 30,
+    seatsFor: (i) => (i < 20 ? 4 : 2),
+    menu: MENU,
+    operatorEmail,
+    serverPin: '1234',
+    kitchenPin: '5678',
   })
-  await db.venue.update({ where: { id: venue.id }, data: { onboardingStep: 'DONE' } })
   console.log(`  venue: ${venue.name}`)
   console.log('  prize rules: starting policy written, editable in /dash/prizes')
-
-  await createMenuItems(
-    db,
-    venue.id,
-    MENU.map((m) => ({
-      name: m.name,
-      category: m.category,
-      pricePaise: m.price * 100,
-      foodCostPaise: m.cost * 100,
-      marginTier: m.tier,
-      prepBurden: m.prep,
-      requiresKitchenWork: m.kitchen ?? true,
-      isHero: m.hero ?? false,
-      // Deliberately varied so the prize engine has something to reason about:
-      // heroes move, desserts do not. Replaced by real CSV data later.
-      trailingSales: m.hero ? 40 : m.category === 'desserts' ? 1 : 8,
-    }))
-  )
   console.log(`  menu: ${MENU.length} items (${MENU.filter((m) => m.hero).length} heroes)`)
-
-  await createTables(db, venue.id, 30, (i) => (i < 20 ? 4 : 2))
   console.log('  tables: 30, each with a unique QR token')
-
-  const operatorEmail = process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com'
-  await db.operatorUser.create({ data: { email: operatorEmail, venueId: venue.id, name: 'Owner' } })
   console.log(`  operator: ${operatorEmail} — sign in at /signin, link prints to this console`)
+  console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
 
+  // A second tenant, so "venue A cannot see venue B" is a claim a test can
+  // falsify. Smaller and differently priced on purpose: identical venues would
+  // hide a bug that returns the wrong one.
+  const second = await seedVenue({
+    name: 'Copper & Clove',
+    slug: 'copper',
+    tableCount: 8,
+    menu: MENU.slice(0, 6),
+    operatorEmail: 'owner-two@example.com',
+    serverPin: '4321',
+    kitchenPin: '8765',
+  })
+  console.log(
+    `  venue: ${second.name} — 8 tables, ${MENU.slice(0, 6).length} menu items, operator owner-two@example.com, staff PIN 4321/8765`
+  )
+
+  // The quiz pack stays attached to the first venue only. `startRound` already
+  // falls back to a pack with `venueId: null` when a venue has none of its
+  // own, so Copper deliberately gets no pack of its own and plays on that
+  // fallback rather than a duplicate — one shared question bank is enough for
+  // two dev venues, and it exercises the fallback path the same way a brand
+  // new self-onboarded venue would.
   const pack = await db.quizPack.create({
     data: { venueId: venue.id, name: 'Food basics', active: true },
   })
@@ -469,14 +522,6 @@ async function main() {
     })),
   })
   console.log(`  quiz: ${QUESTIONS.length} questions`)
-
-  // Dev PINs, scrypt-hashed like real ones. The venue sets its own before the
-  // pilot; these exist so the floor and pass consoles are reachable today.
-  await createStaff(db, venue.id, [
-    { name: 'Floor', role: 'SERVER', pinHash: hashPin('1234') },
-    { name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin('5678') },
-  ])
-  console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
 
   const tokens = await db.table.findMany({
     where: { venueId: venue.id },

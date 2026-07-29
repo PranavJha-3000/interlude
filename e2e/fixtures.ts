@@ -25,22 +25,42 @@ export interface Arranged {
   controlLabel: string
 }
 
-/** Opens a fresh service, splits the arms, and clears prior play state. */
-export async function arrangeService(): Promise<Arranged> {
-  const venue = await db.venue.findFirstOrThrow()
-
-  await db.service.updateMany({
-    where: { venueId: venue.id, endedAt: null },
-    data: { endedAt: new Date() },
-  })
-
-  // Old play data would make the assertions ambiguous.
+/**
+ * Clears all prior play state, globally, across every venue.
+ *
+ * Kept separate from `arrangeServiceFor` because it is what lets two venues'
+ * services coexist in one test: calling it once per test run (not once per
+ * venue arranged) is what makes `arrangeServiceFor('pilot')` followed by
+ * `arrangeServiceFor('copper')` leave *both* services open, instead of the
+ * second wiping the first's.
+ */
+async function clearAllPlayState() {
   await db.award.deleteMany()
   await db.addOnRequest.deleteMany()
   await db.play.deleteMany()
   await db.guestSession.deleteMany()
   await db.chefVeto.deleteMany()
   await db.kitchenLoad.deleteMany()
+}
+
+/** A seeded venue by slug. Named rather than "the first one" — there are two now. */
+export async function venueBy(slug: string) {
+  return db.venue.findFirstOrThrow({ where: { slug } })
+}
+
+/** Opens a fresh service at one venue, splits the arms, and clears prior play state. */
+export async function arrangeServiceFor(slug: string): Promise<Arranged> {
+  const venue = await venueBy(slug)
+
+  await db.service.updateMany({
+    where: { venueId: venue.id, endedAt: null },
+    data: { endedAt: new Date() },
+  })
+
+  // Old play data would make the assertions ambiguous. Global by design (see
+  // `clearAllPlayState`) — safe here because both venues' services are closed
+  // above before either is arranged.
+  await clearAllPlayState()
 
   const service = await db.service.create({
     data: { venueId: venue.id, name: 'e2e' },
@@ -73,6 +93,11 @@ export async function arrangeService(): Promise<Arranged> {
     controlToken: byId.get(control.tableId)!.qrToken,
     controlLabel: byId.get(control.tableId)!.label,
   }
+}
+
+/** The pilot venue. Kept so every existing spec reads unchanged. */
+export async function arrangeService(): Promise<Arranged> {
+  return arrangeServiceFor('pilot')
 }
 
 /** Fires an order so the countdown has something to race. */
