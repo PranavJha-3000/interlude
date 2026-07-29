@@ -42,26 +42,65 @@ export function marginFraction(pricePaise: Paise, foodCostPaise: Paise): number 
 }
 
 /**
- * What a conceded prize actually costs the venue.
+ * Parse what an operator typed into paise.
  *
- * A free item costs its food cost — the venue forgoes the margin it never
- * would have earned, but it genuinely spends the ingredients. A half-price
- * item still collects half the menu price, so the cost is food cost minus what
- * was collected, floored at zero (a half-price high-margin item can be
- * contribution-positive, and we do not let that read as a negative cost).
+ * They type rupees — "249.50", "₹1,299", "80" — because that is what is on
+ * their menu. Everything downstream is integer paise. Returns null rather than
+ * NaN so a caller cannot accidentally write a broken price to the database.
  */
-export function prizeCostPaise(
-  kind: 'FREE' | 'HALF_PRICE' | 'FIXED_PRICE',
+export function parseRupeesToPaise(raw: string): Paise | null {
+  const cleaned = raw.replace(/[₹,\s]/g, '')
+  if (cleaned === '' || !/^\d+(\.\d{1,2})?$/.test(cleaned)) return null
+  const [whole, fraction = ''] = cleaned.split('.')
+  const paise = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
+  return Number.isSafeInteger(paise) ? paise : null
+}
+
+/** `24950` -> `"249.50"`. For pre-filling an edit field, without the ₹. */
+export function paiseToRupeeInput(paise: Paise): string {
+  const abs = Math.abs(Math.round(paise))
+  return `${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
+}
+
+/**
+ * What the guest actually pays, given the award.
+ *
+ * The single source of this arithmetic. `PERCENT_OFF` carries the venue's own
+ * percentage rather than a hardcoded half (PLATFORM.md §10 — `HALF_PRICE` was
+ * exactly that, and is gone).
+ */
+export function guestPaysPaise(
+  kind: 'FREE' | 'PERCENT_OFF' | 'FIXED_PRICE',
   pricePaise: Paise,
-  foodCostPaise: Paise,
+  percentOff?: number,
   fixedPricePaise?: Paise
 ): Paise {
   switch (kind) {
     case 'FREE':
-      return foodCostPaise
-    case 'HALF_PRICE':
-      return Math.max(0, foodCostPaise - Math.round(pricePaise / 2))
+      return 0
+    case 'PERCENT_OFF':
+      return Math.max(0, pricePaise - Math.round((pricePaise * (percentOff ?? 0)) / 100))
     case 'FIXED_PRICE':
-      return Math.max(0, foodCostPaise - (fixedPricePaise ?? 0))
+      return Math.min(pricePaise, Math.max(0, fixedPricePaise ?? 0))
   }
+}
+
+/**
+ * What a conceded prize actually costs the venue.
+ *
+ * A free item costs its food cost — the venue forgoes the margin it never would
+ * have earned, but it genuinely spends the ingredients. A discounted item still
+ * collects something, so the cost is food cost minus what was collected,
+ * floored at zero (a shallow discount on a high-margin item is
+ * contribution-positive, and we do not let that read as a negative cost).
+ */
+export function prizeCostPaise(
+  kind: 'FREE' | 'PERCENT_OFF' | 'FIXED_PRICE',
+  pricePaise: Paise,
+  foodCostPaise: Paise,
+  percentOff?: number,
+  fixedPricePaise?: Paise
+): Paise {
+  const collected = guestPaysPaise(kind, pricePaise, percentOff, fixedPricePaise)
+  return Math.max(0, foodCostPaise - collected)
 }

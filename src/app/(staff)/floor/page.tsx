@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
-import { formatPaise } from '@/lib/money'
+import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { armAt } from '@/core/measurement/arm-assignment'
@@ -93,15 +93,25 @@ export default async function FloorPage() {
                         a.play.guestSession.table.label,
                         a.menuItem.name
                       )
-                    : a.kind === 'HALF_PRICE'
-                      ? en.floor.redemptions.lineHalf(
+                    : a.kind === 'PERCENT_OFF'
+                      ? en.floor.redemptions.linePercent(
                           a.play.guestSession.table.label,
-                          a.menuItem.name
+                          a.menuItem.name,
+                          a.percentOff ?? 0
                         )
                       : en.floor.redemptions.lineFixed(
                           a.play.guestSession.table.label,
                           a.menuItem.name,
-                          formatPaise(a.menuItem.pricePaise - a.valuePaise)
+                          // What the guest hands over. Read off the award, not
+                          // recomputed — the menu price may have changed since.
+                          formatPaise(
+                            guestPaysPaise(
+                              a.kind,
+                              a.menuItem.pricePaise,
+                              a.percentOff ?? undefined,
+                              a.fixedPricePaise ?? undefined
+                            )
+                          )
                         )
                 }
                 action={en.floor.redemptions.confirm}

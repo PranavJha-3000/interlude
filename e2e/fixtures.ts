@@ -16,9 +16,12 @@ export const db = new PrismaClient({
 
 export interface Arranged {
   serviceId: string
+  venueToken: string
   treatmentToken: string
   treatmentTableId: string
+  treatmentLabel: string
   controlToken: string
+  controlLabel: string
 }
 
 /** Opens a fresh service, splits the arms, and clears prior play state. */
@@ -62,9 +65,12 @@ export async function arrangeService(): Promise<Arranged> {
 
   return {
     serviceId: service.id,
+    venueToken: venue.qrToken,
     treatmentToken: byId.get(treatment.tableId)!.qrToken,
     treatmentTableId: treatment.tableId,
+    treatmentLabel: byId.get(treatment.tableId)!.label,
     controlToken: byId.get(control.tableId)!.qrToken,
+    controlLabel: byId.get(control.tableId)!.label,
   }
 }
 

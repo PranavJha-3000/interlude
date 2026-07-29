@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { hashPin } from '../src/lib/pin'
+import { createMenuItems, createStaff, createTables, createVenue } from '../src/lib/venue-setup'
 
 /**
  * Seeds one realistic Delhi casual-dining venue.
@@ -410,39 +410,29 @@ async function main() {
     db.menuItem.deleteMany(),
     db.guestIdentity.deleteMany(),
     db.staffUser.deleteMany(),
+    db.prizeRule.deleteMany(),
+    db.magicLinkToken.deleteMany(),
     db.operatorUser.deleteMany(),
     db.venueConfig.deleteMany(),
     db.venue.deleteMany(),
   ])
 
-  const venue = await db.venue.create({
-    data: {
-      slug: 'pilot',
-      name: 'The Pilot Kitchen',
-      timezone: 'Asia/Kolkata',
-      // Per-venue salt, generated once and never leaving the row (SECURITY.md §6).
-      phoneSalt: randomBytes(32).toString('hex'),
-      config: {
-        create: {
-          // Appendix B estimates. Every one of these is editable in /dash.
-          prepMinutesByCategory: {
-            starters: 8,
-            mains: 18,
-            breads: 6,
-            sides: 5,
-            desserts: 4,
-            beverages: 3,
-          },
-        },
-      },
-    },
-    include: { config: true },
+  // The same function self-serve onboarding calls. If these two ever diverge,
+  // the venue every test runs against stops resembling the ones real operators
+  // create — so there is exactly one path, and a test asserts it.
+  const venue = await createVenue(db, {
+    name: 'The Pilot Kitchen',
+    slug: 'pilot',
+    timezone: 'Asia/Kolkata',
   })
+  await db.venue.update({ where: { id: venue.id }, data: { onboardingStep: 'DONE' } })
   console.log(`  venue: ${venue.name}`)
+  console.log('  prize rules: starting policy written, editable in /dash/prizes')
 
-  await db.menuItem.createMany({
-    data: MENU.map((m) => ({
-      venueId: venue.id,
+  await createMenuItems(
+    db,
+    venue.id,
+    MENU.map((m) => ({
       name: m.name,
       category: m.category,
       pricePaise: m.price * 100,
@@ -452,21 +442,18 @@ async function main() {
       requiresKitchenWork: m.kitchen ?? true,
       isHero: m.hero ?? false,
       // Deliberately varied so the prize engine has something to reason about:
-      // heroes move, desserts do not. Replaced by real CSV data in wave 2.
+      // heroes move, desserts do not. Replaced by real CSV data later.
       trailingSales: m.hero ? 40 : m.category === 'desserts' ? 1 : 8,
-    })),
-  })
+    }))
+  )
   console.log(`  menu: ${MENU.length} items (${MENU.filter((m) => m.hero).length} heroes)`)
 
-  await db.table.createMany({
-    data: Array.from({ length: 30 }, (_, i) => ({
-      venueId: venue.id,
-      label: String(i + 1),
-      qrToken: randomBytes(9).toString('base64url'),
-      seats: i < 20 ? 4 : 2,
-    })),
-  })
+  await createTables(db, venue.id, 30, (i) => (i < 20 ? 4 : 2))
   console.log('  tables: 30, each with a unique QR token')
+
+  const operatorEmail = process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com'
+  await db.operatorUser.create({ data: { email: operatorEmail, venueId: venue.id, name: 'Owner' } })
+  console.log(`  operator: ${operatorEmail} — sign in at /signin, link prints to this console`)
 
   const pack = await db.quizPack.create({
     data: { venueId: venue.id, name: 'Food basics', active: true },
@@ -485,12 +472,10 @@ async function main() {
 
   // Dev PINs, scrypt-hashed like real ones. The venue sets its own before the
   // pilot; these exist so the floor and pass consoles are reachable today.
-  await db.staffUser.createMany({
-    data: [
-      { venueId: venue.id, name: 'Floor', role: 'SERVER', pinHash: hashPin('1234') },
-      { venueId: venue.id, name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin('5678') },
-    ],
-  })
+  await createStaff(db, venue.id, [
+    { name: 'Floor', role: 'SERVER', pinHash: hashPin('1234') },
+    { name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin('5678') },
+  ])
   console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
 
   const tokens = await db.table.findMany({
@@ -500,6 +485,7 @@ async function main() {
     take: 3,
   })
   console.log('\nTry these:')
+  console.log(`  venue QR:  /v/${venue.qrToken}   (pick a table, then play)`)
   for (const t of tokens) {
     console.log(`  table ${t.label}: /t/${t.qrToken}`)
   }

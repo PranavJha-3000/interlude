@@ -45,14 +45,31 @@ export const en = {
       timeLeft: (seconds: number) => `${seconds}s`,
       foodArriving: 'Food incoming!',
     },
+    // Which table are you at? Shown after a venue QR scan, before consent.
+    // Nothing is recorded on this screen — it is a list of links.
+    tablePicker: {
+      heading: 'Which table are you at?',
+      body: "It's on the little card or the edge of the table.",
+      tableLabel: (label: string) => `Table ${label}`,
+      noTables: 'Nothing set up here yet. Enjoy your meal.',
+    },
     outcome: {
       wonHeading: 'You beat the kitchen',
-      wonBody: (itemName: string) => `Your ${itemName} is on the house.`,
       wonInstruction: 'Show this screen to your server.',
       lostHeading: 'The kitchen won this one',
-      // Never a dead end: a loss still ends in real value (TODO.md wave 1).
-      lostBody: (itemName: string) => `Close though — here's ${itemName} at half price anyway.`,
       lostInstruction: 'Show this screen to your server.',
+      // What the guest actually gets. The depth is whichever rule the venue
+      // wrote, so the copy takes it as an argument rather than assuming a half.
+      // Never a dead end: a loss still ends in real value.
+      wonFree: (itemName: string) => `Your ${itemName} is on the house.`,
+      wonPercent: (itemName: string, percent: number) => `${percent}% off your ${itemName}.`,
+      wonFixed: (itemName: string, price: string) => `${itemName}, yours for ${price}.`,
+      lostFree: (itemName: string) => `Close though — have a ${itemName} on us anyway.`,
+      lostPercent: (itemName: string, percent: number) =>
+        `Close though — here's ${percent}% off a ${itemName} anyway.`,
+      lostFixed: (itemName: string, price: string) =>
+        `Close though — you can still have a ${itemName} for ${price}.`,
+      nothingOffered: 'Nothing to give away right now, but thanks for playing.',
       scoreLine: (score: number, total: number) => `${score} of ${total} right`,
       awaitingConfirm: 'Waiting for your server to confirm…',
       confirmed: 'Confirmed. Enjoy.',
@@ -99,8 +116,10 @@ export const en = {
     redemptions: {
       heading: 'Redemptions',
       lineFree: (tableLabel: string, itemName: string) => `${tableLabel} claims: ${itemName}, free`,
-      lineHalf: (tableLabel: string, itemName: string) =>
-        `${tableLabel} claims: ${itemName}, half price`,
+      // The percentage comes off the award row, so the server reads the number
+      // the guest was actually shown rather than one we assumed.
+      linePercent: (tableLabel: string, itemName: string, percent: number) =>
+        `${tableLabel} claims: ${itemName}, ${percent}% off`,
       lineFixed: (tableLabel: string, itemName: string, price: string) =>
         `${tableLabel} claims: ${itemName} at ${price}`,
       confirm: 'Confirm',

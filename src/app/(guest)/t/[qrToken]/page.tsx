@@ -8,7 +8,7 @@ import {
   isRoundWorthStarting,
   minutesUntilReady,
 } from '@/core/mechanics/kitchen-round'
-import { formatPaise } from '@/lib/money'
+import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { giveConsent, requestAddOn, startRound, submitRound } from './actions'
 import { Round, type RoundQuestion } from './Round'
 import { Poller } from './Poller'
@@ -97,11 +97,9 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
         <Heading>{won ? en.guest.outcome.wonHeading : en.guest.outcome.lostHeading}</Heading>
         <Body>
-          {item
-            ? won
-              ? en.guest.outcome.wonBody(item.name)
-              : en.guest.outcome.lostBody(item.name)
-            : en.guest.closed.body}
+          {award && item
+            ? outcomeLine(won, item.name, award.kind, award.percentOff, award.fixedPricePaise)
+            : en.guest.outcome.nothingOffered}
         </Body>
         <p className="mt-2 text-sm text-muted">
           {en.guest.outcome.scoreLine(play.score, play.maxScore)}
@@ -111,12 +109,19 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
           <div className="mt-6">
             <Card>
               <p className="text-2xl font-semibold">{item.name}</p>
+              {/* What the guest pays, computed once in money.ts rather than
+                  re-derived per screen. */}
               <p className="mt-1 text-lg text-accent">
                 {award.kind === 'FREE'
                   ? 'Free'
-                  : award.kind === 'HALF_PRICE'
-                    ? `Half price — ${formatPaise(item.pricePaise - award.valuePaise)}`
-                    : formatPaise(config.mysteryPlatePricePaise)}
+                  : `${formatPaise(
+                      guestPaysPaise(
+                        award.kind,
+                        item.pricePaise,
+                        award.percentOff ?? undefined,
+                        award.fixedPricePaise ?? undefined
+                      )
+                    )} instead of ${formatPaise(item.pricePaise)}`}
               </p>
               <p className="mt-4 text-sm text-muted">
                 {award.status === 'CONFIRMED'
@@ -280,4 +285,33 @@ async function AddOnOffer({
       </div>
     </>
   )
+}
+
+/**
+ * The one line that tells the guest what they actually got.
+ *
+ * Both outcomes route through here, because both end in real value — the only
+ * difference is which `PrizeRule` the venue wrote for them, and the copy reads
+ * the depth off the award rather than assuming a half.
+ */
+function outcomeLine(
+  won: boolean,
+  itemName: string,
+  kind: 'FREE' | 'PERCENT_OFF' | 'FIXED_PRICE',
+  percentOff: number | null,
+  fixedPricePaise: number | null
+): string {
+  const o = en.guest.outcome
+  switch (kind) {
+    case 'FREE':
+      return won ? o.wonFree(itemName) : o.lostFree(itemName)
+    case 'PERCENT_OFF':
+      return won
+        ? o.wonPercent(itemName, percentOff ?? 0)
+        : o.lostPercent(itemName, percentOff ?? 0)
+    case 'FIXED_PRICE': {
+      const price = formatPaise(fixedPricePaise ?? 0)
+      return won ? o.wonFixed(itemName, price) : o.lostFixed(itemName, price)
+    }
+  }
 }

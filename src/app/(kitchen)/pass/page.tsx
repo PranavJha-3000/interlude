@@ -6,7 +6,9 @@ import {
   getActiveVetoes,
   getConcededSoFarPaise,
   getKitchenLoad,
+  getMenuForEngine,
   getOpenService,
+  getPrizeRules,
   getVenueConfig,
   serviceClockMinute,
 } from '@/lib/service'
@@ -38,28 +40,20 @@ export default async function PassPage() {
     getOpenService(staff.venueId),
   ])
 
-  const menu = await db.menuItem.findMany({
-    where: { venueId: staff.venueId, active: true },
-    orderBy: { name: 'asc' },
-  })
+  const [menuData, prizeRules] = await Promise.all([
+    getMenuForEngine(staff.venueId),
+    getPrizeRules(staff.venueId),
+  ])
+  const menu = [...menuData.rows].sort((a, b) => a.name.localeCompare(b.name))
   const conceded = service ? await getConcededSoFarPaise(service.id) : 0
 
-  // The same pure function the guest flow calls, with the same inputs — so
-  // what the chef sees here is exactly what the next guest will be offered.
+  // The same pure function the guest flow calls, with the same inputs and the
+  // venue's own rules — so what the chef sees here is exactly what the next
+  // guest will be offered. `outcome: WIN` because that is the deepest the pool
+  // ever goes; a consolation is never worse for the kitchen than a win.
   const pool = decidePrizePool({
-    menu: menu.map((m) => ({
-      id: m.id,
-      name: m.name,
-      category: m.category,
-      pricePaise: m.pricePaise,
-      foodCostPaise: m.foodCostPaise,
-      marginTier: m.marginTier,
-      prepBurden: m.prepBurden,
-      requiresKitchenWork: m.requiresKitchenWork,
-      isHero: m.isHero,
-      active: m.active,
-    })),
-    velocity: menu.map((m) => ({ itemId: m.id, unitsSold: m.trailingSales })),
+    menu: menuData.engineMenu,
+    velocity: menuData.velocity,
     kitchenLoad: load,
     chefVetoes: vetoes,
     depthCaps: {
@@ -67,11 +61,12 @@ export default async function PassPage() {
       perServicePaise: config.depthCapPerServicePaise,
     },
     mechanic: 'KITCHEN_ROUND',
+    outcome: 'WIN',
+    prizeRules,
     concededSoFarPaise: conceded,
     serviceClockMinute: serviceClockMinute(now, venue.timezone),
     peakStartMinute: config.peakStartMinute,
     peakEndMinute: config.peakEndMinute,
-    mysteryPlatePricePaise: config.mysteryPlatePricePaise,
   })
 
   const byId = new Map(menu.map((m) => [m.id, m]))

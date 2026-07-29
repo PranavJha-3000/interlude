@@ -9,6 +9,8 @@ import {
   getConcededSoFarPaise,
   getKitchenLoad,
   getLatestOrderFire,
+  getMenuForEngine,
+  getPrizeRules,
   getVenueConfig,
   resolveScan,
   serviceClockMinute,
@@ -172,9 +174,13 @@ export async function submitRound(qrToken: string, formData: FormData): Promise<
 }
 
 /**
- * Both outcomes end in real value. A loss is a lesser depth, never a dead end
- * (TODO.md wave 1) — the guest who tried and missed still leaves with
- * something, which is the difference between a game and a disappointment.
+ * Both outcomes end in real value. A loss is a lesser depth, never a dead end —
+ * the guest who tried and missed still leaves with something, which is the
+ * difference between a game and a disappointment.
+ *
+ * **How much lesser is the venue's decision, not ours.** The consolation used to
+ * be a hardcoded half price here; it is now whichever `PrizeRule` the operator
+ * wrote for `outcome: LOSE`, resolved by the same engine call as a win.
  */
 async function awardFor(
   playId: string,
@@ -183,30 +189,21 @@ async function awardFor(
   outcome: 'WIN' | 'LOSE',
   nowMs: number
 ): Promise<void> {
-  const [config, venue, load, vetoes, conceded] = await Promise.all([
+  const [config, venue, load, vetoes, conceded, prizeRules, menuData] = await Promise.all([
     getVenueConfig(venueId),
     db.venue.findUniqueOrThrow({ where: { id: venueId }, select: { timezone: true } }),
     getKitchenLoad(venueId),
     getActiveVetoes(venueId),
     getConcededSoFarPaise(serviceId),
+    getPrizeRules(venueId),
+    getMenuForEngine(venueId),
   ])
 
-  const menu = await db.menuItem.findMany({ where: { venueId, active: true } })
+  const menu = menuData.rows
 
   const pool = decidePrizePool({
-    menu: menu.map((m) => ({
-      id: m.id,
-      name: m.name,
-      category: m.category,
-      pricePaise: m.pricePaise,
-      foodCostPaise: m.foodCostPaise,
-      marginTier: m.marginTier,
-      prepBurden: m.prepBurden,
-      requiresKitchenWork: m.requiresKitchenWork,
-      isHero: m.isHero,
-      active: m.active,
-    })),
-    velocity: menu.map((m) => ({ itemId: m.id, unitsSold: m.trailingSales })),
+    menu: menuData.engineMenu,
+    velocity: menuData.velocity,
     kitchenLoad: load,
     chefVetoes: vetoes,
     depthCaps: {
@@ -214,11 +211,12 @@ async function awardFor(
       perServicePaise: config.depthCapPerServicePaise,
     },
     mechanic: 'KITCHEN_ROUND',
+    outcome,
+    prizeRules,
     concededSoFarPaise: conceded,
     serviceClockMinute: serviceClockMinute(nowMs, venue.timezone),
     peakStartMinute: config.peakStartMinute,
     peakEndMinute: config.peakEndMinute,
-    mysteryPlatePricePaise: config.mysteryPlatePricePaise,
   })
 
   // The whole decision is snapshotted, entries and exclusions with their
@@ -236,9 +234,12 @@ async function awardFor(
         itemId: e.itemId,
         mechanic: e.mechanic,
         kind: e.kind,
+        percentOff: e.percentOff ?? null,
+        fixedPricePaise: e.fixedPricePaise ?? null,
         valuePaise: e.valuePaise,
         costPaise: e.costPaise,
         depthPct: e.depthPct,
+        ruleId: e.ruleId,
         reason: e.reason,
         score: e.score,
       })),
@@ -252,25 +253,21 @@ async function awardFor(
   const item = menu.find((m) => m.id === top.itemId)
   if (!item) return
 
-  const kind = outcome === 'WIN' ? top.kind : 'HALF_PRICE'
-  const valuePaise =
-    kind === 'FREE'
-      ? item.pricePaise
-      : kind === 'HALF_PRICE'
-        ? Math.round(item.pricePaise / 2)
-        : Math.max(0, item.pricePaise - config.mysteryPlatePricePaise)
-  const foodCostPaise =
-    kind === 'FREE' ? item.foodCostPaise : Math.max(0, item.foodCostPaise - valuePaise)
-
+  // The engine already did this arithmetic against the venue's own rule. Doing
+  // it again here is how the two drift — so the entry's numbers are what get
+  // written, snapshotted so a later menu or rule edit cannot rewrite history.
   await db.award.create({
     data: {
       playId,
       menuItemId: item.id,
       prizePoolId: snapshot.id,
-      kind,
-      valuePaise,
-      foodCostPaise,
-      reason: outcome === 'WIN' ? top.reason : `${top.reason} — consolation at half price`,
+      kind: top.kind,
+      percentOff: top.percentOff ?? null,
+      fixedPricePaise: top.fixedPricePaise ?? null,
+      ruleId: top.ruleId,
+      valuePaise: top.valuePaise,
+      foodCostPaise: top.costPaise,
+      reason: top.reason,
     },
   })
 }

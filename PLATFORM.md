@@ -34,7 +34,7 @@ the merchant's own POS.
 | **W2 · Food wait** | Ordered, phone out, receptive | 10–25 min | **Attach rate and mix shift** — the core window |
 | **W3 · Bill wait** | Fed, warm, phone out | 5–15 min | Review capture; return-visit hook |
 
-V1 is **W2-first**, with W3 shipping in wave 3. W1 is out of V1 scope.
+V1 is **W2-first**. W3 (the voice review) is under *Later* in TODO.md. W1 is out of V1 scope.
 
 ---
 
@@ -42,12 +42,22 @@ V1 is **W2-first**, with W3 shipping in wave 3. W1 is out of V1 scope.
 
 | Archetype | Surface | Route | Auth |
 |---|---|---|---|
-| **Guest** — the person scanning the QR | Mobile web, one-handed | `/t/[qrToken]` | None. Anonymous session cookie. Phone optional, at prize claim only |
+| **Guest** — the person scanning the QR | Mobile web, one-handed | `/v/[venueToken]` → `/t/[qrToken]` | None. Anonymous session cookie. Phone optional, at prize claim only |
 | **Server / floor staff** | Their own phone or a shared tablet, PWA | `/floor` | Venue PIN → httpOnly session |
 | **Chef / kitchen lead** | Tablet mounted at the pass, glanceable, big targets | `/pass` | Venue PIN, kitchen role |
-| **Owner / F&B head** | Desktop or phone | `/dash` | Email magic link |
+| **Owner / F&B head** | Desktop or phone | `/`, `/signin`, `/onboarding`, `/dash`, `/dash/menu`, `/dash/prizes`, `/tents` | Email magic link → httpOnly session |
 
-A fifth internal surface (`/admin`) exists for venue onboarding and is not a customer-facing product.
+**Onboarding is customer-facing, not internal.** The platform is multi-tenant: a restaurant reaches
+the landing page, requests a magic link, and sets up its own venue — details, tables, menu, staff
+PINs, QR — with nobody from our side involved. This replaces the internal `/admin` surface that
+earlier drafts of this document described.
+
+**Two QR codes, one flow.** The venue QR (`/v/[venueToken]`) is one code to print for the counter or
+the menu; it shows a table picker and hands off to the per-table QR (`/t/[qrToken]`) that the tents
+carry. The per-table token remains the thing a `GuestSession` is opened against, because the arm
+assignment — and therefore the entire measurement basis in §9 — is per table. A control table appears
+in the picker and fails there with copy identical to a closed venue; if a guest can infer their arm
+from the wording, the experiment is contaminated.
 
 **Design rule per archetype**
 - Guest: no accounts, no signup, no app. The competitor is Instagram Reels and it loads instantly,
@@ -71,16 +81,25 @@ Locked per §12. Anything not on this list is out.
 | Screen | Voice review | At the bill: speak → draft → approve your own words → deep-link to Google. No incentive, prompted to every table |
 | Dashboard | One number | Net contribution ₹ on night one; attach-rate delta vs. same-night control once bills are imported. Plus a Monday morning email |
 
-**Ships in wave 1, not later:** kitchen-load input and the chef veto switch (§5.2, §12). Pushing a
-dying dessert at 9pm Saturday without them makes the chef the product's enemy by 9:15.
+**Shipped with the guest loop, not after it:** kitchen-load input and the chef veto switch (§5.2,
+§12). Pushing a dying dessert at 9pm Saturday without them makes the chef the product's enemy by 9:15.
+
+**Operator plumbing is scope, but it is not a mechanic.** The landing page, magic-link auth, venue
+onboarding, menu management and prize admin (TODO.md phases 1–8) are how a restaurant reaches the
+four rows above without us in the room. They add no guest-facing mechanic and open no door to
+anything in §12.
 
 **Cut from V1 by owner decision:** #7 table-vs-table and #12 beat-the-house. **Multiplayer is out
 entirely** — new mechanics are single-player. This removes match lobbies, pairing, server-authoritative
 match state and abandon handling from the build, and removes `Match` from the data model. The
 match-availability gate in *Metrics and gates* below is consequently dormant.
 
-**Deferred, not cancelled:** the server recognition card, and `/admin` venue onboarding. Both are
-wanted; neither fits the wave budget.
+**Deferred, not cancelled:** the server recognition card. Wanted; it needs optional phone capture
+with the per-venue HMAC and did not fit the budget.
+
+**No longer deferred:** venue onboarding. Earlier drafts held it back as an internal `/admin`
+surface; the multi-tenant decision promoted it to a customer-facing flow and it is TODO.md phases
+1–5.
 
 ---
 
@@ -148,6 +167,8 @@ interface PosAdapter {
 | **Control-arm integrity** | Control tables cannot open a session or receive an offer. Test asserts it |
 | **DPDP siloing** (§5.3) | Phone stored as HMAC with a **per-venue salt**. No cross-venue join is possible in V1 by construction |
 | **Consent** | Purpose-limited consent at first scan, before anything is recorded |
+| **Tenant isolation** | Every operator query takes its `venueId` from the session via `requireOperator()`, never from a URL parameter or a form field. Test asserts that venue A's session reaching venue B's data 404s. Multi-tenancy makes this a data-leak boundary, not a tidiness rule |
+| **Arm integrity under self-onboarding** | A venue sets up its own tables, but arm assignment stays mandatory and control tables stay unable to play. A venue with no control arm simply has no computable ITT delta (§9) — the answer is to say so, never to relax the block |
 
 ---
 
@@ -155,10 +176,14 @@ interface PosAdapter {
 
 `Venue` · `Table` · `Service` · `TableArmAssignment` · `MenuItem` · `KitchenLoad` · `PrizePool` ·
 `GuestSession` · `Play` · `Award` · `AddOnRequest` · `Ticket` · `GuestIdentity` ·
-`ReviewPrompt` · `QuizPack` / `QuizQuestion` · `StaffUser` · `OperatorUser`
+`ReviewPrompt` · `QuizPack` / `QuizQuestion` · `StaffUser` · `OperatorUser` · `MagicLinkToken`
 
 `Match` is gone with multiplayer (see *V1 scope* above). `GuestIdentity` arrives with the voice
-review in wave 3.
+review, under *Later* in TODO.md.
+
+Multi-tenancy adds three fields and one model: `Venue.qrToken` (the venue QR),
+`Venue.onboardingStep` (setup is resumable — nobody completes it in one sitting), `OperatorUser.name`
+and `.role`, and `MagicLinkToken` — hashed, single-use, expiring.
 
 Notes on the two that carry weight:
 
@@ -209,7 +234,14 @@ arrives. Say that to the operator before he reads the number, not after.
 | ~~Match availability~~ | ~~matchable pairs per peak service~~ | Dormant — multiplayer is cut |
 | Plays per returning guest | trajectory across visits | watch the slope — content-decay warning |
 
-Gates are **venue config**, seeded from the doc and editable in `/dash`.
+Gates are **venue config**, seeded from the doc and editable in `/dash/prizes`.
+
+**Multi-tenancy puts the north star at risk, and the risk is worth naming.** A venue that onboards
+itself will want to tent every table — the control arm looks like leaving money on the floor. But a
+venue with no untented tables produces no ITT delta, only an engaged delta, which is the number §11
+already warns is inflated by self-selection. So: onboarding creates an alternating split by default,
+the pilot venue keeps it, and a venue that later opts out is told plainly which number it has given
+up. Never quietly compute engaged delta and label it attach-rate delta.
 
 ---
 
@@ -228,10 +260,17 @@ When T0/T1 eventually run, the numbers change. The code does not.
 ```
 src/
   app/
+    page.tsx               # landing — the operator front door, zero client components
+    (guest)/v/[venueToken]/ # venue QR: pick your table, hand off to the tent token
     (guest)/t/[qrToken]/   # guest mobile-web — no accounts
     (staff)/floor/         # server: fire order, add-on tickets, redemption, recognition card
     (kitchen)/pass/        # chef: kitchen load, veto list, tonight's pool
-    (operator)/dash/       # owner: the one number, margin tagging, config
+    (operator)/signin/     # magic link request + consume
+    (operator)/onboarding/ # resumable venue setup: details, tables, menu, staff, QR
+    (operator)/dash/       # owner: the one number
+    (operator)/dash/menu/  # the venue's own menu
+    (operator)/dash/prizes/ # depth caps, prep minutes, gates — all VenueConfig
+    (operator)/tents/      # printable per-table tents + the venue QR
     api/
   core/
     prize-engine/          # pure, deterministic, unit-tested
@@ -253,6 +292,7 @@ All polling pauses when the tab is hidden.
 
 | Surface | Interval | Why |
 |---|---|---|
+| Landing, sign-in, onboarding, menu, prizes | none | Forms and static copy. An operator does not need a live feed to type a menu in |
 | Guest, waiting for order-fired | 5s | Nobody notices five seconds here |
 | Guest, mid-round | none | Countdown runs locally off the end timestamp |
 | Guest, awaiting redemption | 3s | Short-lived, and the guest is watching |
@@ -286,9 +326,12 @@ than a graveyard entry, so it is reversible — but it is out of V1 and out of b
 |---|---|
 | Validation gate (T0–T2) | **Settled: lifted.** We ship a staged MLP and validate from live pilot data. The cost is that every Appendix B number is an unmeasured estimate — which is exactly why §10's config rule is load-bearing rather than tidy |
 | Multiplayer | **Settled: cut.** #7 and #12 out; single-player only. See *V1 scope* and *Never built* |
+| Tenancy | **Settled: multi-tenant, self-serve.** Restaurants sign themselves up from the landing page; onboarding is no longer an internal `/admin` surface. The cost is that venue scoping becomes a data-leak boundary (§7) and the control arm becomes a thing a venue can decline (§9) — both are named rather than mitigated away |
+| Operator auth | **Settled: email magic link** via Resend. No passwords to store, reset or leak. In development the link is written to the console, so onboarding is testable with no API key and no network |
+| Venue QR vs. per-table QR | **Settled: both.** The venue QR is one code to print; the per-table token stays the thing a session opens against, because arm assignment is per table. The picker is the seam |
 | Database at scale | **Settled for V1: Neon Postgres**, Singapore, free tier. Revisit **Cloudflare D1 at multi-venue scale** — the schema validates unchanged on SQLite, and D1 allows *a database per venue*, which would turn the DPDP cross-venue guarantee from a logical one (per-venue HMAC salt) into a physical one. The blocker today is hosting, not the data model: D1 binds to Workers, so adopting it means moving off Vercel. Keep all access behind Prisma so the port stays cheap |
 | Working name | `interlude` placeholder; isolated in `src/brand.ts` |
 | Shared screen (#17) | Out of V1. V1.5 hardware pilot |
 | Phone verification | Off by default. Redemption is staff-confirmed. DLT/WhatsApp approval is 1–3 weeks and does not belong on the critical path |
 | Hindi strings | English-first, strings externalised from the first commit so Hindi is a translation job, not a refactor |
-| Repo location | **Settled:** `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by explicit choice. The known cost stands — OneDrive sync causes `node_modules` file locks and slow installs — so `node_modules` **must** be kept out of sync before the first `npm install` (see TODO.md wave 1) |
+| Repo location | **Settled:** `C:\Users\prana\OneDrive\Desktop\Code\interlude`, under OneDrive by explicit choice. The known cost stands — OneDrive sync causes `node_modules` file locks and slow installs — so `node_modules` **must** be kept out of sync before the first `npm install` (see TODO.md phase 0) |
