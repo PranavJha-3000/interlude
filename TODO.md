@@ -54,7 +54,7 @@ Genuinely shipped and verifiable today:
 - [x] All user-facing strings externalised in `src/strings/en.ts`
 - [x] Seed: one Delhi venue, ~40 items with margin tier / price / food cost / prep burden, 30 tables
 - [x] Guest session model + DPDP consent gate; nothing written before the tap
-- [x] Quiz engine — pure, no I/O (`src/core/mechanics/kitchen-round.ts`)
+- [x] Round engine — pure, no I/O (`src/core/mechanics/climb.ts`; the quiz it replaced is gone)
 - [x] Countdown on a **server-issued end timestamp**
 - [x] Prize engine v1 — margin tier + chef veto + depth cap, every decision carries a `reason`
 - [x] Outcome screens; one-tap add-on relayed to `/floor`
@@ -65,7 +65,7 @@ Genuinely shipped and verifiable today:
 - [x] Arm assignment recorded per service, mid-service swap, auditable; control tables cannot play
 - [x] Timestamped `Play` / `Award` / `AddOnRequest` events
 - [x] ESLint no-RNG rule inside `core/prize-engine` and `core/mechanics`
-- [x] Unit tests on the prize engine, quiz scoring, arm assignment, contribution
+- [x] Unit tests on the prize engine, the climb, arm assignment, contribution
 - [x] Playwright happy path: scan → consent → play → win → add-on → confirm, mobile viewport
 - [x] Performance budget **measured and revised** — an empty App Router page ships 181.7KB gzipped;
       the guest route ships 184.5KB, so our code is ~3KB. The rule is now **our code adds ≤15KB over
@@ -378,7 +378,7 @@ By hand: edit an item on `/dash/menu`, reload `/pass`, and see the pool and its 
 **Goal:** the restaurant controls the fences. Nothing the owner can set becomes a constant in code.
 
 - [ ] `/dash/prizes` — every `VenueConfig` field, grouped and explained in plain language:
-  - [ ] Round shape — quiz length, question count, win threshold, countdown buffer
+  - [ ] Round shape — climb rungs, seconds per hand, minimum run length, countdown buffer
   - [ ] Prize fences — depth cap per item %, depth cap per service ₹, mystery-plate price
   - [ ] Prep minutes per category — **this is the Manual POS adapter's input** and closes phase 0's
         open item
@@ -402,7 +402,7 @@ npm test
 - Set `depthCapPerItemPct` to 0 and assert no `FREE` award can be issued
 - Change prep minutes for a category and assert `fireOrder`'s `estReadyAt` moves by that amount
 
-By hand: change quiz length on `/dash/prizes`, start a fresh guest round, and confirm the countdown
+By hand: change the rung count on `/dash/prizes`, start a fresh guest run, and confirm the ladder
 matches — no rebuild, no redeploy.
 
 ---
@@ -542,7 +542,7 @@ Covers: the picker appears with both games on and accepts either choice; a singl
 
 **Two things to hold onto honestly**
 
-**Mystery Plate is a stake, not a second mechanic.** The eight questions are identical; only the prize rule differs. `VenueGame` and the picker are the seam a genuinely different mechanic would plug into later — both in the quiz content and in the prize engine's own decisions.
+**Mystery Plate is a stake, not a second mechanic.** The climb is identical; only the prize rule differs. `VenueGame` and the picker are the seam a genuinely different mechanic would plug into later — both in what a hand asks and in the prize engine's own decisions.
 
 **A venue with every game off is closed to *new* guests.** That is deliberate — an empty enabled list is an operator decision, not an absence of preference. The guest surface renders the same neutral screen a control table and a closed venue get, and it is asserted in `e2e/games.spec.ts` that no session row is written when the guest taps in. It closes the door rather than clearing the room: a guest already mid-round, or holding an award their server has not confirmed yet, finishes on the rules they started under — also asserted there, because the operator is promised exactly that on `/dash/games`.
 
@@ -606,7 +606,7 @@ Carried across intact from the old waves 2–3. Each keeps its one-line test not
 
 | | |
 |---|---|
-| 🍽️ GUEST | Scans the QR on the table or the counter → taps their table number if it was the venue QR → one line of plain-language consent, **Continue**, nothing recorded before that tap → **"Your food is about 7 minutes out. Beat the kitchen."** → a 60–90s food quiz racing the countdown → *"You beat the kitchen — your tiramisu is on the house. Show this to your server."* or a guaranteed consolation of lesser depth → **"Add a dessert to your order?"**, three options, one tap → *"Sent to your server."* Never asked to sign up, download, or type an email |
+| 🍽️ GUEST | Scans the QR on the table or the counter → taps their table number if it was the venue QR → one line of plain-language consent, **Continue**, nothing recorded before that tap → **"About 7 minutes out — so that is how long you have to climb."** → the climb, one rung at a time against the food's own countdown, dealt from this venue's menu → *"You beat the kitchen — your tiramisu is on the house. Show this to your server."* or a guaranteed consolation of lesser depth → **"Add a dessert to your order?"**, three options, one tap → *"Sent to your server."* Never asked to sign up, download, or type an email |
 | 🧑‍🍳 SERVER | A live table list: seated · order fired · playing · **add-on requested** · **awaiting redemption**, plus which tables are tented tonight. Taps **Fire order** when food goes in. Add-on tickets arrive: *"Table 7 — 1× Tiramisu"* → **Ack**. Redemption: *"Table 7 claims: Tiramisu, free"* → **Confirm**. No metrics, no dashboard |
 | 👨‍🍳 CHEF | One big **GREEN / AMBER / RED** control — RED instantly stops every prize needing kitchen work. Tonight's pool with reasons: *"Tiramisu — high margin, 4 unsold since Tuesday."* A veto toggle beside each item |
 | 💼 OWNER | Signs up from the landing page, onboards their own venue, prints their own QR, maintains their own menu, and sets their own prize fences. Then one number, large: **"Net contribution tonight: ₹2,340."** Add-ons sold, contribution earned, prize cost conceded. Captioned as an app-side estimate until the first bill export lands |

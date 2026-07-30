@@ -76,7 +76,7 @@ Locked per §12. Anything not on this list is out.
 
 | # | Component | What ships |
 |---|---|---|
-| **#5** | Kitchen-timed round | Countdown fed by order-fired time + a 60–90s food quiz. "Your food is 7 minutes out — beat the kitchen." Manual-timer fallback when no POS |
+| **#5** | Kitchen-timed round | **The climb.** Countdown fed by order-fired time, and the run lasts as long as the food does — a slow kitchen is a longer game, not a worse wait. The guest climbs rungs of hands dealt from the venue's own menu (tap the dearer dish; order three-to-five cheapest-first), and banks the highest rung standing when the food lands. Every rung is one whole dish, so there is no partial win. Manual-timer fallback when no POS |
 | **#2** | Mystery plate | Win the right to *buy* a ₹99 kitchen's-choice small plate. A fixed-price product, never a draw. Chef veto honoured live |
 | Screen | Voice review | At the bill: speak → draft → approve your own words → deep-link to Google. No incentive, prompted to every table |
 | Dashboard | One number | Net contribution ₹ on night one; attach-rate delta vs. same-night control once bills are imported. Plus a Monday morning email |
@@ -176,7 +176,7 @@ interface PosAdapter {
 
 `Venue` · `Table` · `Service` · `TableArmAssignment` · `MenuItem` · `KitchenLoad` · `PrizePool` ·
 `GuestSession` · `Play` · `Award` · `AddOnRequest` · `Ticket` · `GuestIdentity` ·
-`ReviewPrompt` · `QuizPack` / `QuizQuestion` · `StaffUser` · `OperatorUser` · `MagicLinkToken`
+`ReviewPrompt` · ~~`QuizPack` / `QuizQuestion`~~ (retired with the quiz; unread) · `StaffUser` · `OperatorUser` · `MagicLinkToken`
 
 `Match` is gone with multiplayer (see *V1 scope* above). `GuestIdentity` arrives with the voice
 review, under *Later* in TODO.md.
@@ -248,7 +248,7 @@ up. Never quietly compute engaged delta and label it attach-rate delta.
 ## 10. Configuration, not constants
 
 Every Appendix B number is seeded from the business doc's estimate and then editable per venue:
-food-wait/prep times by category, margin bands, prize depth caps, mystery-plate price, quiz length,
+food-wait/prep times by category, margin bands, prize depth caps, mystery-plate price, climb rungs and hand seconds,
 countdown buffer, peak-hours definition, and all §11 gates.
 
 When T0/T1 eventually run, the numbers change. The code does not.

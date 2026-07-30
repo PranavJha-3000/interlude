@@ -75,7 +75,7 @@ These come from PLATFORM.md §5–§7 and §12. They are the reason the product 
 
 ## Configuration, not constants
 
-Every number from the business doc's Appendix B — prep times, margin bands, prize depth caps, mystery-plate price, quiz length, countdown buffer, peak hours, and all the §11 gates — is **venue configuration seeded from an estimate**, editable in `/dash`. None of it is a hardcoded constant. The measurement tests (T0/T1) have not run and we are shipping without them; when the numbers change, the code must not.
+Every number from the business doc's Appendix B — prep times, margin bands, prize depth caps, mystery-plate price, climb rungs and hand seconds, countdown buffer, peak hours, and all the §11 gates — is **venue configuration seeded from an estimate**, editable in `/dash`. None of it is a hardcoded constant. The measurement tests (T0/T1) have not run and we are shipping without them; when the numbers change, the code must not.
 
 Similarly, all user-facing strings are externalised from the first commit so Hindi is a translation job rather than a refactor. English first.
 
