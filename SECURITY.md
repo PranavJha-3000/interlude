@@ -108,7 +108,50 @@ an operator. A different response is an account-enumeration oracle.
 `src/lib/email.ts`, which imports `server-only`. **In development there is no key
 and no network call** — the link is written to the console. That is a
 convenience, but it is also the reason a developer never needs production email
-credentials on their laptop.
+credentials on their laptop. In a deployed build the same absence is refused
+outright rather than falling back to the console, because a sign-in page that
+says "check your email" and sends nothing locks out every operator with no error
+anywhere to say why.
+
+## 7a. Operator passwords — the second door, and what it costs
+
+Sending anything at all requires a verified sending domain, and the pilot does
+not have one. Until it does, every magic link goes nowhere, so `/signin` is an
+email and a password (`src/lib/operator-password-auth.ts`).
+
+**This is a knowing weakening of §7, not an improvement on it.** Recorded here so
+it is reversed deliberately rather than forgotten:
+
+- **Sign-up enumerates. Sign-in does not.** Telling someone their address already
+  has an account is the only way they can act on it, so sign-up says so. Sign-in
+  gives one answer — "Email or password is incorrect" — to a wrong password, an
+  unknown address, a malformed one, and an operator who only ever had a link.
+- **The timing says the same thing as the message.** A missing row would
+  otherwise skip the ~100ms scrypt and turn the oracle back on as a stopwatch, so
+  the unknown-address branch verifies against `DUMMY_PASSWORD_HASH` and throws
+  the result away.
+- **Nobody's address is verified.** No email is sent, so nothing proves the
+  person typing an address can read it. Tolerable only because the account is
+  worth nothing until onboarding attaches a venue to it.
+- **There is no password reset,** because a reset needs the email channel whose
+  absence caused all of this. An owner who forgets their password needs a hand on
+  the database.
+- **Hashed with scrypt** via the same `scrypt:<salt>:<hash>` scheme as the staff
+  PIN. `passwordHash` is nullable: an operator created by a magic link has none,
+  which means "cannot use this door", never "any password will do".
+- **Throttled per IP, and deliberately never per address.** A per-address lockout
+  is the usual advice and is wrong here — with no email there is no recovery
+  path, so it would hand anyone who knows an owner's address the ability to lock
+  them out of their own venue mid-service. `OperatorLoginAttempt` stores the IP
+  and no address, because a log of which addresses were guessed at is the
+  operator list §7 refuses to hand out.
+- **A changed password does not end live sessions.** Harmless only while there is
+  no way to change one; whoever builds that screen owns this too.
+
+Magic link is dormant, not deleted: `/signin/verify`, `src/lib/operator-auth.ts`
+and `src/lib/magic-link.ts` are untouched and tested, and an already-issued link
+still signs someone in. When a domain is verified, the link returns to the front
+door and most of this section goes away.
 
 ## 8. Tenant isolation — venue scoping, from the session only
 

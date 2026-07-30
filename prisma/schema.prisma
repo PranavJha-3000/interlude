@@ -149,8 +149,10 @@ model StaffUser {
   @@index([venueId])
 }
 
-/// The owner or F&B head. Authenticated by email magic link — no password to
-/// store, reset or leak (SECURITY.md §7).
+/// The owner or F&B head. Two ways in, on purpose: an email magic link
+/// (SECURITY.md §7) and an email + password (§7a). The password exists because
+/// sending email needs a verified domain that the pilot does not have yet, and
+/// it is expected to become the secondary door again once one does.
 model OperatorUser {
   id        String   @id @default(cuid())
   /// Null until they finish the first onboarding step. Signing up creates the
@@ -160,12 +162,33 @@ model OperatorUser {
   email     String   @unique
   name      String?
   role      OperatorRole @default(OWNER)
+  /// `scrypt:<salt>:<hash>`, the same shape `pin.ts` stores. Null for an
+  /// operator created by a magic link, who has never chosen one — so this
+  /// being null means "cannot use the password door", never "any password
+  /// will do". `operator-password-auth.ts` treats it exactly like a wrong
+  /// password, down to still paying the scrypt cost.
+  passwordHash String?
   createdAt DateTime @default(now())
   lastLoginAt DateTime?
 
   magicLinks MagicLinkToken[]
 
   @@index([venueId])
+}
+
+/// One password sign-in or sign-up attempt from one client IP, for throttling.
+///
+/// There is deliberately **no email column**. Recording which addresses were
+/// guessed at would build exactly the list of operator addresses that
+/// SECURITY.md §7 refuses to hand out, and would hand it to anyone who reaches
+/// the database — so the throttle is per-IP and stores nothing about who was
+/// aimed at (SECURITY.md §7a).
+model OperatorLoginAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
 }
 
 /// A sign-in link is a bearer credential travelling through email, which is not

@@ -1,25 +1,18 @@
 import Link from 'next/link'
+import { PASSWORD_MIN_LENGTH } from '@/lib/password'
 import { en } from '@/strings/en'
-import { signIn } from './actions'
+import { signUp } from './actions'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * `bad` covers a wrong password, an unknown address and a malformed one alike.
- * The link codes are still here because `/signin/verify` still redirects to
- * this page: the magic link is dormant in the UI, not switched off.
- */
 const ERRORS: Record<string, string> = {
-  bad: en.signin.badCredentials,
-  rate_limited: en.signin.rateLimited,
-  invalid_email: en.signin.invalidEmail,
-  expired: en.signin.linkExpired,
-  already_used: en.signin.linkUsed,
-  unknown: en.signin.linkUnknown,
-  missing: en.signin.linkUnknown,
+  invalid_email: en.signup.invalidEmail,
+  weak_password: en.signup.weakPassword(PASSWORD_MIN_LENGTH),
+  email_taken: en.signup.emailTaken,
+  rate_limited: en.signup.rateLimited,
 }
 
-export default async function SignInPage({
+export default async function SignUpPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>
@@ -29,14 +22,14 @@ export default async function SignInPage({
 
   return (
     <main className="mx-auto w-full max-w-md px-6 py-16">
-      <h1 className="text-3xl font-semibold">{en.signin.heading}</h1>
-      <p className="mt-3 text-lg text-muted">{en.signin.body}</p>
+      <h1 className="text-3xl font-semibold">{en.signup.heading}</h1>
+      <p className="mt-3 text-lg text-muted">{en.signup.body}</p>
 
       {message && <p className="mt-6 text-sm text-bad">{message}</p>}
 
-      <form action={signIn} className="mt-8">
+      <form action={signUp} className="mt-8">
         <label htmlFor="email" className="block text-sm text-muted">
-          {en.signin.emailLabel}
+          {en.signup.emailLabel}
         </label>
         <input
           id="email"
@@ -48,28 +41,34 @@ export default async function SignInPage({
         />
 
         <label htmlFor="password" className="mt-6 block text-sm text-muted">
-          {en.signin.passwordLabel}
+          {en.signup.passwordLabel}
         </label>
+        {/*
+          `minLength` is a courtesy that saves a round trip, not the rule.
+          `signUpWithPassword` re-checks it, because anything can post here.
+        */}
         <input
           id="password"
           name="password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN_LENGTH}
           required
           className="mt-2 min-h-14 w-full rounded-xl border border-line bg-paper px-4 text-lg"
         />
+        <p className="mt-2 text-sm text-muted">{en.signup.weakPassword(PASSWORD_MIN_LENGTH)}</p>
 
         <button
           type="submit"
           className="mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper"
         >
-          {en.signin.submit}
+          {en.signup.submit}
         </button>
       </form>
 
       <p className="mt-6 text-sm text-muted">
-        <Link href="/signup" className="underline">
-          {en.signin.noAccount}
+        <Link href="/signin" className="underline">
+          {en.signup.haveAccount}
         </Link>
       </p>
     </main>

@@ -94,18 +94,45 @@ export const en = {
 
   signin: {
     heading: 'Sign in',
-    body: 'We’ll email you a link. No password to remember or lose.',
+    body: 'Your email and password.',
     emailLabel: 'Your email',
-    submit: 'Email me a link',
-    // Identical whether or not the address is known — a different message here
-    // would tell anyone who asks which restaurants are customers.
-    sent: 'Check your email. The link works once and expires in 15 minutes.',
-    sentAgain: 'Didn’t arrive? Check spam, or request another.',
+    passwordLabel: 'Password',
+    submit: 'Sign in',
+    noAccount: 'No account yet? Create one.',
+    // One message for a wrong password, an address we have never seen, and an
+    // operator who only ever used a link. Naming which one it was would tell
+    // anyone who asks which restaurants are customers.
+    badCredentials: 'Email or password is incorrect.',
+    rateLimited: 'Too many attempts. Wait a few minutes and try again.',
     invalidEmail: 'That doesn’t look like an email address.',
-    linkExpired: 'That link has expired. Request another and it’ll be sent straight away.',
-    linkUsed: 'That link has already been used. Request another.',
-    linkUnknown: 'That link isn’t valid. Request another.',
+    // The magic link is dormant rather than gone: no page offers to send one
+    // while there is no verified sending domain, but a link already issued
+    // still works, so the messages it can produce still have to exist.
+    linkExpired: 'That link has expired.',
+    linkUsed: 'That link has already been used.',
+    linkUnknown: 'That link isn’t valid.',
     signOut: 'Sign out',
+  },
+
+  signup: {
+    heading: 'Create your account',
+    body: 'Your email and a password. Nothing is sent to you to confirm it.',
+    emailLabel: 'Your email',
+    passwordLabel: 'Choose a password',
+    submit: 'Create account',
+    haveAccount: 'Already have an account? Sign in.',
+    // Unlike sign-in, this one has to admit the address is known — there is no
+    // other way for someone who forgot they had signed up to act on it.
+    emailTaken: 'That email already has an account. Sign in instead.',
+    // A function, not a literal with the number baked in — and deliberately
+    // NOT an import of PASSWORD_MIN_LENGTH. This module is imported by guest
+    // client components, so anything it imports lands in the guest bundle;
+    // pulling in `lib/password` put `node:crypto` on a phone and broke the
+    // climb. The caller passes the number in (PLATFORM.md §11 budget).
+    weakPassword: (minLength: number) =>
+      `Use at least ${minLength} characters. Length is the only rule.`,
+    invalidEmail: 'That doesn’t look like an email address.',
+    rateLimited: 'Too many attempts. Wait a few minutes and try again.',
   },
 
   guest: {

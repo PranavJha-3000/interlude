@@ -244,3 +244,53 @@ export async function issueMagicLinkFor(
 
   return token
 }
+
+/**
+ * The password door (SECURITY.md §7a), driven through the real form.
+ *
+ * Unlike `issueMagicLinkFor` this writes nothing directly — the whole point of
+ * the password path is that it has no out-of-band step, so a fixture that
+ * shortcut it would test nothing the product does.
+ */
+export async function signInWithPassword(
+  page: Page,
+  email: string,
+  password: string
+): Promise<void> {
+  await page.goto('/signin')
+  await page.getByLabel('Your email').fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Sign in' }).click(),
+  ])
+  // The redirect can paint before the cookie lands in the jar, so settle first
+  // — the same race `operator-auth.spec.ts` guards against for the PIN form.
+  await page.waitForLoadState('networkidle')
+}
+
+/**
+ * Creates an operator through the real signup form and returns the address.
+ *
+ * The stamp keeps addresses unique across runs: signup is refused for an
+ * address that already exists, so a fixed one would pass once and fail forever.
+ */
+export async function signUpWithPassword(
+  page: Page,
+  password: string,
+  prefix = 'new-owner'
+): Promise<string> {
+  const stamp = String(await db.operatorUser.count())
+  const email = `${prefix}-${stamp}@example.com`
+
+  await page.goto('/signup')
+  await page.getByLabel('Your email').fill(email)
+  await page.getByLabel('Choose a password').fill(password)
+  await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Create account' }).click(),
+  ])
+  await page.waitForLoadState('networkidle')
+
+  return email
+}

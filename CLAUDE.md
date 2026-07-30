@@ -36,7 +36,7 @@ A third document, *INTERLUDE — Business Foundation v1.0*, is referenced throug
 ## Tenancy
 
 **The platform is multi-tenant and restaurants sign themselves up.** A landing page leads to an email
-magic link, and an owner onboards their own venue — details, tables, menu, staff PINs, QR — without
+and a password, and an owner onboards their own venue — details, tables, menu, staff PINs, QR — without
 anyone helping them. Two consequences that are easy to get wrong:
 
 - **Every operator query takes its `venueId` from the session, never from a URL parameter or a form
@@ -88,7 +88,7 @@ Four archetypes, four different design contracts. Building the wrong one into a 
 | `/` | Owner, not yet signed up | The front door. Says what the product does in the operator's language. Zero client components |
 | `/v/[venueToken]` | Guest | Venue QR. Pick your table, then hand off to `/t/[qrToken]`. A control table must fail here indistinguishably from a closed venue |
 | `/t/[qrToken]` | Guest | Anonymous, no account, no app. Payload budget **revised** — see below |
-| `/signin`, `/onboarding` | Owner | Magic link, then a resumable five-step setup ending in a printable QR |
+| `/signin`, `/signup`, `/onboarding` | Owner | Email + password, then a resumable five-step setup ending in a printable QR |
 | `/floor` | Server | Never shown a dashboard or a metric. Only: what to do, at which table, right now |
 | `/pass` | Chef | One control (kitchen load) and one list (vetoes). Glanceable mid-service, wet hands |
 | `/dash` | Owner | Leads with one number; everything else collapsible |
@@ -96,8 +96,14 @@ Four archetypes, four different design contracts. Building the wrong one into a 
 | `/tents` | Owner | Printable per-table tents and the venue QR. A print stylesheet, not a generated PDF |
 
 Auth splits cleanly and must stay split: **guest** has none, **staff** hold a venue PIN (`/floor`,
-`/pass`), **owner** holds a magic-link session (`/`-side surfaces and everything under `/dash`). A
+`/pass`), **owner** holds an operator session (`/`-side surfaces and everything under `/dash`). A
 staff PIN must never reach a metric; an operator session must never be required to fire an order.
+
+**The owner signs in with an email and a password, not a magic link** — sending anything needs a
+verified domain the pilot does not have, so a link would go nowhere. This is a knowing weakening,
+written down in SECURITY.md §7a with what it costs, and expected to revert. The magic link is
+dormant, not deleted: `/signin/verify` and `src/lib/operator-auth.ts` still work and are still
+tested, so restoring it is a UI change. Do not delete them.
 
 The north-star number is **attach-rate delta**, reported two ways. **ITT delta** (all tented vs. all untented) is the honest headline. **Engaged delta** (scanned vs. untented) includes guest self-selection and is only ever shown with that caveat — never as the headline.
 
