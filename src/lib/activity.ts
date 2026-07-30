@@ -75,8 +75,7 @@ export async function getServiceActivity(
     where: { id: serviceId, venueId },
     select: { id: true },
   })
-  if (!service)
-    return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL, truncated: false }
+  if (!service) return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL, truncated: false }
 
   // The rendered rows are bounded; the funnel is not. These are deliberately
   // separate reads — see ACTIVITY_ROW_LIMIT and the funnel.ts docblock for why

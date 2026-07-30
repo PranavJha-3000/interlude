@@ -35,6 +35,61 @@ export const en = {
     honesty:
       'On night one the dashboard shows an app-side estimate of net contribution. Upload a bill export and it is replaced by the measured attach-rate delta against same-night control tables.',
     cta: 'Get started',
+
+    /**
+     * The signature element (UI-SPEC.md §6): a rendered fragment of the
+     * engine's own audit trail. The refusal column is the pitch, so it is
+     * listed second and its reasons are set in full ink while the item names
+     * are struck and softened — the eye lands on *why it said no*.
+     *
+     * These rows are an illustration, not a customer's data. Two things are
+     * deliberately absent: a venue name and a location. There are no customers
+     * yet, and inventing one on the front door of a product whose whole
+     * promise is honest measurement is the single most expensive lie
+     * available. `stamp` says so on the card itself.
+     */
+    decisionCard: {
+      stamp: 'Example',
+      title: 'Tonight’s pool, decided at 6:40pm',
+      clearedHeading: 'Cleared',
+      clearedNote: 'Winnable tonight',
+      refusedHeading: 'Refused',
+      refusedNote: 'And the reason, in writing',
+      cleared: [
+        { item: 'Gulab jamun ×2', why: 'Plated cold. No fire time.' },
+        { item: 'Masala chai', why: '₹9 food cost against a ₹90 line.' },
+        { item: 'Veg momos, 20% off', why: 'Margin holds at 41% after the cut.' },
+      ],
+      refused: [
+        { item: 'Butter chicken', why: 'Your hero item. Never discounted.' },
+        { item: 'Tandoori chicken', why: 'Chef set load to red at 6:32pm.' },
+        { item: 'Paneer tikka, 40% off', why: 'Depth cap is 25%. Offered at 25%.' },
+        { item: 'Kulfi', why: 'Pool spend already at ₹1,200 of ₹1,200.' },
+      ],
+      footnote:
+        'Every line above is a row the engine wrote before service, with the reason attached. You can read it back the next morning and argue with it.',
+    },
+
+    /** Four steps, because the fifth would be the one they abandon. */
+    stepsHeading: 'What setup actually looks like',
+    steps: [
+      { n: '01', title: 'Tell us the venue', body: 'Name, city, how many tables. Two minutes.' },
+      {
+        n: '02',
+        title: 'Load your menu',
+        body: 'Price, food cost, and whether the kitchen has to touch it.',
+      },
+      {
+        n: '03',
+        title: 'Set your fences',
+        body: 'Deepest discount, spend per service, items that are never on the table.',
+      },
+      {
+        n: '04',
+        title: 'Print the tents',
+        body: 'One QR per table. Half of them stay blank — that is the control group, and it is how the number stays honest.',
+      },
+    ],
   },
 
   signin: {

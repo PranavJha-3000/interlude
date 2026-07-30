@@ -277,14 +277,22 @@ the visual treatment is not. UI-SPEC §6 still governs when it is.
 - [x] Zero client components — the whole app still has only two, both on the guest round
 - [x] Nothing that implies a draw, a wheel or a lottery, anywhere on the page — asserted by a test
       that scans the rendered text for eight banned words
-- [ ] The **decision card** hero — a rendered fragment of the engine's own audit trail, showing what
+- [x] The **decision card** hero — a rendered fragment of the engine's own audit trail, showing what
       it put in tonight's pool and what it refused, each with its `reason`. Not a phone mockup, not a
-      stat with a gradient. The refusal is the pitch. **Unblocked — the palette is decided**
-- [ ] IBM Plex Sans + Mono via `next/font`, operator routes only — a `next/font` import under
-      `(guest)` is a budget regression. **Unblocked — the palette is decided**
-- [ ] **No pricing table, no logo wall, no testimonials.** There are no customers yet, and inventing
+      stat with a gradient. The refusal is the pitch, so its four rows are set louder than the three
+      cleared ones: item names struck and dropped to `muted`, reasons kept in full ink. The rows are
+      copy in `en.ts`, **not live data** — rendering a real pool here would publish a customer's
+      menu, food costs and margin fences on a public page
+- [x] IBM Plex Sans + Mono + Instrument Serif via `next/font`, operator surfaces only. Imported in
+      exactly one module, `src/app/fonts.ts`, applied by `(operator)/layout.tsx` and by `page.tsx` —
+      the landing page is an operator surface but lives at the root, because the group layout renders
+      the signed-in nav shell and `/` is read by someone who has never signed in. Verified: no file
+      under `(guest)` imports either, and the app still has exactly two client components
+- [x] **No pricing table, no logo wall, no testimonials.** There are no customers yet, and inventing
       social proof on the front door of an honest-measurement product is the most expensive lie
-      available
+      available. The decision card is the one place this could have slipped, because it is built to
+      look like real audit output — so it carries an `Example` stamp, names no venue and names no
+      city, and a test asserts both the stamp and the absence of five social-proof phrases
 - [x] Fix the stale budget comment at the top of `src/app/globals.css` (UI-SPEC §10)
 - [x] **The palette is decided and applied.** Warm — apricot ground, burnt-orange accent — under two
       rules that keep it from eating its own alarms: saturation means information, and status colours

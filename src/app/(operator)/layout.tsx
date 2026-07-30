@@ -1,48 +1,12 @@
 import Link from 'next/link'
-import { IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Serif } from 'next/font/google'
 import { BRAND } from '@/brand'
 import { en } from '@/strings/en'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { signOut } from './signin/actions'
+import { operatorFontVars } from '../fonts'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * The operator's three faces. **This is the only file in the app permitted to
- * import `next/font`** — Next preloads font files per route, so an import
- * under `(guest)` would put ~30KB of webfont on a phone whose entire
- * discretionary budget is 15KB.
- *
- * They are declared as CSS variables rather than classNames so the guest route
- * can use the same `font-mono` and `font-display` utilities and silently fall
- * back to the system stack — see the note in `globals.css`.
- */
-const plexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-plex-sans',
-  display: 'swap',
-})
-
-/** Every figure the operator reads. Tabular by default is the point. */
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-plex-mono',
-  display: 'swap',
-})
-
-/** Display only, 28px and up. Four places, listed in UI-SPEC.md §4. */
-const instrument = Instrument_Serif({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-instrument',
-  display: 'swap',
-})
-
-/**
- * Shell for every operator surface.
- */
 export default async function OperatorLayout({ children }: { children: React.ReactNode }) {
   // `getOperatorWithoutVenue`, not `getOperator`: signup and sign-in are the
   // same request, so a brand-new operator holds a valid session with no venue
@@ -51,9 +15,7 @@ export default async function OperatorLayout({ children }: { children: React.Rea
   const operator = await getOperatorWithoutVenue()
 
   return (
-    <div
-      className={`${plexSans.variable} ${plexMono.variable} ${instrument.variable} surface-operator min-h-dvh`}
-    >
+    <div className={`${operatorFontVars} surface-operator min-h-dvh`}>
       <header className="border-b border-line">
         <nav className="mx-auto flex w-full max-w-4xl items-center gap-5 px-6 py-4">
           <Link href="/" className="text-xs tracking-widest text-muted uppercase">

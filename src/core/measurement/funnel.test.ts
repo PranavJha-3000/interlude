@@ -143,7 +143,12 @@ describe('countScannedTreatmentTables', () => {
   it('is the same count /dash/activity prints, so the two pages cannot disagree', () => {
     const tented = ['t1', 't2']
     const scannedTableIds = ['t1', 'not-tented', 'not-tented']
-    expect(countScannedTreatmentTables(tented, scannedTableIds.map((tableId) => ({ tableId })))).toBe(
+    expect(
+      countScannedTreatmentTables(
+        tented,
+        scannedTableIds.map((tableId) => ({ tableId }))
+      )
+    ).toBe(
       summariseFunnel({
         tentedTableIds: tented,
         scannedTableIds,

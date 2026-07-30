@@ -30,9 +30,13 @@ spacing, different voice. The guest side stays on the system stack because every
 measured; the owner's side can afford personality and needs it, because it is the surface that has to
 sell.
 
-**Enforcement:** `next/font` may be imported **only** in `src/app/(operator)/layout.tsx`. Next.js
-preloads font files per-route, so this keeps the guest bundle untouched. A `next/font` import
-anywhere under `(guest)` is a budget regression and should fail review.
+**Enforcement:** `next/font` is imported **only** in `src/app/fonts.ts`, which exports the three
+faces and an `operatorFontVars` string. Exactly two entry points apply it: `(operator)/layout.tsx`,
+and `src/app/page.tsx` — the landing page is an operator surface but sits at the root rather than
+inside the group, because that group's layout renders the signed-in nav shell and `/` is read by
+someone who has never signed in. Next.js preloads font files per-route, so a route that imports
+neither pays nothing. A `next/font` or `@/app/fonts` import anywhere under `(guest)` is a budget
+regression and should fail review.
 
 ---
 
@@ -121,8 +125,8 @@ the landing page feel authored rather than generated:
 4. The guest's win heading — *with the caveat below*
 
 **`font-display` and `font-mono` resolve differently per surface, and that is deliberate.**
-`next/font` is imported in `(operator)/layout.tsx` and nowhere else, so it defines
-`--font-instrument` and `--font-plex-mono` on that subtree only. Elsewhere those variables are
+`src/app/fonts.ts` is applied on the operator layout and the landing page and nowhere else, so it
+defines `--font-instrument` and `--font-plex-mono` on those subtrees only. Elsewhere those variables are
 undefined and the fallback in the token wins — Georgia for display, the system monospace for figures.
 So the guest route can use the same two utilities and pay **zero bytes**, while the operator gets the
 real faces. A `next/font` import under `(guest)` would put ~30KB of webfont on a phone whose entire
@@ -398,11 +402,10 @@ Not negotiable, not announced in the UI:
 
 - **`/floor` fills its redemption rows with `accent`**, which is not one of the four reserved uses.
   Recorded in §5; stays until `/floor` is revisited.
-- **The landing page and operator surfaces still ship without their type decision.** IBM Plex Sans +
-  Mono via `next/font` in `(operator)/layout.tsx` is specified in §2 and not yet applied.
-
 **Fixed:** the stale `globals.css` header comment claiming a sub-100KB budget now states the
-measured rule — ≤15KB over the framework floor, 200KB ceiling.
+measured rule — ≤15KB over the framework floor, 200KB ceiling. The type decision is applied: IBM
+Plex Sans + Mono + Instrument Serif ship on the operator subtree and the landing page via
+`src/app/fonts.ts`, and the guest route still imports no font.
 
 ---
 
