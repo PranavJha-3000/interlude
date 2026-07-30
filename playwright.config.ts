@@ -22,5 +22,10 @@ export default defineConfig({
     url: 'http://localhost:3200/floor',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // This is a production build with no `RESEND_API_KEY`, which `email.ts`
+    // refuses by default so a real deployment cannot drop sign-in mail in
+    // silence. The suite never reads a message — `fixtures.ts` writes the token
+    // row directly — so it only needs the refusal waived, by name.
+    env: { EMAIL_TRANSPORT: 'console' },
   },
 })

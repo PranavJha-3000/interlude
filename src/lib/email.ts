@@ -30,8 +30,41 @@ export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY)
 }
 
+export type EmailTransport = 'resend' | 'console'
+
+/**
+ * Which way a message leaves — and the refusal that keeps the console from
+ * being one of them by accident.
+ *
+ * The console fallback is a development convenience, but it used to be
+ * reachable anywhere, which made a deployment with no `RESEND_API_KEY` behave
+ * like a working one: `/signin` answers "check your email", the link is written
+ * to a serverless log nobody reads, and no operator can ever sign in. That is
+ * the same silent outage `base-url.ts` refuses to allow, so it is refused the
+ * same way — loudly, at the point of use.
+ *
+ * `EMAIL_TRANSPORT=console` is the deliberate exception. The E2E suite runs
+ * `next build && next start`, so it is a production build that legitimately has
+ * no key; naming the transport is what separates that from a misconfiguration.
+ */
+export function emailTransport(): EmailTransport {
+  if (isEmailConfigured()) return 'resend'
+  if (process.env.EMAIL_TRANSPORT === 'console') return 'console'
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'RESEND_API_KEY is not set in a production build, so no sign-in link can be delivered ' +
+        'and every operator would be locked out with the page still saying "check your email". ' +
+        'Set RESEND_API_KEY and EMAIL_FROM, or set EMAIL_TRANSPORT=console to accept ' +
+        'console-only delivery on purpose.'
+    )
+  }
+
+  return 'console'
+}
+
 export async function sendEmail(email: Email): Promise<void> {
-  if (!isEmailConfigured()) {
+  if (emailTransport() === 'console') {
     console.log(
       `\n──────── ${BRAND.name} email (no RESEND_API_KEY — not sent) ────────\n` +
         `To:      ${email.to}\n` +
