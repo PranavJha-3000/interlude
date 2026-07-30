@@ -337,7 +337,9 @@ async function AddOnOffer({
               className="flex min-h-14 w-full items-center justify-between rounded-xl border-2 border-line bg-warm px-4 text-left text-lg active:border-accent active:bg-accent-soft"
             >
               <span>{item.name}</span>
-              <span className="text-muted">{formatPaise(item.pricePaise)}</span>
+              {/* `ink-warm`, not `muted`: while this button is held its ground
+                  becomes `accent-soft`, where muted falls to 4.26. */}
+              <span className="text-ink-warm">{formatPaise(item.pricePaise)}</span>
             </button>
           </form>
         ))}

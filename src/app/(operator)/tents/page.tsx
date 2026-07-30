@@ -55,10 +55,18 @@ export default async function TentsPage() {
       url: `${base}/t/${t.qrToken}`,
       // Rendered server-side as inline SVG: no image request, no client JS,
       // and it stays crisp at whatever size it is printed.
+      // `margin` is the quiet zone in modules, and it is not whitespace we can
+      // trim to taste — a scanner uses it to find the symbol's edge. At 0 a
+      // reader has to separate the code from whatever it is printed against,
+      // which on a folded card under restaurant lighting is exactly when it
+      // fails. 4 is the spec minimum. A scan failure here is the whole funnel.
       svg: await QRCode.toString(`${base}/t/${t.qrToken}`, {
         type: 'svg',
         errorCorrectionLevel: 'M',
-        margin: 0,
+        margin: 4,
+        // Pure black on pure white, never the palette. A tinted QR is a
+        // scan-rate problem dressed as a brand decision.
+        color: { dark: '#000000ff', light: '#ffffffff' },
       }),
     }))
   )

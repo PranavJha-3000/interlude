@@ -109,7 +109,26 @@ Operator surfaces may go to 40px controls — a mouse is precise and a back offi
 | Label | `text-sm` | 400–600 | wide, uppercase | Section headings, eyebrows |
 | Micro | `text-xs` | 400 | widest, uppercase | Venue name, reason strings |
 
-**Operator** — Plex Sans for prose, **Plex Mono for every number and every `reason` string.**
+**Operator** — three faces: **IBM Plex Sans** for prose, **IBM Plex Mono** for every number and every
+`reason` string, **Instrument Serif** for display at 28px and up.
+
+**Instrument Serif appears in exactly four places**, and the scarcity is the point — it is what makes
+the landing page feel authored rather than generated:
+
+1. The landing wordmark and the one `<h1>`
+2. The `/dash` headline number **only when contribution is negative**
+3. The tent's wordmark
+4. The guest's win heading — *with the caveat below*
+
+**`font-display` and `font-mono` resolve differently per surface, and that is deliberate.**
+`next/font` is imported in `(operator)/layout.tsx` and nowhere else, so it defines
+`--font-instrument` and `--font-plex-mono` on that subtree only. Elsewhere those variables are
+undefined and the fallback in the token wins — Georgia for display, the system monospace for figures.
+So the guest route can use the same two utilities and pay **zero bytes**, while the operator gets the
+real faces. A `next/font` import under `(guest)` would put ~30KB of webfont on a phone whose entire
+discretionary budget is 15KB; the fallback stack is not a compromise here, it is the mechanism.
+
+Everything below applies to the operator surfaces.
 
 That second rule is the one that matters. A `reason` is machine output quoted verbatim to a human
 ("High margin (71%), not selling, 4 days since the last one"). Setting it in mono marks it as
@@ -141,44 +160,51 @@ moment is "beat the kitchen before the food lands."
 The chef's load switch is the biggest control in the product, and the owner's headline number turns
 red only when contribution is negative. An ambient palette of reds would drown its own alarms.
 
-### The two rules
+### The rule
 
-1. **Saturation is information.** Every ambient colour is a low-chroma warm. The only saturated
-   colours in the product are the three status hues and one accent — and the accent is deliberately
-   duller than every status hue, and about 28° of hue away from the crimson alarm, so status always
-   outshouts brand. If a colour is saturated, it is telling you something.
-2. **Status colours own the dark.** The staff surfaces are near-black and the load hues are the only
-   chroma in the room. The accent never appears on them.
+**Saturation is information.** Every ambient colour is a low-chroma warm. The only saturated colours
+in the product are the three load hues, the loss red, and one accent — and the accent is deliberately
+duller than all of them, so status always outshouts brand, on any surface, in any future feature.
+Heat comes from temperature and type, not from saturation.
 
-Rule 1 is the one to enforce in review, because it survives new surfaces. "Heat only on certain
+This is the rule to enforce in review, because it survives new surfaces. "Heat only on certain
 routes" would not — there are four more operator screens coming.
 
-### Light surfaces — guest, landing, operator
+A corollary worth stating separately: **status colours own the dark.** The staff surfaces are
+near-black and the load hues are the only chroma in the room. The accent never appears on them.
 
-| Role | Token | Value | Contrast | Usage |
-|---|---|---|---|---|
-| Dominant (60%) | `paper` | `#fff3e4` | — | Page background |
-| Secondary (30%) | `warm` | `#ffe4c8` | — | Cards, stat tiles, inset panels |
-| Line | `line` | `#ebcfa9` | 1.37 on paper | Borders, dividers |
-| Text | `ink` | `#26130a` | 16.3 / 14.6 | Body copy |
-| Muted text | `muted` | `#7a4b2e` | 6.7 / 6.0 | Captions, reasons, secondary labels |
-| **Accent (10%)** | `accent` | `#9e4a00` | 5.6 / 5.0 | **See the reserved list below** |
-| Accent wash | `accent-soft` | `#ffe0cc` | ink 14.2 on it | Pressed state on add-on options |
-| Alarm | `bad` | `#ad1f1f` | 6.4 on paper | **Negative contribution only** |
+### Light surfaces
 
-Ratios are against `paper` / `warm`. `paper` text on an `accent` fill is 5.6.
+Two grounds, because the guest and the operator are not reading the same kind of screen. Cotton is
+the operator's; clay is the guest's, and doubles as the panel colour on cotton.
+
+| Role | Token | Value | On cotton | On clay | Usage |
+|---|---|---|---|---|---|
+| Operator ground | `paper` | `#faf5ee` | — | — | Landing, `/dash`, `/tents` |
+| Guest ground / panel | `warm` | `#efe4d4` | — | — | Guest phone; cards and panels on cotton |
+| Line | `line` | `#dccebb` | 1.28 | — | Borders, dividers |
+| Text | `ink` | `#2b211a` | 14.50 | 12.52 | Body copy, primary buttons |
+| Deep umber | `ink-warm` | `#4a3527` | 10.58 | 9.14 | Subheads, table-header rule |
+| Muted text | `muted` | `#6e5b49` | 5.95 | 5.14 | Captions, reasons, secondary labels |
+| **Accent** | `accent` | `#a8380b` | 5.98 | 5.17 | **See the reserved list below** |
+| Accent wash | `accent-soft` | `#ebccb8` | 1.40 | 1.21 | Pressed state on add-on options |
+| Alarm | `bad` | `#b01e1e` | 6.35 | — | **Negative contribution only** |
+
+`paper` text on an `accent` fill is 5.98. `staff-ink` on an `ink` fill — the guest's primary button —
+is 13.20. Every ink weight clears AA on **both** grounds, which is the constraint that set them: the
+guest surface is read at 20% brightness, so even the softest has to carry body copy.
 
 ### Dark surfaces — `/floor` and `/pass` only
 
-| Role | Token | Value | Contrast on ground | Usage |
-|---|---|---|---|---|
-| Ground | `staff-ground` | `#1a0f07` | — | `.surface-staff` background |
-| Panel | `staff-panel` | `#26170c` | — | Raised rows |
-| Text | `staff-ink` | `#ffedd9` | 16.5 | Body copy on dark |
-| Muted | `staff-muted` | `#c9a183` | 8.0 | Secondary text on dark |
-| Load GREEN | `load-green` | `#3ddc84` | 10.6 | Kitchen GREEN, add-on ack row |
-| Load AMBER | `load-amber` | `#ffb648` | 10.8 | Kitchen AMBER, "tented" arm marker |
-| Load RED | `load-red` | `#ff5b3d` | 6.1 | Kitchen RED, veto, refused PIN |
+| Role | Token | Value | On ground | On panel | Usage |
+|---|---|---|---|---|---|
+| Ground | `staff-ground` | `#161210` | — | — | `.surface-staff` background |
+| Panel | `staff-panel` | `#221b16` | — | — | Raised rows |
+| Text | `staff-ink` | `#f2eae0` | 15.62 | 14.25 | Body copy on dark |
+| Muted | `staff-muted` | `#a99a8b` | 6.81 | 6.21 | Secondary text on dark |
+| Load GREEN | `load-green` | `#3ddc84` | 10.43 | — | Kitchen GREEN, add-on ack row |
+| Load AMBER | `load-amber` | `#ffb648` | 10.67 | — | Kitchen AMBER, "tented" arm marker |
+| Load RED | `load-red` | `#ff5b3d` | 6.04 | — | Kitchen RED, veto, refused PIN |
 
 **An active fill carries `text-staff-ground`, never white.** These hues are bright because they must
 read across a pass; white on them is about 1.8:1. Dark text on them is 6.1:1 at worst.
@@ -211,14 +237,27 @@ which is not on the list above. It predates this table. The row is the single mo
 the server's screen and nothing else on that surface competes for the colour, so it stays until
 `/floor` is revisited — but it is drift, not precedent.
 
+**Focus rings are part of the colour contract, not an afterthought.** 2px accent at 2px offset on
+light grounds; 2px `staff-ink` on the dark ones. **The offset is load-bearing.** It puts a gap of
+ground on both sides of the ring, so the ring is measured against the ground (5.98:1 on cotton) —
+without it, a ring around a dark `ink` button would be judged against the button at 2.42:1 and fail
+WCAG 1.4.11. Declared globally in `globals.css`, so a new control cannot forget it.
+
+**Print is not a surface this palette applies to.** The QR on a table tent is pure `#000000` on pure
+`#ffffff` with the full 4-module quiet zone, never tinted and never sitting directly on cotton or
+clay. A brand-coloured QR is a scan-rate problem dressed as a brand decision, and a scan failure is
+the entire funnel.
+
 **Dark mode: no.** `color-scheme: light` is declared and the staff surfaces are permanently dark by
 design. Guests scan for four minutes; a theme toggle is a preference control for a product nobody
 lives in.
 
-**What was rejected and why it matters:** the previous palette was cream plus terracotta
-(`#fbf7f0` / `#b4451f`). It was not wrong, but it was the look an AI reaches for by default, and it
-did nothing for the arousal moment the guest surface is built around. The replacement had to earn
-its heat without spending the status colours, which is what the two rules above buy.
+**What was rejected and why it matters:** the first palette was cream plus terracotta
+(`#fbf7f0` / `#b4451f`) — not wrong, but the look an AI reaches for by default, and it did nothing
+for the arousal moment the guest surface is built around. The second attempt went the other way, hot
+enough that the accent sat 16° of hue from the crimson alarm and a brand button could be misread as a
+loss. What shipped keeps the heat in the grounds and the type, and spends saturation only on things
+that mean something.
 
 **Dark mode: no.** `color-scheme: light` is declared and the staff surfaces are permanently dark by
 design. Guests scan for four minutes; a theme toggle is a preference control for a product nobody
