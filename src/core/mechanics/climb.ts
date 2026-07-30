@@ -110,6 +110,23 @@ export function handKindForRung(rung: number): HandKind {
 }
 
 /**
+ * How long is this hand worth attempting?
+ *
+ * `handSec` is the budget for a pair — one tap, two dishes. A ladder cannot
+ * have the same budget: the guest is hunting prices on a paper menu, and five
+ * dishes at twenty-five seconds is not hard, it is impossible. Everyone would
+ * stall on the same rung and the top of the ladder would never be reached by
+ * anyone, which looks like difficulty and is actually a bug.
+ *
+ * Eight seconds per dish beyond the pair. The run clock still bounds the whole
+ * thing, so a generous hand budget costs the venue nothing — it just means a
+ * guest gets fewer, fairer hands out of the same wait.
+ */
+export function handSecondsFor(hand: Hand, config: ClimbConfig): number {
+  return config.handSec + Math.max(0, hand.itemIds.length - 2) * 8
+}
+
+/**
  * How many distinct hands exist per rung before they repeat.
  *
  * A missed hand is re-dealt rather than ending the run, so the guest needs more

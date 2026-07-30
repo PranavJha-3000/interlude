@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { en } from '@/strings/en'
 import {
   dealHand,
+  handSecondsFor,
   handSeedFor,
   isHandCleared,
   type ClimbConfig,
@@ -55,8 +56,7 @@ export function Climb({
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [flash, setFlash] = useState<'CLEARED' | 'MISSED' | null>(null)
   const [left, setLeft] = useState(Math.max(0, Math.round((endsAtMs - serverNowMs) / 1000)))
-  const [handLeft, setHandLeft] = useState(config.handSec)
-  const handLeftRef = useRef(config.handSec)
+  const handLeftRef = useRef(0)
   const skewRef = useRef<number | null>(null)
 
   const priceOf = useMemo(() => new Map(menu.map((m) => [m.id, m.pricePaise])), [menu])
@@ -81,6 +81,15 @@ export function Climb({
   })
   const order = arrangement.key === handKey ? arrangement.ids : (hand?.itemIds ?? [])
 
+  /**
+   * The per-hand clock, sized to the hand and reset the same way the
+   * arrangement is: derived during render against the hand it belongs to,
+   * rather than written back from an effect a frame later.
+   */
+  const budget = hand ? handSecondsFor(hand, config) : config.handSec
+  const [clock, setClock] = useState<{ key: string; left: number }>({ key: '', left: 0 })
+  const handLeft = clock.key === handKey ? clock.left : budget
+
   const submit = () => {
     if (submittedRef.current) return
     submittedRef.current = true
@@ -92,8 +101,6 @@ export function Climb({
     setFlash(cleared ? 'CLEARED' : 'MISSED')
     setTimeout(() => {
       setFlash(null)
-      handLeftRef.current = config.handSec
-      setHandLeft(config.handSec)
       if (cleared) {
         if (rung >= config.rungs) {
           // Topped out. Submitting now is the right move: there is nothing left
@@ -164,20 +171,22 @@ export function Climb({
   // would fire twice under StrictMode and burn two attempts for one timeout.
   useEffect(() => {
     if (flash || !hand) return
+    handLeftRef.current = budget
+
     const id = setInterval(() => {
       const next = Math.max(0, handLeftRef.current - 1)
       handLeftRef.current = next
-      setHandLeft(next)
+      setClock({ key: handKey, left: next })
       if (next === 0) miss()
     }, 1000)
     return () => clearInterval(id)
     // `miss` is recreated every render but only ever reads `hand` and `flash`,
     // both of which are dependencies here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flash, hand])
+  }, [flash, hand, handKey, budget])
 
   const urgent = left <= 15
-  const handPct = Math.max(0, Math.min(100, (handLeft / config.handSec) * 100))
+  const handPct = budget > 0 ? Math.max(0, Math.min(100, (handLeft / budget) * 100)) : 0
 
   return (
     <form ref={formRef} action={action} className="flex min-h-dvh flex-col">

@@ -5,6 +5,7 @@ import {
   dealHand,
   decideRun,
   handKindForRung,
+  handSecondsFor,
   isHandCleared,
   isRunWorthStarting,
   ladderSizeForRung,
@@ -152,6 +153,35 @@ describe('dealHand', () => {
       for (const id of hand.itemIds) expect(ids.has(id)).toBe(true)
       expect(new Set(hand.itemIds).size).toBe(hand.itemIds.length)
     }
+  })
+})
+
+describe('handSecondsFor', () => {
+  it('gives a five-dish ladder more time than a two-dish tap', () => {
+    // Not a nicety. The guest is hunting prices on a paper menu; five dishes at
+    // the pair's budget is not hard, it is impossible, and everyone would stall
+    // on the same rung — which looks like difficulty and is actually a bug.
+    const pair = dealHand(MENU, 'seed', 1, CONFIG)!
+    const ladder = dealHand(MENU, 'seed', 6, CONFIG)!
+    expect(pair.itemIds).toHaveLength(2)
+    expect(ladder.itemIds).toHaveLength(5)
+
+    expect(handSecondsFor(pair, CONFIG)).toBe(CONFIG.handSec)
+    expect(handSecondsFor(ladder, CONFIG)).toBeGreaterThan(handSecondsFor(pair, CONFIG))
+  })
+
+  it('grows with the hand, so every extra dish is paid for', () => {
+    const three = dealHand(MENU, 'seed', 2, CONFIG)!
+    const five = dealHand(MENU, 'seed', 6, CONFIG)!
+    expect(handSecondsFor(five, CONFIG) - handSecondsFor(three, CONFIG)).toBe(
+      (five.itemIds.length - three.itemIds.length) * 8
+    )
+  })
+
+  it('scales off the venue’s own number, never a constant', () => {
+    const hand = dealHand(MENU, 'seed', 2, CONFIG)!
+    const generous = handSecondsFor(hand, { ...CONFIG, handSec: 60 })
+    expect(generous - handSecondsFor(hand, CONFIG)).toBe(60 - CONFIG.handSec)
   })
 })
 
