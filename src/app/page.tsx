@@ -38,7 +38,7 @@ export default function LandingPage() {
                 accent for a single primary action per surface; every other
                 control here is ink or a border. */}
             <Link
-              href="/signin"
+              href="/signup"
               className="mt-9 inline-flex min-h-14 items-center rounded-xl bg-accent px-8 text-lg font-medium text-paper"
             >
               {en.landing.cta}

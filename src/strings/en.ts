@@ -135,6 +135,85 @@ export const en = {
     rateLimited: 'Too many attempts. Wait a few minutes and try again.',
   },
 
+  onboarding: {
+    // The wizard is resumable, so every screen says where it is. Nobody sets a
+    // restaurant up in one sitting.
+    progress: (step: number, total: number) => `Step ${step} of ${total}`,
+    back: 'Back',
+
+    details: {
+      heading: 'Tell us about the venue',
+      body: 'This is what your guests see when they scan.',
+      nameLabel: 'Venue name',
+      namePlaceholder: 'The Pilot Kitchen',
+      cityLabel: 'City',
+      cityPlaceholder: 'Bengaluru',
+      submit: 'Continue',
+      nameRequired: 'Your venue needs a name.',
+      nameTaken: 'A venue with that name is already set up. Try adding the area.',
+    },
+
+    tables: {
+      heading: 'How many tables?',
+      body: 'We make a QR code for each one. You can add more later.',
+      countLabel: 'Number of tables',
+      submit: 'Continue',
+      countInvalid: 'Enter a number between 1 and 500.',
+    },
+
+    menu: {
+      heading: 'Add your menu',
+      // Said plainly, because this is the step people want to skip and it is
+      // the one the whole product runs on.
+      body: 'The game is built from your menu, and prizes come off it. Add the items you would be happy to give away or discount — you can add the rest later.',
+      nameLabel: 'Item',
+      priceLabel: 'Price ₹',
+      costLabel: 'Food cost ₹',
+      costHelp:
+        'What it costs you to make. This is what stops the engine discounting past your margin.',
+      categoryLabel: 'Category',
+      add: 'Add item',
+      added: (count: number) => `${count} ${count === 1 ? 'item' : 'items'} so far`,
+      submit: 'Done adding',
+      empty: 'Nothing added yet.',
+      needOne: 'Add at least one item before continuing.',
+      invalid: 'Give the item a name, a price, and what it costs you.',
+      costOverPrice: 'Food cost is higher than the price. Check the numbers.',
+      remove: 'Remove',
+    },
+
+    staff: {
+      heading: 'Your staff PINs',
+      body: 'We made these for you. Your floor and kitchen staff sign in with them — write them down or change them later in the dashboard.',
+      floor: 'Floor',
+      kitchen: 'Kitchen',
+      generate: 'Generate staff PINs',
+      warning:
+        'Written down? These are shown once. Generate again if you lose them — the old ones stop working.',
+      submit: 'Got them',
+    },
+
+    qr: {
+      heading: 'Your venue QR',
+      body: 'Print it for the counter, or put it on the table tents. A guest scans it, picks their table, and plays while their food cooks.',
+      print: 'Print table tents',
+      share: 'Share link',
+      shared: 'Link copied.',
+      submit: 'Continue',
+    },
+
+    games: {
+      heading: 'Which games?',
+      body: 'Both are on. Turn one off any time — this is not a decision you are stuck with.',
+      submit: 'Finish setup',
+    },
+
+    done: {
+      heading: 'You are set up',
+      body: 'Print your tents, put them on the tables, and open a service.',
+    },
+  },
+
   guest: {
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,

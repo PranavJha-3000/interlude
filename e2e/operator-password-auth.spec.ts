@@ -42,11 +42,11 @@ test('the seeded owner can sign in and reach the dashboard', async ({ page }) =>
   await expect(page).toHaveURL(/\/dash$/)
 })
 
-test('signing up lands on the dashboard empty state, with no venue yet', async ({ page }) => {
+test('signing up lands in the wizard, with no venue yet', async ({ page }) => {
   await signUpWithPassword(page, GOOD_PASSWORD)
 
-  await expect(page).toHaveURL(/\/dash$/)
-  await expect(page.locator('main')).toContainText('No service running')
+  await expect(page).toHaveURL(/\/onboarding$/)
+  await expect(page.locator('main')).toContainText('Tell us about the venue')
   // Signed in is signed in, even before onboarding attaches a venue.
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
@@ -58,7 +58,10 @@ test('a new account can sign out and sign back in with the same password', async
   await page.waitForLoadState('networkidle')
 
   await signInWithPassword(page, email, GOOD_PASSWORD)
-  await expect(page).toHaveURL(/\/dash$/)
+
+  // Back where they stopped, not at a dashboard — the cursor lives on the
+  // venue row, so an abandoned setup resumes rather than restarting.
+  await expect(page).toHaveURL(/\/onboarding$/)
 })
 
 test('a wrong password is refused, and grants no session', async ({ page }) => {

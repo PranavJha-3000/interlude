@@ -117,8 +117,21 @@ Including in brainstorms, including under new names: XP · levels · badges · g
 
 V1 scope is two mechanics (#5, #2), one screen (voice review), and one dashboard number. Anything not on PLATFORM.md §4's list is out. The server recognition card is deferred, not cancelled.
 
-**Venue onboarding is no longer deferred.** It was, and both this file and PLATFORM.md said so; that
-changed by owner decision when the platform went multi-tenant. It ships as `/signin` + `/onboarding`
-rather than as an internal `/admin`, because the restaurant does it themselves. Onboarding, menu
+**Venue onboarding is no longer deferred, and it is built.** It was deferred, and both this file and
+PLATFORM.md said so; that changed by owner decision when the platform went multi-tenant. It ships as
+`/signup` + `/onboarding` rather than as an internal `/admin`, because the restaurant does it
+themselves.
+
+The wizard is six screens driven by `Venue.onboardingStep` and nothing else — details, tables, menu,
+staff PINs, the venue QR, games. **The cursor lives on the venue row, never in a cookie or the URL**,
+so setup resumes on another device and a step cannot be skipped by editing an address. `/dash`
+redirects into it until the step is `DONE`. Two things about it are load-bearing rather than
+incidental:
+
+- **The menu step will not let an empty menu through.** The climb is built from the menu and prizes
+  come off it, so a venue with no items cannot run a service at all.
+- **Staff PINs are generated, not chosen, and shown exactly once** — on a POST, never while
+  rendering, because only the hash is stored and a page that minted them during render would rotate
+  a venue's PINs on a reload or a link prefetch. Onboarding, menu
 management and prize admin are operator plumbing, not new guest mechanics — they do not open the
 door to anything on the never-build list above.

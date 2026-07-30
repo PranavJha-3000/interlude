@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import type { PrismaClient } from '@/generated/prisma/client'
 import { defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
 
@@ -50,6 +50,23 @@ export function defaultVenueGames(): Array<{
     { mechanic: 'KITCHEN_ROUND', enabled: true, displayOrder: 0 },
     { mechanic: 'MYSTERY_PLATE', enabled: true, displayOrder: 1 },
   ]
+}
+
+/**
+ * A staff PIN, generated rather than chosen.
+ *
+ * Asking an owner to invent two PINs during signup is a screen they can abandon,
+ * and a venue with no staff cannot open a service at all — so onboarding makes
+ * them and shows them. `randomInt` rather than `Math.random` because this is a
+ * credential: it is weak by design (four digits, typed one-handed on a shared
+ * tablet, see `pin.ts`) and there is no reason to make it weaker still by
+ * generating it from a predictable source.
+ *
+ * Leading zeros are kept — `padStart` matters, or one PIN in ten is three
+ * digits and the operator reads it out wrong.
+ */
+export function newStaffPin(): string {
+  return String(randomInt(0, 10_000)).padStart(4, '0')
 }
 
 /** Long enough that a QR token cannot be guessed or enumerated. */
@@ -226,8 +243,23 @@ export async function createStaff(
   return staff.length
 }
 
-/** The order onboarding walks in. Resumable — nobody finishes in one sitting. */
-export const ONBOARDING_ORDER = ['DETAILS', 'TABLES', 'MENU', 'STAFF', 'QR', 'DONE'] as const
+/**
+ * The order onboarding walks in. Resumable — nobody finishes in one sitting.
+ *
+ * `STAFF` shows the generated PINs rather than asking for them, and `GAMES` is
+ * last because it is the only step with a sensible default already written:
+ * `defaultVenueGames()` turns both on at venue creation, so a venue that
+ * abandons the wizard here is still playable.
+ */
+export const ONBOARDING_ORDER = [
+  'DETAILS',
+  'TABLES',
+  'MENU',
+  'STAFF',
+  'QR',
+  'GAMES',
+  'DONE',
+] as const
 export type OnboardingStepName = (typeof ONBOARDING_ORDER)[number]
 
 export function nextOnboardingStep(current: OnboardingStepName): OnboardingStepName {

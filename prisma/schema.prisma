@@ -642,12 +642,16 @@ enum OperatorRole {
   MANAGER
 }
 
+/// The wizard's cursor. `STAFF` is a screen that shows the PINs rather than one
+/// that asks for them — a venue that cannot open a service is not set up, so the
+/// PINs are generated with the venue and the operator is only shown them.
 enum OnboardingStep {
   DETAILS
   TABLES
   MENU
   STAFF
   QR
+  GAMES
   DONE
 }
 

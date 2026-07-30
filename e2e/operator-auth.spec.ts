@@ -38,12 +38,17 @@ test('a garbage token is refused without a 500', async ({ page }) => {
   await expect(page).toHaveURL(/\/signin\?error=unknown$/)
 })
 
-test('a first-time signup with no venue lands on the dashboard empty state', async ({ page }) => {
+test('a first-time signup with no venue lands in the wizard, not on a dashboard', async ({
+  page,
+}) => {
   const token = await issueMagicLinkFor('brand-new-owner@example.com', { withVenue: false })
 
   await page.goto(`/signin/verify?token=${encodeURIComponent(token)}`)
-  await expect(page).toHaveURL(/\/dash$/)
-  await expect(page.locator('main')).toContainText('No service running')
+
+  // A dashboard about a venue that does not exist has nothing on it, and the
+  // only thing it could say is "go and set your venue up" — which is /onboarding.
+  await expect(page).toHaveURL(/\/onboarding$/)
+  await expect(page.locator('main')).toContainText('Tell us about the venue')
 })
 
 test('a staff session is redirected away from /dash, to /floor', async ({ page }) => {
@@ -82,7 +87,7 @@ test('a venue-less operator keeps nav and sign-out, and is not bounced off activ
 }) => {
   const token = await issueMagicLinkFor('brand-new-owner@example.com', { withVenue: false })
   await page.goto(`/signin/verify?token=${encodeURIComponent(token)}`)
-  await expect(page).toHaveURL(/\/dash$/)
+  await expect(page).toHaveURL(/\/onboarding$/)
 
   // Signed in is signed in. The shell must not treat "no venue yet" as
   // "no session" — that leaves them with no way to sign out of a session

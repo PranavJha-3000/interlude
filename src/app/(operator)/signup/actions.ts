@@ -38,5 +38,8 @@ export async function signUp(formData: FormData): Promise<void> {
   // and may be abandoned halfway.
   await setOperatorSessionCookie({ operatorId: result.operatorId, venueId: null })
 
-  redirect('/dash')
+  // Into the wizard, not the dashboard. A dashboard for a venue that does not
+  // exist yet has nothing on it, and the first thing it would have to say is
+  // "go and set your venue up" — which is this.
+  redirect('/onboarding')
 }

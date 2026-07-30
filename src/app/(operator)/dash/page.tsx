@@ -35,19 +35,22 @@ export default async function DashPage() {
     redirect('/signin')
   }
 
-  // Signup and sign-in are the same request (see operator-auth.ts), so a
-  // brand-new operator has a session but no venue yet. Onboarding does not
-  // exist yet, so they land on the same empty state as a venue with no
-  // service, rather than being bounced back to /signin with no explanation.
-  if (!operator.venueId) {
-    return (
-      <Shell>
-        <p className="text-lg text-muted">{en.dash.empty}</p>
-      </Shell>
-    )
-  }
+  // A brand-new operator has a session but no venue yet, because signing up and
+  // creating a venue are deliberately separate — the second one is abandonable.
+  // They belong in the wizard, not on a dashboard about a venue that does not
+  // exist.
+  if (!operator.venueId) redirect('/onboarding')
 
   const venueId = operator.venueId
+
+  // Half-finished setup goes back to where it stopped. The cursor lives on the
+  // venue row rather than in the browser, so this is the same screen on the
+  // phone they abandoned it on and the laptop they came back to.
+  const setup = await db.venue.findUnique({
+    where: { id: venueId },
+    select: { onboardingStep: true },
+  })
+  if (setup && setup.onboardingStep !== 'DONE') redirect('/onboarding')
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
