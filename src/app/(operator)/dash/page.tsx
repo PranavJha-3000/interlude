@@ -3,9 +3,11 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
+import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { partitionByArm } from '@/core/measurement/arm-assignment'
 import { summariseContribution, summariseEngagement } from '@/core/measurement/contribution'
+import { countScannedTreatmentTables } from '@/core/measurement/funnel'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,20 +24,39 @@ export const dynamic = 'force-dynamic'
  * caveat on tier 1 is not optional copy.
  */
 export default async function DashPage() {
-  // V1 has no magic-link auth yet, so the dashboard reuses the staff session.
-  // Deliberately noted rather than quietly shipped: an owner-only login is
-  // wave 2, alongside the config UI that actually needs it.
-  const staff = await readStaffSession()
-  if (!staff) redirect('/floor')
+  // Staff lose access to /dash — a server must never be shown a metric
+  // (PLATFORM.md §3). Only an operator's own magic-link session gets in; a
+  // staff session that lands here is sent back to the floor, not shown a
+  // partial dashboard.
+  const operator = await getOperatorWithoutVenue()
+  if (!operator) {
+    const staff = await readStaffSession()
+    if (staff) redirect('/floor')
+    redirect('/signin')
+  }
+
+  // Signup and sign-in are the same request (see operator-auth.ts), so a
+  // brand-new operator has a session but no venue yet. Onboarding does not
+  // exist yet, so they land on the same empty state as a venue with no
+  // service, rather than being bounced back to /signin with no explanation.
+  if (!operator.venueId) {
+    return (
+      <Shell>
+        <p className="text-lg text-muted">{en.dash.empty}</p>
+      </Shell>
+    )
+  }
+
+  const venueId = operator.venueId
 
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
-  const service = await getOpenService(staff.venueId)
+  const service = await getOpenService(venueId)
 
   const target =
     service ??
     (await db.service.findFirst({
-      where: { venueId: staff.venueId },
+      where: { venueId },
       orderBy: { startedAt: 'desc' },
     }))
 
@@ -57,7 +78,7 @@ export default async function DashPage() {
       select: { kind: true, valuePaise: true, foodCostPaise: true },
     }),
     getArmRows(target.id),
-    db.table.findMany({ where: { venueId: staff.venueId, active: true }, select: { id: true } }),
+    db.table.findMany({ where: { venueId, active: true }, select: { id: true } }),
     db.guestSession.findMany({ where: { serviceId: target.id }, select: { tableId: true } }),
     db.play.findMany({
       where: { guestSession: { serviceId: target.id } },
@@ -74,7 +95,10 @@ export default async function DashPage() {
   )
   const engagement = summariseEngagement({
     tentedTables: treatment.length,
-    scannedTables: new Set(sessions.map((s) => s.tableId)).size,
+    // The same treatment-filtered count `/dash/activity` prints, from the same
+    // function — an unfiltered set here counts tables that are not in the
+    // denominator and can report a scan rate above 100%.
+    scannedTables: countScannedTreatmentTables(treatment, sessions),
     roundsStarted: plays.length,
     roundsCompleted: plays.filter((p) => p.completedAt !== null).length,
   })

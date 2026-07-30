@@ -1,6 +1,8 @@
 # Secrets and data handling
 
-Six controls, four of them enforced by tooling rather than by remembering.
+Eight controls, four of them enforced by tooling rather than by remembering. The last two arrived
+with multi-tenancy: once restaurants sign themselves up, tenant isolation stops being tidiness and
+becomes the boundary that keeps one venue's P&L out of another's dashboard.
 
 ## 1. `server-only` build guard — enforced
 
@@ -9,8 +11,9 @@ database module, **the build fails** rather than bundling the connection string
 into JavaScript a guest downloads. This is the control that matters most,
 because Next.js will otherwise do exactly that without complaint.
 
-The same guard belongs on any future module that touches a secret — the phone
-HMAC helper, the staff PIN verifier, the Resend client.
+The same guard belongs on any module that touches a secret — the phone HMAC
+helper, the staff PIN verifier, `src/lib/operator-session.ts`, and
+`src/lib/email.ts`, which holds the Resend key.
 
 ## 2. `NEXT_PUBLIC_` secret lint rule — enforced
 
@@ -20,7 +23,8 @@ the client bundle. `eslint.config.mjs` makes it an **error** to read
 `PASSWORD`, `SALT`, `CREDENTIAL` or `DATABASE`.
 
 `NEXT_PUBLIC_BASE_URL` is intentionally allowed — it is a public origin used to
-build the QR links printed on the table tents.
+build the QR links printed on the table tents and the venue QR, and to build the
+absolute magic-link URL that goes into an email.
 
 ## 3. Pre-commit secret scan — enforced
 
@@ -42,8 +46,11 @@ Generated with `crypto.randomBytes(32)`, 64 hex characters, living only in
 gitignored and has never been committed; only `.env.example` is tracked, and it
 holds placeholders.
 
-To rotate: generate a new one, update Vercel, redeploy. Every staff session and
-guest cookie is invalidated, which is the intended effect.
+It signs the staff session cookie and the operator session cookie both. To
+rotate: generate a new one, update Vercel, redeploy. Every staff session, every
+owner session and every guest cookie is invalidated, which is the intended
+effect — an owner being signed out is a smaller problem than a leaked secret
+still being honoured.
 
 ```
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -51,7 +58,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## 5. Vercel environment variables — mark them Sensitive
 
-When adding `DATABASE_URL` and `SESSION_SECRET` in Vercel:
+When adding `DATABASE_URL`, `SESSION_SECRET` and `RESEND_API_KEY` in Vercel:
 
 - Tick **Sensitive**. The value cannot be read back out of the dashboard
   afterwards — only overwritten. Without this, anyone with project access can
@@ -78,6 +85,46 @@ Consequences that are features, not bugs:
 - Losing a venue's salt makes its identities permanently unreadable. That is
   acceptable — recognition is a nicety, and the alternative is a joinable
   cross-venue identity graph, which is on the never-build list.
+
+## 7. Magic-link tokens — a credential, treated like one
+
+The owner's sign-in link is a bearer credential that travels through email, which
+is not a secure channel. Four properties, all of them tested:
+
+- **Hashed at rest.** The database stores a SHA-256 of the token, never the
+  token. A database dump must not yield working sign-in links.
+- **Single-use.** `consumedAt` is set inside the same transaction that issues the
+  session. A link forwarded, quoted in a reply, or sitting in a mail archive is
+  already spent.
+- **Short-lived.** Minutes, not days. An expired link offers to send a new one
+  rather than explaining what went wrong.
+- **Rate-limited per email.** Otherwise the endpoint is a free mail cannon
+  pointed at anyone whose address is guessed.
+
+Requesting a link must respond identically whether or not the address belongs to
+an operator. A different response is an account-enumeration oracle.
+
+`RESEND_API_KEY` lives only in `.env` and Vercel, and is read only inside
+`src/lib/email.ts`, which imports `server-only`. **In development there is no key
+and no network call** — the link is written to the console. That is a
+convenience, but it is also the reason a developer never needs production email
+credentials on their laptop.
+
+## 8. Tenant isolation — venue scoping, from the session only
+
+Multi-tenancy means another restaurant's revenue, margins and menu are one
+mistaken query away. The rule is mechanical:
+
+**Every operator query takes its `venueId` from `requireOperator()`, never from a
+URL parameter, a form field, or a header.** A route that accepts a venue id from
+the client is a cross-tenant leak, and TypeScript will not catch it — a `string`
+from the session and a `string` from a URL are the same type.
+
+Enforced by test, not by care: signed in as venue A, a request for venue B's
+dashboard, menu, config or QR must 404 — not 403, which confirms the venue
+exists. The staff PIN is scoped the same way and additionally by capability: a
+staff session can fire orders, acknowledge add-ons and confirm redemptions, and
+can read no metric and change no config, at its own venue or any other.
 
 ## What is deliberately not here
 

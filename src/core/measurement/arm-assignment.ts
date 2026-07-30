@@ -163,13 +163,28 @@ export function partitionByArm(
   return { treatment, control, unassigned }
 }
 
-function compareByLabel(a: TableForAssignment, b: TableForAssignment): number {
-  const na = Number(a.label)
-  const nb = Number(b.label)
+/**
+ * The one table-label ordering in the product.
+ *
+ * Numeric where both labels are numeric, so "10" does not sort between "1" and
+ * "2"; lexical otherwise, so "Patio 1" has a defined place instead of the
+ * unspecified order `Number(a) - Number(b)` gives when both sides are NaN.
+ *
+ * Exported because the tent sheet, the guest table picker and the activity page
+ * all print table labels, and three private copies of this is three chances for
+ * two surfaces to disagree about the same list.
+ */
+export function compareLabels(a: string, b: string): number {
+  const na = Number(a)
+  const nb = Number(b)
   const aNum = Number.isFinite(na)
   const bNum = Number.isFinite(nb)
   if (aNum && bNum) return na - nb
   if (aNum) return -1
   if (bNum) return 1
-  return a.label < b.label ? -1 : a.label > b.label ? 1 : 0
+  return a.localeCompare(b)
+}
+
+function compareByLabel(a: TableForAssignment, b: TableForAssignment): number {
+  return compareLabels(a.label, b.label)
 }

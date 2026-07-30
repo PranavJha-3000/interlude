@@ -7,21 +7,38 @@ import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-
 import { estimateReadyAt, getOpenService, getVenueConfig, type PrepMinutes } from '@/lib/service'
 import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
-export async function signIn(formData: FormData): Promise<void> {
+/**
+ * Staff sign-in, scoped to the venue named in the path (`/floor/[venueSlug]`).
+ *
+ * The slug is bound by the page, never read from the form, so a PIN is only
+ * ever compared against the staff of one venue.
+ */
+export async function signIn(venueSlug: string, formData: FormData): Promise<void> {
   const pin = String(formData.get('pin') ?? '')
-  if (!pin) redirect('/floor?e=1')
+  if (!pin) redirect(`/floor/${venueSlug}?e=1`)
 
-  // One venue in V1, so the PIN identifies the staff member directly. With
-  // /admin and multiple venues this becomes venue-scoped.
+  // Scoped to the venue in the path. Unscoped, every staff PIN in the database
+  // was a candidate and the loop kept the last match — so two venues choosing
+  // the same four digits put a server on another restaurant's floor, with a
+  // session correctly scoped to the wrong venue (SECURITY.md §8).
   //
-  // Every stored hash is checked rather than short-circuiting on the first
-  // match, so the response time does not leak how many staff exist.
-  const staff = await db.staffUser.findMany()
+  // Every stored hash is still checked rather than short-circuiting on the
+  // first match, so the response time does not leak how many staff exist.
+  const staff = await db.staffUser.findMany({ where: { venue: { slug: venueSlug } } })
+
   let match: (typeof staff)[number] | undefined
+  let matches = 0
   for (const s of staff) {
-    if (verifyPin(pin, s.pinHash)) match = s
+    if (verifyPin(pin, s.pinHash)) {
+      match = s
+      matches++
+    }
   }
-  if (!match) redirect('/floor?e=1')
+
+  // Two staff at one venue sharing a PIN is the venue's own mistake, but
+  // silently picking one of them would hand someone the other's role. Refuse,
+  // and say the same thing a wrong PIN says.
+  if (!match || matches > 1) redirect(`/floor/${venueSlug}?e=1`)
 
   await setStaffSessionCookie({
     staffId: match.id,

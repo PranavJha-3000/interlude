@@ -1,4 +1,6 @@
 export { decidePrizePool } from './decide-prize-pool'
+export { defaultPrizeRules } from './default-rules'
+export { MECHANICS } from './mechanics'
 export type {
   AwardKind,
   DepthCaps,
@@ -6,10 +8,13 @@ export type {
   MarginTier,
   Mechanic,
   MenuItemInput,
+  Outcome,
   PrepBurden,
   PrizeEngineInput,
   PrizeEntry,
   PrizeExclusion,
   PrizePoolResult,
+  PrizeRuleInput,
+  RuleWindow,
   VelocityInput,
 } from './types'

@@ -2,15 +2,19 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { readGuestSessionId } from '@/lib/session'
-import { getLatestOrderFire, getVenueConfig, resolveScan, toRoundConfig } from '@/lib/service'
 import {
-  computeRoundWindow,
-  isRoundWorthStarting,
-  minutesUntilReady,
-} from '@/core/mechanics/kitchen-round'
-import { formatPaise } from '@/lib/money'
+  getEnabledGames,
+  getLatestOrderFire,
+  getMenuForClimb,
+  getVenueConfig,
+  resolveScan,
+  toClimbConfig,
+} from '@/lib/service'
+import { computeRunWindow, isRunWorthStarting } from '@/core/mechanics/climb'
+import type { Mechanic } from '@/core/prize-engine'
+import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { giveConsent, requestAddOn, startRound, submitRound } from './actions'
-import { Round, type RoundQuestion } from './Round'
+import { Climb } from './Climb'
 import { Poller } from './Poller'
 import { Body, Card, Heading, PrimaryButton, Screen } from './ui'
 
@@ -35,7 +39,9 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   // A control table and a closed venue look identical on purpose. A guest who
   // learns they are in a control group behaves differently, and that would
-  // contaminate the very comparison the control exists to provide.
+  // contaminate the very comparison the control exists to provide. This branch
+  // short-circuits before any session read for exactly that reason — nothing
+  // below may make a control table observably different.
   if (scan.kind === 'NO_SERVICE' || scan.kind === 'BLOCKED') {
     return (
       <Screen venueName={scan.venueName}>
@@ -55,6 +61,27 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
         },
       })
     : null
+
+  // Switching every game off closes the door to *new* rounds; it does not
+  // reach in and end one that is already running. A guest mid-quiz, or sitting
+  // on an award their server has not confirmed yet, keeps the screen they were
+  // on — the operator is told as much on `/dash/games`, and their award row
+  // exists and is on `/floor` regardless of what this page decides to render.
+  //
+  // Reading the session cookie is not a write, so the "an all-off venue records
+  // nothing" property still holds: a guest with no session for this service
+  // gets the closed screen, and the consent tap is never reachable.
+  const enabledGames = await getEnabledGames(scan.venueId)
+  const hasLiveRound = session?.serviceId === scan.serviceId && session.plays.length > 0
+
+  if (enabledGames.length === 0 && !hasLiveRound) {
+    return (
+      <Screen venueName={scan.venueName}>
+        <Heading>{en.guest.closed.heading}</Heading>
+        <Body>{en.guest.closed.body}</Body>
+      </Screen>
+    )
+  }
 
   // ── 1. Consent ─────────────────────────────────────────────────────────
   // Nothing has been recorded at this point, and the copy says so.
@@ -81,7 +108,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   }
 
   const config = await getVenueConfig(scan.venueId)
-  const roundConfig = toRoundConfig(config)
+  const climbConfig = toClimbConfig(config)
   const play = session.plays[0]
 
   // ── 4. Outcome ─────────────────────────────────────────────────────────
@@ -97,11 +124,9 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
         <Heading>{won ? en.guest.outcome.wonHeading : en.guest.outcome.lostHeading}</Heading>
         <Body>
-          {item
-            ? won
-              ? en.guest.outcome.wonBody(item.name)
-              : en.guest.outcome.lostBody(item.name)
-            : en.guest.closed.body}
+          {award && item
+            ? outcomeLine(won, item.name, award.kind, award.percentOff, award.fixedPricePaise)
+            : en.guest.outcome.nothingOffered}
         </Body>
         <p className="mt-2 text-sm text-muted">
           {en.guest.outcome.scoreLine(play.score, play.maxScore)}
@@ -111,12 +136,19 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
           <div className="mt-6">
             <Card>
               <p className="text-2xl font-semibold">{item.name}</p>
+              {/* What the guest pays, computed once in money.ts rather than
+                  re-derived per screen. */}
               <p className="mt-1 text-lg text-accent">
                 {award.kind === 'FREE'
                   ? 'Free'
-                  : award.kind === 'HALF_PRICE'
-                    ? `Half price — ${formatPaise(item.pricePaise - award.valuePaise)}`
-                    : formatPaise(config.mysteryPlatePricePaise)}
+                  : `${formatPaise(
+                      guestPaysPaise(
+                        award.kind,
+                        item.pricePaise,
+                        award.percentOff ?? undefined,
+                        award.fixedPricePaise ?? undefined
+                      )
+                    )} instead of ${formatPaise(item.pricePaise)}`}
               </p>
               <p className="mt-4 text-sm text-muted">
                 {award.status === 'CONFIRMED'
@@ -151,21 +183,19 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
     )
   }
 
-  // ── 3. Round in progress ───────────────────────────────────────────────
+  // ── 3. Climb in progress ───────────────────────────────────────────────
   if (play) {
-    const recorded = play.answers as Array<{ questionId: string; given: number | null }>
-    const rows = await db.quizQuestion.findMany({
-      where: { id: { in: recorded.map((a) => a.questionId) } },
-    })
-    const byId = new Map(rows.map((q) => [q.id, q]))
-    const questions: RoundQuestion[] = recorded
-      .map((a) => byId.get(a.questionId))
-      .filter((q): q is NonNullable<typeof q> => Boolean(q))
-      .map((q) => ({ id: q.id, prompt: q.prompt, options: q.options as string[] }))
+    // The menu goes to the phone, and that is deliberate: these prices are
+    // printed on the menu on the table, so there is nothing here to withhold.
+    // It is also all the client needs — it deals its own hands with the same
+    // pure function the server replays with, so no hand crosses the network.
+    const menu = await getMenuForClimb(scan.venueId)
 
     return (
-      <Round
-        questions={questions}
+      <Climb
+        menu={menu}
+        seedId={session.id}
+        config={climbConfig}
         endsAtMs={play.endsAt.getTime()}
         serverNowMs={now}
         action={async (formData: FormData) => {
@@ -190,11 +220,12 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   }
 
   const estReadyMs = fire.estReadyAt.getTime()
-  const window = computeRoundWindow(now, estReadyMs, roundConfig)
-  const minutes = minutesUntilReady(now, estReadyMs)
+  const window = computeRunWindow(now, estReadyMs, config.countdownBufferSec)
+  const minutes = Math.max(0, Math.round((estReadyMs - now) / 60000))
 
-  // A five-second round is worse than no round. Say so rather than start one.
-  if (!isRoundWorthStarting(window)) {
+  // A run that ends on the first rung is worse than no run. Say so rather than
+  // start one.
+  if (!window || !isRunWorthStarting(window.durationSec, climbConfig)) {
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.round.foodArriving}</Heading>
@@ -212,14 +243,43 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
           : en.guest.waiting.subheadNoTimer}
       </Body>
       <div className="flex-1" />
-      <form
-        action={async () => {
-          'use server'
-          await startRound(qrToken)
-        }}
-      >
-        <PrimaryButton type="submit">{en.guest.waiting.start}</PrimaryButton>
-      </form>
+
+      {enabledGames.length === 1 ? (
+        <form
+          action={async () => {
+            'use server'
+            await startRound(qrToken, enabledGames[0]!)
+          }}
+        >
+          <PrimaryButton type="submit">{en.guest.waiting.start}</PrimaryButton>
+        </form>
+      ) : (
+        <>
+          <h2 className="mb-1 text-xl font-semibold">{en.guest.gamePicker.heading}</h2>
+          <p className="mb-4 text-sm text-muted">{en.guest.gamePicker.body}</p>
+          <div className="grid gap-3">
+            {enabledGames.map((mechanic) => (
+              <form
+                key={mechanic}
+                action={async () => {
+                  'use server'
+                  await startRound(qrToken, mechanic)
+                }}
+              >
+                <button
+                  type="submit"
+                  className="min-h-14 w-full rounded-xl border-2 border-line bg-warm px-5 py-4 text-left active:border-accent active:bg-accent-soft"
+                >
+                  <span className="block text-lg font-semibold">{gameName(mechanic)}</span>
+                  <span className="mt-1 block text-sm text-muted">
+                    {gameBlurb(mechanic, config.mysteryPlatePricePaise)}
+                  </span>
+                </button>
+              </form>
+            ))}
+          </div>
+        </>
+      )}
     </Screen>
   )
 }
@@ -273,11 +333,67 @@ async function AddOnOffer({
               className="flex min-h-14 w-full items-center justify-between rounded-xl border-2 border-line bg-warm px-4 text-left text-lg active:border-accent active:bg-accent-soft"
             >
               <span>{item.name}</span>
-              <span className="text-muted">{formatPaise(item.pricePaise)}</span>
+              {/* `ink-warm`, not `muted`: while this button is held its ground
+                  becomes `accent-soft`, where muted falls to 4.26. */}
+              <span className="text-ink-warm">{formatPaise(item.pricePaise)}</span>
             </button>
           </form>
         ))}
       </div>
     </>
   )
+}
+
+/**
+ * The one line that tells the guest what they actually got.
+ *
+ * Both outcomes route through here, because both end in real value — the only
+ * difference is which `PrizeRule` the venue wrote for them, and the copy reads
+ * the depth off the award rather than assuming a half.
+ */
+function outcomeLine(
+  won: boolean,
+  itemName: string,
+  kind: 'FREE' | 'PERCENT_OFF' | 'FIXED_PRICE',
+  percentOff: number | null,
+  fixedPricePaise: number | null
+): string {
+  const o = en.guest.outcome
+  switch (kind) {
+    case 'FREE':
+      return won ? o.wonFree(itemName) : o.lostFree(itemName)
+    case 'PERCENT_OFF':
+      return won
+        ? o.wonPercent(itemName, percentOff ?? 0)
+        : o.lostPercent(itemName, percentOff ?? 0)
+    case 'FIXED_PRICE': {
+      const price = formatPaise(fixedPricePaise ?? 0)
+      return won ? o.wonFixed(itemName, price) : o.lostFixed(itemName, price)
+    }
+  }
+}
+
+function gameName(mechanic: Mechanic): string {
+  return mechanic === 'MYSTERY_PLATE'
+    ? en.guest.gamePicker.mysteryPlate
+    : en.guest.gamePicker.kitchenRound
+}
+
+/**
+ * The price in the blurb is `VenueConfig.mysteryPlatePricePaise`, which is
+ * **not** the row the award is charged from — that is the matching
+ * `PrizeRule.fixedPricePaise`. The two agree because `createVenue` seeds the
+ * rule from the config value, and they will keep agreeing only while
+ * `/dash/prizes` writes both together. It must, and this is the trap it has to
+ * avoid springing.
+ *
+ * Not derived from the rules instead, because "the" mystery-plate price is not
+ * a single row: rules match by margin tier, category and peak window, so the
+ * price the guest is finally charged is only known once an item is chosen —
+ * after the round they have not started yet.
+ */
+function gameBlurb(mechanic: Mechanic, mysteryPlatePricePaise: number): string {
+  return mechanic === 'MYSTERY_PLATE'
+    ? en.guest.gamePicker.mysteryPlateBlurb(formatPaise(mysteryPlatePricePaise))
+    : en.guest.gamePicker.kitchenRoundBlurb
 }

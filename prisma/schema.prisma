@@ -26,8 +26,14 @@ model Venue {
   /// Per-venue HMAC salt. Makes a cross-venue phone join impossible by
   /// construction (DPDP, PLATFORM.md §7). Never leaves the server.
   phoneSalt String
-  /// Google Place ID for the wave-3 review deep link.
+  /// The venue QR — one code to print for the counter or the menu. It resolves
+  /// to a table picker, which hands off to the per-table `Table.qrToken`,
+  /// because arm assignment is per table (PLATFORM.md §3).
+  qrToken   String   @unique
+  /// Google Place ID for the review deep link.
   googlePlaceId String?
+  /// Onboarding is resumable — nobody sets up a venue in one sitting.
+  onboardingStep OnboardingStep @default(DETAILS)
   createdAt DateTime @default(now())
 
   config       VenueConfig?
@@ -39,6 +45,8 @@ model Venue {
   quizPacks    QuizPack[]
   vetoes       ChefVeto[]
   guestIdents  GuestIdentity[]
+  prizeRules   PrizeRule[]
+  games        VenueGame[]
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -48,11 +56,24 @@ model VenueConfig {
   venueId String @unique
   venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
-  // Round shape
-  quizLengthSec      Int @default(75)
+  // Round shape.
+  //
+  // The run is no longer a fixed length. It lasts from the guest starting it
+  // until `countdownBufferSec` before the food is due, so a slow kitchen is a
+  // longer climb rather than a worse wait — see core/mechanics/climb.ts.
   countdownBufferSec Int @default(60)
+  /// Rungs on the ladder. Also the most prizes a single run can put in play.
+  climbRungs         Int @default(6)
+  /// Seconds a single hand is worth attempting, shown as the per-hand bar.
+  climbHandSec       Int @default(25)
+  /// Below this much cooking time left, do not offer a run at all.
+  climbMinRunSec     Int @default(45)
+
+  /// Deprecated with the trivia quiz the climb replaced. Kept as columns rather
+  /// than dropped: a venue that already tuned them loses nothing, and dropping
+  /// a column is the one migration that cannot be rolled back cleanly.
+  quizLengthSec      Int @default(75)
   quizQuestionCount  Int @default(8)
-  /// Percentage of questions that must be right to beat the kitchen.
   winThresholdPct    Int @default(70)
 
   /// Category -> minutes. Drives the Manual POS adapter's ready estimate.
@@ -77,6 +98,22 @@ model VenueConfig {
   reviewVelocityGateX     Float @default(2)
 
   updatedAt DateTime @updatedAt
+}
+
+/// Which games this venue runs. A row per mechanic rather than flags on
+/// VenueConfig: turning a game off mid-service is an operational decision worth
+/// a timestamp, and a future mechanic becomes a row rather than a migration.
+model VenueGame {
+  id           String   @id @default(cuid())
+  venueId      String
+  venue        Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  mechanic     Mechanic
+  enabled      Boolean  @default(true)
+  displayOrder Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([venueId, mechanic])
+  @@index([venueId, enabled])
 }
 
 model Table {
@@ -112,12 +149,43 @@ model StaffUser {
   @@index([venueId])
 }
 
+/// The owner or F&B head. Authenticated by email magic link — no password to
+/// store, reset or leak (SECURITY.md §7).
 model OperatorUser {
   id        String   @id @default(cuid())
-  venueId   String
-  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  /// Null until they finish the first onboarding step. Signing up creates the
+  /// person; creating the venue comes after, and may be abandoned halfway.
+  venueId   String?
+  venue     Venue?   @relation(fields: [venueId], references: [id], onDelete: Cascade)
   email     String   @unique
+  name      String?
+  role      OperatorRole @default(OWNER)
   createdAt DateTime @default(now())
+  lastLoginAt DateTime?
+
+  magicLinks MagicLinkToken[]
+
+  @@index([venueId])
+}
+
+/// A sign-in link is a bearer credential travelling through email, which is not
+/// a secure channel. Hashed at rest, single-use, short-lived — SECURITY.md §7.
+model MagicLinkToken {
+  id             String   @id @default(cuid())
+  operatorUserId String
+  operatorUser   OperatorUser @relation(fields: [operatorUserId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the token. The token itself is never stored, so a database
+  /// dump yields no working sign-in links.
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime @default(now())
+  /// Rate limiting reads this — a request endpoint that sends unlimited mail
+  /// is a free mail cannon pointed at whoever's address is guessed.
+  requestedFromIp String?
+
+  @@index([operatorUserId, createdAt])
+  @@index([expiresAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +261,51 @@ model MenuItem {
 
   @@unique([venueId, name])
   @@index([venueId, active])
+}
+
+/// The restaurant's own prize policy, as data rather than as our opinion.
+///
+/// Which items are given away, which are discounted and by how much, and what a
+/// losing guest still gets — all of it belongs to the operator (PLATFORM.md
+/// §10). Matched **first-match-wins by ascending `priority`**; every null
+/// condition means "any". Seeded from `defaultPrizeRules()` at venue creation
+/// and editable from `/dash/prizes` immediately after.
+///
+/// The engine reads these as arguments and stays pure. What a rule cannot do is
+/// reach a hero item, override a chef veto, or bust a depth cap — those fences
+/// sit above the rule lookup and are tested.
+model PrizeRule {
+  id       String @id @default(cuid())
+  venueId  String
+  venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  /// Ascending. Specific rules sort before venue-wide defaults.
+  priority Int    @default(100)
+  /// The operator's own words. Appears verbatim in the award's audit trail.
+  label    String
+
+  mechanic Mechanic
+  /// WIN rules set the prize; LOSE rules set the consolation.
+  outcome  Outcome
+
+  // --- Conditions. Null means "any". ---
+  marginTier MarginTier?
+  category   String?
+  menuItemId String?
+  window     RuleWindow @default(ANY)
+
+  // --- What it awards ---
+  kind            AwardKind
+  /// Required when kind is PERCENT_OFF. 1–100.
+  percentOff      Int?
+  /// Required when kind is FIXED_PRICE. What the guest pays, in paise.
+  fixedPricePaise Int?
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId, active, priority])
 }
 
 model ChefVeto {
@@ -307,6 +420,14 @@ model Award {
   prizePool   PrizePool? @relation(fields: [prizePoolId], references: [id], onDelete: SetNull)
 
   kind        AwardKind
+  /// Set when kind is PERCENT_OFF, so the redemption screen can say "40% off"
+  /// rather than making the server work it out from two rupee figures.
+  percentOff      Int?
+  /// Set when kind is FIXED_PRICE — what the guest pays.
+  fixedPricePaise Int?
+  /// Which `PrizeRule` produced this. Not a foreign key: the rule may be edited
+  /// or deleted later, and the award must still say what decided it at the time.
+  ruleId          String?
   /// Value conceded to the guest, and what it actually costs the kitchen.
   /// Both snapshotted so a later menu edit cannot rewrite history.
   valuePaise    Int
@@ -477,10 +598,34 @@ enum Outcome {
   LOSE
 }
 
+/// `HALF_PRICE` used to live here and is gone: it was a hardcoded 50, which is
+/// exactly the kind of venue number PLATFORM.md §10 forbids baking into code.
+/// A half-price prize is now `PERCENT_OFF` with `percentOff = 50`, set by the
+/// venue and editable by them.
 enum AwardKind {
   FREE
-  HALF_PRICE
+  PERCENT_OFF
   FIXED_PRICE
+}
+
+enum RuleWindow {
+  ANY
+  PEAK
+  OFF_PEAK
+}
+
+enum OperatorRole {
+  OWNER
+  MANAGER
+}
+
+enum OnboardingStep {
+  DETAILS
+  TABLES
+  MENU
+  STAFF
+  QR
+  DONE
 }
 
 enum AwardStatus {

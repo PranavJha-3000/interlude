@@ -23,7 +23,7 @@ export interface ConfirmedAddOn {
 }
 
 export interface ConfirmedAward {
-  kind: 'FREE' | 'HALF_PRICE' | 'FIXED_PRICE'
+  kind: 'FREE' | 'PERCENT_OFF' | 'FIXED_PRICE'
   /** Value conceded to the guest. */
   valuePaise: number
   /** What it actually cost the venue to hand over. */

@@ -18,14 +18,100 @@ export const en = {
     confirm: 'Confirm',
     retry: 'Try again',
     loading: 'One moment…',
+    /** Nothing to show in this cell. An em dash, never an empty cell. */
+    none: '—',
     offline: "You're offline. We'll pick up where you left off.",
     genericError: "Something went wrong at our end. Your table's fine — try again.",
+  },
+
+  landing: {
+    eyebrow: BRAND.name,
+    heading: 'The wait between ordering and eating is unsold inventory.',
+    body: 'A skill game on the guest’s own phone, lasting exactly as long as their food does. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
+    forGuests:
+      'Your guest scans a code on the table and plays for as long as their food takes — a slow kitchen is a longer game, not a worse wait. They climb a ladder of dishes off your own menu, and keep the rung they reach.',
+    forYou:
+      'You control the menu, the prizes, the discount depth, and a kill switch for when the kitchen is slammed.',
+    honesty:
+      'On night one the dashboard shows an app-side estimate of net contribution. Upload a bill export and it is replaced by the measured attach-rate delta against same-night control tables.',
+    cta: 'Get started',
+
+    /**
+     * The signature element (UI-SPEC.md §6): a rendered fragment of the
+     * engine's own audit trail. The refusal column is the pitch, so it is
+     * listed second and its reasons are set in full ink while the item names
+     * are struck and softened — the eye lands on *why it said no*.
+     *
+     * These rows are an illustration, not a customer's data. Two things are
+     * deliberately absent: a venue name and a location. There are no customers
+     * yet, and inventing one on the front door of a product whose whole
+     * promise is honest measurement is the single most expensive lie
+     * available. `stamp` says so on the card itself.
+     */
+    decisionCard: {
+      stamp: 'Example',
+      title: 'Tonight’s pool, decided at 6:40pm',
+      clearedHeading: 'Cleared',
+      clearedNote: 'Winnable tonight',
+      refusedHeading: 'Refused',
+      refusedNote: 'And the reason, in writing',
+      cleared: [
+        { item: 'Gulab jamun ×2', why: 'Plated cold. No fire time.' },
+        { item: 'Masala chai', why: '₹9 food cost against a ₹90 line.' },
+        { item: 'Veg momos, 20% off', why: 'Margin holds at 41% after the cut.' },
+      ],
+      refused: [
+        { item: 'Butter chicken', why: 'Your hero item. Never discounted.' },
+        { item: 'Tandoori chicken', why: 'Chef set load to red at 6:32pm.' },
+        { item: 'Paneer tikka, 40% off', why: 'Depth cap is 25%. Offered at 25%.' },
+        { item: 'Kulfi', why: 'Pool spend already at ₹1,200 of ₹1,200.' },
+      ],
+      footnote:
+        'Every line above is a row the engine wrote before service, with the reason attached. You can read it back the next morning and argue with it.',
+    },
+
+    /** Four steps, because the fifth would be the one they abandon. */
+    stepsHeading: 'What setup actually looks like',
+    steps: [
+      { n: '01', title: 'Tell us the venue', body: 'Name, city, how many tables. Two minutes.' },
+      {
+        n: '02',
+        title: 'Load your menu',
+        body: 'Price, food cost, and whether the kitchen has to touch it.',
+      },
+      {
+        n: '03',
+        title: 'Set your fences',
+        body: 'Deepest discount, spend per service, items that are never on the table.',
+      },
+      {
+        n: '04',
+        title: 'Print the tents',
+        body: 'One QR per table. Half of them stay blank — that is the control group, and it is how the number stays honest.',
+      },
+    ],
+  },
+
+  signin: {
+    heading: 'Sign in',
+    body: 'We’ll email you a link. No password to remember or lose.',
+    emailLabel: 'Your email',
+    submit: 'Email me a link',
+    // Identical whether or not the address is known — a different message here
+    // would tell anyone who asks which restaurants are customers.
+    sent: 'Check your email. The link works once and expires in 15 minutes.',
+    sentAgain: 'Didn’t arrive? Check spam, or request another.',
+    invalidEmail: 'That doesn’t look like an email address.',
+    linkExpired: 'That link has expired. Request another and it’ll be sent straight away.',
+    linkUsed: 'That link has already been used. Request another.',
+    linkUnknown: 'That link isn’t valid. Request another.',
+    signOut: 'Sign out',
   },
 
   guest: {
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,
-      body: 'A short game while your food is cooking. No account, no app, no email.',
+      body: 'A game while your food cooks, and it lasts as long as the food does. No account, no app, no email.',
       // DPDP purpose limitation: say what is stored, before anything is stored.
       privacy:
         'We record which table played and what you won, so your server can bring it. Nothing else, and nothing yet.',
@@ -35,25 +121,81 @@ export const en = {
     waiting: {
       heading: 'Your food is on its way',
       subheadWithMinutes: (minutes: number) =>
-        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out. Beat the kitchen.`,
-      subheadNoTimer: 'Beat the kitchen before your food lands.',
-      start: 'Start the round',
+        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out — so that is how long you have to climb.`,
+      subheadNoTimer: 'Climb as far as you can before your food lands.',
+      start: 'Start climbing',
       notFiredYet: "Your order hasn't gone into the kitchen yet. Hang tight — this'll wake up.",
     },
     round: {
-      questionCounter: (n: number, total: number) => `${n} of ${total}`,
-      timeLeft: (seconds: number) => `${seconds}s`,
       foodArriving: 'Food incoming!',
+    },
+    // The climb. Nothing here may imply a draw, a wheel or luck: every rung is
+    // won by getting the order right, and the answers are printed on the menu
+    // on the table (PLATFORM.md §7).
+    climb: {
+      rungCounter: (rung: number, total: number) => `Rung ${rung} of ${total}`,
+      // The countdown is the food, not an arbitrary limit — say so, because it
+      // is the reason a slow kitchen is a longer climb rather than a worse wait.
+      foodIn: (seconds: number) => {
+        const m = Math.floor(seconds / 60)
+        const sec = seconds % 60
+        return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `${sec}s`
+      },
+      pairPrompt: 'Which one costs more?',
+      ladderPrompt: 'Cheapest to dearest.',
+      menuHint: 'The prices are on your menu. That is not cheating.',
+      lockIn: 'Lock it in',
+      cleared: 'Cleared.',
+      clearedNote: 'Next rung is worth more.',
+      missed: 'Not that one.',
+      // A missed hand must not read as the end of the run, because it is not.
+      missedNote: 'Same rung, new hand. You still have time.',
+      moveUp: (itemName: string) => `Move ${itemName} earlier`,
+      moveDown: (itemName: string) => `Move ${itemName} later`,
+    },
+    // Which table are you at? Shown after a venue QR scan, before consent.
+    // Nothing is recorded on this screen — it is a list of links.
+    tablePicker: {
+      heading: 'Which table are you at?',
+      body: "It's on the little card or the edge of the table.",
+      tableLabel: (label: string) => `Table ${label}`,
+      noTables: 'Nothing set up here yet. Enjoy your meal.',
+    },
+    // Which stake, not which game — the climb is the same either
+    // way. Nothing here may imply a draw or a wheel: the mystery plate is a
+    // fixed-price dish the guest wins the *right to buy* (PLATFORM.md §7).
+    gamePicker: {
+      heading: 'Pick your stake',
+      body: 'Same climb either way. Different thing riding on it.',
+      kitchenRound: 'Beat the kitchen',
+      kitchenRoundBlurb:
+        'Climb as far as you can before your food lands. The higher you get, the better the dish.',
+      mysteryPlate: 'Tonight’s chef’s plate',
+      // Deliberately does not repeat the other button's heading. Two adjacent
+      // buttons whose accessible names each contain the other's are ambiguous
+      // on screen and to a screen reader — and the E2E locators had to be
+      // contorted around it.
+      mysteryPlateBlurb: (price: string) =>
+        `Win the chef’s pick for ${price} if you take the round.`,
     },
     outcome: {
       wonHeading: 'You beat the kitchen',
-      wonBody: (itemName: string) => `Your ${itemName} is on the house.`,
       wonInstruction: 'Show this screen to your server.',
       lostHeading: 'The kitchen won this one',
-      // Never a dead end: a loss still ends in real value (TODO.md wave 1).
-      lostBody: (itemName: string) => `Close though — here's ${itemName} at half price anyway.`,
       lostInstruction: 'Show this screen to your server.',
-      scoreLine: (score: number, total: number) => `${score} of ${total} right`,
+      // What the guest actually gets. The depth is whichever rule the venue
+      // wrote, so the copy takes it as an argument rather than assuming a half.
+      // Never a dead end: a loss still ends in real value.
+      wonFree: (itemName: string) => `Your ${itemName} is on the house.`,
+      wonPercent: (itemName: string, percent: number) => `${percent}% off your ${itemName}.`,
+      wonFixed: (itemName: string, price: string) => `${itemName}, yours for ${price}.`,
+      lostFree: (itemName: string) => `Close though — have a ${itemName} on us anyway.`,
+      lostPercent: (itemName: string, percent: number) =>
+        `Close though — here's ${percent}% off a ${itemName} anyway.`,
+      lostFixed: (itemName: string, price: string) =>
+        `Close though — you can still have a ${itemName} for ${price}.`,
+      nothingOffered: 'Nothing to give away right now, but thanks for playing.',
+      scoreLine: (score: number, total: number) => `You reached rung ${score} of ${total}`,
       awaitingConfirm: 'Waiting for your server to confirm…',
       confirmed: 'Confirmed. Enjoy.',
     },
@@ -76,6 +218,10 @@ export const en = {
       pinLabel: 'Your PIN',
       submit: 'Sign in',
       wrongPin: "That PIN didn't work.",
+      // No venue picker here, deliberately: a list of venues is a list of every
+      // restaurant that is a customer.
+      needsVenueLink: 'Open your venue’s own floor link to sign in. Your manager has it.',
+      venueHeading: (venueName: string) => `Sign in — ${venueName}`,
     },
     tables: {
       heading: 'Tables',
@@ -99,8 +245,10 @@ export const en = {
     redemptions: {
       heading: 'Redemptions',
       lineFree: (tableLabel: string, itemName: string) => `${tableLabel} claims: ${itemName}, free`,
-      lineHalf: (tableLabel: string, itemName: string) =>
-        `${tableLabel} claims: ${itemName}, half price`,
+      // The percentage comes off the award row, so the server reads the number
+      // the guest was actually shown rather than one we assumed.
+      linePercent: (tableLabel: string, itemName: string, percent: number) =>
+        `${tableLabel} claims: ${itemName}, ${percent}% off`,
       lineFixed: (tableLabel: string, itemName: string, price: string) =>
         `${tableLabel} claims: ${itemName} at ${price}`,
       confirm: 'Confirm',
@@ -127,11 +275,20 @@ export const en = {
       veto: 'Veto',
       unveto: 'Allow',
       excludedHeading: 'Not in the pool',
+      // A pool per game the venue is running. The two genuinely differ — a
+      // mystery plate is a fixed price, so different items qualify — and the
+      // chef is the one person who has to know what is actually being given
+      // away. Only shown when there is more than one, so a venue running a
+      // single game keeps the plain list it had.
+      gameKitchenRound: 'Kitchen round',
+      gameMysteryPlate: 'Mystery plate',
+      noGames: 'No game is on. Nothing is being offered.',
     },
   },
 
   dash: {
     heading: 'Tonight',
+    tents: 'Tents',
     tier1: {
       headline: 'Net contribution',
       // The honesty caveat is not optional copy — PLATFORM.md §9.
@@ -152,7 +309,50 @@ export const en = {
       engagedLabel: 'Scanned vs. control',
       engagedCaveat: 'Scanners choose to scan — treat as an upper bound.',
     },
+    activity: {
+      heading: 'Activity',
+      empty: 'No scans yet this service.',
+      colTable: 'Table',
+      colScanned: 'Scanned',
+      colGame: 'Game',
+      colResult: 'Result',
+      colClaimed: 'Claimed',
+      controlNote: 'Control table — cannot play',
+      pending: 'Pending',
+      /** The award depth when the guest pays nothing. */
+      free: 'free',
+      /** Marks a prize a member of staff actually handed over. */
+      claimedMark: '✓',
+      claimedAt: (time: string) => `✓ ${time}`,
+      notPlayed: 'Scanned, did not play',
+      inProgress: 'Playing now',
+      gameKitchenRound: 'Kitchen round',
+      gameMysteryPlate: 'Mystery plate',
+      scoreLine: (score: number, total: number) => `${score}/${total}`,
+      funnel: (f: {
+        tentedTables: number
+        scannedTables: number
+        playedSessions: number
+        claimedSessions: number
+      }) =>
+        `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.playedSessions} played · ${f.claimedSessions} claimed`,
+    },
+    games: {
+      heading: 'Games',
+      body: 'Turn a game off and new rounds stop offering it. A round already in progress finishes normally.',
+      on: 'On',
+      off: 'Off',
+      turnOn: 'Turn on',
+      turnOff: 'Turn off',
+      kitchenRound: 'Kitchen round',
+      kitchenRoundBlurb: 'The guest races the kitchen and wins something off your menu.',
+      mysteryPlate: 'Mystery plate',
+      mysteryPlateBlurb:
+        'Same questions, different stake — the guest wins the right to buy tonight’s chef’s pick at your fixed price.',
+      allOffWarning: 'Every game is off. Guests see the same screen a closed venue shows.',
+    },
     empty: 'No service running.',
+    gamesNav: 'Games',
   },
 } as const
 

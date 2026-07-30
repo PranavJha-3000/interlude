@@ -3,6 +3,9 @@ import QRCode from 'qrcode'
 import { db } from '@/lib/db'
 import { BRAND } from '@/brand'
 import { readStaffSession } from '@/lib/staff-session'
+import { getOperatorWithoutVenue } from '@/lib/operator-session'
+import { publicBaseUrl } from '@/lib/base-url'
+import { compareLabels } from '@/core/measurement/arm-assignment'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,19 +20,34 @@ export const dynamic = 'force-dynamic'
  * briefing, because the tent is the only part guaranteed to reach the table.
  */
 export default async function TentsPage() {
-  const staff = await readStaffSession()
-  if (!staff) redirect('/floor')
+  // Two sessions can legitimately reach this page. The owner reaches it from
+  // the /dash nav on their own laptop; a manager reaches it from the venue
+  // tablet, which only ever holds a staff PIN session. Guarding on staff alone
+  // bounced every operator to the floor console.
+  //
+  // Operator first, so an owner signed into both on one machine is scoped to
+  // the venue their own session names.
+  const operator = await getOperatorWithoutVenue()
+  const staff = operator ? null : await readStaffSession()
+  const venueId = operator?.venueId ?? staff?.venueId ?? null
+
+  // A signed-in operator with no venue yet has nothing to print — send them to
+  // the dashboard's empty state. Everyone else goes to the bare floor console,
+  // which now names no venue and so tells them to open their own venue's link;
+  // this page cannot offer a PIN pad because it does not know which venue to
+  // check the PIN against.
+  if (!venueId) redirect(operator ? '/dash' : '/floor')
 
   const [venue, tables] = await Promise.all([
-    db.venue.findUniqueOrThrow({ where: { id: staff.venueId } }),
+    db.venue.findUniqueOrThrow({ where: { id: venueId } }),
     db.table.findMany({
-      where: { venueId: staff.venueId, active: true },
+      where: { venueId, active: true },
       select: { id: true, label: true, qrToken: true },
     }),
   ])
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-  const ordered = [...tables].sort((a, b) => Number(a.label) - Number(b.label))
+  const base = publicBaseUrl()
+  const ordered = [...tables].sort((a, b) => compareLabels(a.label, b.label))
 
   const tents = await Promise.all(
     ordered.map(async (t) => ({
@@ -37,10 +55,18 @@ export default async function TentsPage() {
       url: `${base}/t/${t.qrToken}`,
       // Rendered server-side as inline SVG: no image request, no client JS,
       // and it stays crisp at whatever size it is printed.
+      // `margin` is the quiet zone in modules, and it is not whitespace we can
+      // trim to taste — a scanner uses it to find the symbol's edge. At 0 a
+      // reader has to separate the code from whatever it is printed against,
+      // which on a folded card under restaurant lighting is exactly when it
+      // fails. 4 is the spec minimum. A scan failure here is the whole funnel.
       svg: await QRCode.toString(`${base}/t/${t.qrToken}`, {
         type: 'svg',
         errorCorrectionLevel: 'M',
-        margin: 0,
+        margin: 4,
+        // Pure black on pure white, never the palette. A tinted QR is a
+        // scan-rate problem dressed as a brand decision.
+        color: { dark: '#000000ff', light: '#ffffffff' },
       }),
     }))
   )

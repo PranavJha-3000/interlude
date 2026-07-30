@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { hashPin } from '../src/lib/pin'
+import { createMenuItems, createStaff, createTables, createVenue } from '../src/lib/venue-setup'
 
 /**
  * Seeds one realistic Delhi casual-dining venue.
@@ -283,109 +283,53 @@ const MENU: Seed[] = [
   },
 ]
 
-/** Food-native questions. Nothing licensed, nothing that needs a rights holder. */
-const QUESTIONS: Array<{ prompt: string; options: string[]; answer: number }> = [
-  {
-    prompt: 'Which spice gives biryani its yellow colour?',
-    options: ['Saffron', 'Paprika', 'Cumin', 'Fennel'],
-    answer: 0,
-  },
-  {
-    prompt: 'Paneer is made by curdling milk with what?',
-    options: ['Sugar', 'Lemon juice', 'Salt', 'Yeast'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which of these is a leavened bread?',
-    options: ['Roti', 'Naan', 'Papad', 'Puri'],
-    answer: 1,
-  },
-  {
-    prompt: 'Dal makhani is traditionally made with which lentil?',
-    options: ['Toor', 'Moong', 'Urad', 'Masoor'],
-    answer: 2,
-  },
-  {
-    prompt: 'What does "tandoori" refer to?',
-    options: ['A spice blend', 'A clay oven', 'A region', 'A cutting style'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which is the hottest by Scoville rating?',
-    options: ['Kashmiri chilli', 'Bhut jolokia', 'Guntur chilli', 'Byadgi chilli'],
-    answer: 1,
-  },
-  {
-    prompt: 'Rogan josh originates from which region?',
-    options: ['Kerala', 'Kashmir', 'Gujarat', 'Bengal'],
-    answer: 1,
-  },
-  {
-    prompt: 'Garam masala literally means what?',
-    options: ['Hot spice', 'Mixed spice', 'Ground spice', 'Sweet spice'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which ingredient makes gulab jamun spongy?',
-    options: ['Semolina', 'Khoya', 'Coconut', 'Rice flour'],
-    answer: 1,
-  },
-  {
-    prompt: 'Tiramisu is soaked in what?',
-    options: ['Rum', 'Espresso', 'Orange juice', 'Milk'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which is not a South Indian dish?',
-    options: ['Dosa', 'Idli', 'Litti chokha', 'Uttapam'],
-    answer: 2,
-  },
-  {
-    prompt: 'Asafoetida is better known in Hindi as what?',
-    options: ['Hing', 'Ajwain', 'Methi', 'Kalonji'],
-    answer: 0,
-  },
-  {
-    prompt: 'What gives butter chicken its orange colour?',
-    options: ['Turmeric', 'Tomato and paprika', 'Saffron', 'Food colour only'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which lentil cooks fastest?',
-    options: ['Chana dal', 'Rajma', 'Moong dal', 'Urad whole'],
-    answer: 2,
-  },
-  {
-    prompt: 'Kulfi differs from ice cream because it is what?',
-    options: ['Churned less', 'Frozen faster', 'Made with eggs', 'Always vegan'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which is a fermented batter dish?',
-    options: ['Paratha', 'Dhokla', 'Samosa', 'Pakora'],
-    answer: 1,
-  },
-  {
-    prompt: 'Cardamom belongs to which plant family?',
-    options: ['Ginger', 'Pepper', 'Mint', 'Citrus'],
-    answer: 0,
-  },
-  {
-    prompt: 'What is "chaat masala" primarily flavoured with?',
-    options: ['Black salt', 'Cinnamon', 'Clove', 'Nutmeg'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which cut of bread is used for keema pav?',
-    options: ['Baguette', 'Ladi pav', 'Focaccia', 'Brioche'],
-    answer: 1,
-  },
-  {
-    prompt: 'Ghee is what, exactly?',
-    options: ['Whipped butter', 'Clarified butter', 'Butter substitute', 'Cultured cream'],
-    answer: 1,
-  },
-]
+interface SeedVenue {
+  name: string
+  slug: string
+  tableCount: number
+  seatsFor?: (index: number) => number
+  menu: typeof MENU
+  operatorEmail: string
+  serverPin: string
+  kitchenPin: string
+}
+
+/**
+ * One builder, two venues. The second venue exists so the tenancy test has
+ * something to *not* see — an isolation test against a database with one tenant
+ * proves nothing at all, because every query returns the only venue there is.
+ */
+async function seedVenue(v: SeedVenue) {
+  const venue = await createVenue(db, { name: v.name, slug: v.slug, timezone: 'Asia/Kolkata' })
+  await db.venue.update({ where: { id: venue.id }, data: { onboardingStep: 'DONE' } })
+
+  await createMenuItems(
+    db,
+    venue.id,
+    v.menu.map((m) => ({
+      name: m.name,
+      category: m.category,
+      pricePaise: m.price * 100,
+      foodCostPaise: m.cost * 100,
+      marginTier: m.tier,
+      prepBurden: m.prep,
+      requiresKitchenWork: m.kitchen ?? true,
+      isHero: m.hero ?? false,
+      trailingSales: m.hero ? 40 : m.category === 'desserts' ? 1 : 8,
+    }))
+  )
+
+  await createTables(db, venue.id, v.tableCount, v.seatsFor)
+  await db.operatorUser.create({
+    data: { email: v.operatorEmail, venueId: venue.id, name: 'Owner' },
+  })
+  await createStaff(db, venue.id, [
+    { name: 'Floor', role: 'SERVER', pinHash: hashPin(v.serverPin) },
+    { name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin(v.kitchenPin) },
+  ])
+
+  return venue
+}
 
 async function main() {
   console.log('Seeding…')
@@ -410,88 +354,54 @@ async function main() {
     db.menuItem.deleteMany(),
     db.guestIdentity.deleteMany(),
     db.staffUser.deleteMany(),
+    db.prizeRule.deleteMany(),
+    db.magicLinkToken.deleteMany(),
     db.operatorUser.deleteMany(),
     db.venueConfig.deleteMany(),
     db.venue.deleteMany(),
   ])
 
-  const venue = await db.venue.create({
-    data: {
-      slug: 'pilot',
-      name: 'The Pilot Kitchen',
-      timezone: 'Asia/Kolkata',
-      // Per-venue salt, generated once and never leaving the row (SECURITY.md §6).
-      phoneSalt: randomBytes(32).toString('hex'),
-      config: {
-        create: {
-          // Appendix B estimates. Every one of these is editable in /dash.
-          prepMinutesByCategory: {
-            starters: 8,
-            mains: 18,
-            breads: 6,
-            sides: 5,
-            desserts: 4,
-            beverages: 3,
-          },
-        },
-      },
-    },
-    include: { config: true },
+  // The same function self-serve onboarding calls. If these two ever diverge,
+  // the venue every test runs against stops resembling the ones real operators
+  // create — so there is exactly one path, and a test asserts it.
+  const operatorEmail = process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com'
+  const venue = await seedVenue({
+    name: 'The Pilot Kitchen',
+    slug: 'pilot',
+    tableCount: 30,
+    seatsFor: (i) => (i < 20 ? 4 : 2),
+    menu: MENU,
+    operatorEmail,
+    serverPin: '1234',
+    kitchenPin: '5678',
   })
   console.log(`  venue: ${venue.name}`)
-
-  await db.menuItem.createMany({
-    data: MENU.map((m) => ({
-      venueId: venue.id,
-      name: m.name,
-      category: m.category,
-      pricePaise: m.price * 100,
-      foodCostPaise: m.cost * 100,
-      marginTier: m.tier,
-      prepBurden: m.prep,
-      requiresKitchenWork: m.kitchen ?? true,
-      isHero: m.hero ?? false,
-      // Deliberately varied so the prize engine has something to reason about:
-      // heroes move, desserts do not. Replaced by real CSV data in wave 2.
-      trailingSales: m.hero ? 40 : m.category === 'desserts' ? 1 : 8,
-    })),
-  })
+  console.log('  prize rules: starting policy written, editable in /dash/prizes')
   console.log(`  menu: ${MENU.length} items (${MENU.filter((m) => m.hero).length} heroes)`)
-
-  await db.table.createMany({
-    data: Array.from({ length: 30 }, (_, i) => ({
-      venueId: venue.id,
-      label: String(i + 1),
-      qrToken: randomBytes(9).toString('base64url'),
-      seats: i < 20 ? 4 : 2,
-    })),
-  })
   console.log('  tables: 30, each with a unique QR token')
-
-  const pack = await db.quizPack.create({
-    data: { venueId: venue.id, name: 'Food basics', active: true },
-  })
-  await db.quizQuestion.createMany({
-    data: QUESTIONS.map((q, i) => ({
-      packId: pack.id,
-      prompt: q.prompt,
-      options: q.options,
-      answerIndex: q.answer,
-      difficulty: 1,
-      orderHint: i,
-    })),
-  })
-  console.log(`  quiz: ${QUESTIONS.length} questions`)
-
-  // Dev PINs, scrypt-hashed like real ones. The venue sets its own before the
-  // pilot; these exist so the floor and pass consoles are reachable today.
-  await db.staffUser.createMany({
-    data: [
-      { venueId: venue.id, name: 'Floor', role: 'SERVER', pinHash: hashPin('1234') },
-      { venueId: venue.id, name: 'Kitchen', role: 'KITCHEN', pinHash: hashPin('5678') },
-    ],
-  })
+  console.log(`  operator: ${operatorEmail} — sign in at /signin, link prints to this console`)
   console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
+
+  // A second tenant, so "venue A cannot see venue B" is a claim a test can
+  // falsify. Smaller and differently priced on purpose: identical venues would
+  // hide a bug that returns the wrong one.
+  const second = await seedVenue({
+    name: 'Copper & Clove',
+    slug: 'copper',
+    tableCount: 8,
+    menu: MENU.slice(0, 6),
+    operatorEmail: 'owner-two@example.com',
+    serverPin: '4321',
+    kitchenPin: '8765',
+  })
+  console.log(
+    `  venue: ${second.name} — 8 tables, ${MENU.slice(0, 6).length} menu items, operator owner-two@example.com, staff PIN 4321/8765`
+  )
+
+  // No question bank, and that is the point: the climb deals from the venue's
+  // own menu, so a new restaurant has nothing to author before it can run a
+  // game. The `QuizPack` tables are left in the schema but are no longer
+  // seeded or read.
 
   const tokens = await db.table.findMany({
     where: { venueId: venue.id },
@@ -500,9 +410,14 @@ async function main() {
     take: 3,
   })
   console.log('\nTry these:')
+  console.log(`  venue QR:  /v/${venue.qrToken}   (pick a table, then play)`)
   for (const t of tokens) {
     console.log(`  table ${t.label}: /t/${t.qrToken}`)
   }
+  // Sign-in is venue-addressed, so bare /floor is no longer a form. Print the
+  // link a developer actually needs, per venue.
+  console.log(`  floor:     /floor/${venue.slug}   (PIN 1234)`)
+  console.log(`  floor:     /floor/${second.slug}   (PIN 4321)`)
 }
 
 main()

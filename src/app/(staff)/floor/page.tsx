@@ -1,19 +1,11 @@
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
-import { formatPaise } from '@/lib/money'
+import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
 import { getArmRows, getOpenService } from '@/lib/service'
 import { armAt } from '@/core/measurement/arm-assignment'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
-import {
-  ackAddOn,
-  closeService,
-  confirmAward,
-  fireOrder,
-  openService,
-  signIn,
-  swapArms,
-} from './actions'
+import { ackAddOn, closeService, confirmAward, fireOrder, openService, swapArms } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +19,7 @@ export const dynamic = 'force-dynamic'
  */
 export default async function FloorPage() {
   const staff = await readStaffSession()
-  if (!staff) return <SignIn />
+  if (!staff) return <NeedsVenueLink />
 
   const service = await getOpenService(staff.venueId)
 
@@ -93,15 +85,25 @@ export default async function FloorPage() {
                         a.play.guestSession.table.label,
                         a.menuItem.name
                       )
-                    : a.kind === 'HALF_PRICE'
-                      ? en.floor.redemptions.lineHalf(
+                    : a.kind === 'PERCENT_OFF'
+                      ? en.floor.redemptions.linePercent(
                           a.play.guestSession.table.label,
-                          a.menuItem.name
+                          a.menuItem.name,
+                          a.percentOff ?? 0
                         )
                       : en.floor.redemptions.lineFixed(
                           a.play.guestSession.table.label,
                           a.menuItem.name,
-                          formatPaise(a.menuItem.pricePaise - a.valuePaise)
+                          // What the guest hands over. Read off the award, not
+                          // recomputed — the menu price may have changed since.
+                          formatPaise(
+                            guestPaysPaise(
+                              a.kind,
+                              a.menuItem.pricePaise,
+                              a.percentOff ?? undefined,
+                              a.fixedPricePaise ?? undefined
+                            )
+                          )
                         )
                 }
                 action={en.floor.redemptions.confirm}
@@ -154,7 +156,7 @@ export default async function FloorPage() {
                   <span className="text-2xl font-semibold">{t.label}</span>
                   <span
                     className={`text-[11px] tracking-wide uppercase ${
-                      arm === 'CONTROL' ? 'text-white/35' : 'text-amber'
+                      arm === 'CONTROL' ? 'text-white/35' : 'text-load-amber'
                     }`}
                   >
                     {arm === 'CONTROL' ? en.floor.tables.control : en.floor.tables.tented}
@@ -169,7 +171,7 @@ export default async function FloorPage() {
                     <input type="hidden" name="tableId" value={t.id} />
                     <button
                       type="submit"
-                      className="min-h-11 w-full rounded-lg bg-white/90 text-sm font-semibold text-black active:bg-amber"
+                      className="min-h-11 w-full rounded-lg bg-white/90 text-sm font-semibold text-black active:bg-load-amber"
                     >
                       {en.floor.tables.fireOrder}
                     </button>
@@ -234,12 +236,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+/**
+ * A one-tap action row.
+ *
+ * Both fills carry dark text rather than white. These are read on a dark
+ * tablet mid-service, and the load green is bright enough that white on it is
+ * about 1.8:1 — the same trap the kitchen switch had.
+ */
 function Row({ label, action, tone }: { label: string; action: string; tone: 'accent' | 'good' }) {
   return (
     <button
       type="submit"
       className={`flex min-h-16 w-full items-center justify-between rounded-xl px-4 text-left ${
-        tone === 'accent' ? 'bg-accent text-white' : 'bg-good text-white'
+        tone === 'accent' ? 'bg-accent text-paper' : 'bg-load-green text-staff-ground'
       }`}
     >
       <span className="text-lg">{label}</span>
@@ -261,26 +270,19 @@ function BigButton({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SignIn() {
+/**
+ * The signed-out console. Not a PIN pad and deliberately not a venue picker —
+ * sign-in lives at `/floor/[venueSlug]`, because a PIN can only be checked
+ * against one venue's staff, and a list of venues is a list of every restaurant
+ * that is a customer.
+ */
+function NeedsVenueLink() {
   return (
     <main className="surface-staff flex min-h-dvh items-center justify-center px-6">
-      <form action={signIn} className="w-full max-w-xs">
+      <div className="w-full max-w-xs">
         <h1 className="text-2xl font-semibold">{en.floor.signIn.heading}</h1>
-        <label htmlFor="pin" className="mt-6 block text-sm text-white/50">
-          {en.floor.signIn.pinLabel}
-        </label>
-        <input
-          id="pin"
-          name="pin"
-          type="password"
-          inputMode="numeric"
-          autoComplete="off"
-          className="mt-2 min-h-14 w-full rounded-xl border border-white/20 bg-white/10 px-4 text-2xl tracking-widest"
-        />
-        <div className="mt-4">
-          <BigButton>{en.floor.signIn.submit}</BigButton>
-        </div>
-      </form>
+        <p className="mt-4 text-lg text-white/60">{en.floor.signIn.needsVenueLink}</p>
+      </div>
     </main>
   )
 }
