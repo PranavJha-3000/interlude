@@ -5,19 +5,16 @@ import { readGuestSessionId } from '@/lib/session'
 import {
   getEnabledGames,
   getLatestOrderFire,
+  getMenuForClimb,
   getVenueConfig,
   resolveScan,
-  toRoundConfig,
+  toClimbConfig,
 } from '@/lib/service'
-import {
-  computeRoundWindow,
-  isRoundWorthStarting,
-  minutesUntilReady,
-} from '@/core/mechanics/kitchen-round'
+import { computeRunWindow, isRunWorthStarting } from '@/core/mechanics/climb'
 import type { Mechanic } from '@/core/prize-engine'
 import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { giveConsent, requestAddOn, startRound, submitRound } from './actions'
-import { Round, type RoundQuestion } from './Round'
+import { Climb } from './Climb'
 import { Poller } from './Poller'
 import { Body, Card, Heading, PrimaryButton, Screen } from './ui'
 
@@ -111,7 +108,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   }
 
   const config = await getVenueConfig(scan.venueId)
-  const roundConfig = toRoundConfig(config)
+  const climbConfig = toClimbConfig(config)
   const play = session.plays[0]
 
   // ── 4. Outcome ─────────────────────────────────────────────────────────
@@ -186,21 +183,19 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
     )
   }
 
-  // ── 3. Round in progress ───────────────────────────────────────────────
+  // ── 3. Climb in progress ───────────────────────────────────────────────
   if (play) {
-    const recorded = play.answers as Array<{ questionId: string; given: number | null }>
-    const rows = await db.quizQuestion.findMany({
-      where: { id: { in: recorded.map((a) => a.questionId) } },
-    })
-    const byId = new Map(rows.map((q) => [q.id, q]))
-    const questions: RoundQuestion[] = recorded
-      .map((a) => byId.get(a.questionId))
-      .filter((q): q is NonNullable<typeof q> => Boolean(q))
-      .map((q) => ({ id: q.id, prompt: q.prompt, options: q.options as string[] }))
+    // The menu goes to the phone, and that is deliberate: these prices are
+    // printed on the menu on the table, so there is nothing here to withhold.
+    // It is also all the client needs — it deals its own hands with the same
+    // pure function the server replays with, so no hand crosses the network.
+    const menu = await getMenuForClimb(scan.venueId)
 
     return (
-      <Round
-        questions={questions}
+      <Climb
+        menu={menu}
+        seedId={session.id}
+        config={climbConfig}
         endsAtMs={play.endsAt.getTime()}
         serverNowMs={now}
         action={async (formData: FormData) => {
@@ -225,11 +220,12 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   }
 
   const estReadyMs = fire.estReadyAt.getTime()
-  const window = computeRoundWindow(now, estReadyMs, roundConfig)
-  const minutes = minutesUntilReady(now, estReadyMs)
+  const window = computeRunWindow(now, estReadyMs, config.countdownBufferSec)
+  const minutes = Math.max(0, Math.round((estReadyMs - now) / 60000))
 
-  // A five-second round is worse than no round. Say so rather than start one.
-  if (!isRoundWorthStarting(window)) {
+  // A run that ends on the first rung is worse than no run. Say so rather than
+  // start one.
+  if (!window || !isRunWorthStarting(window.durationSec, climbConfig)) {
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.round.foodArriving}</Heading>

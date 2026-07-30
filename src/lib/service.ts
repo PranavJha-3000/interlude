@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assignment'
-import type { RoundConfig } from '@/core/mechanics/kitchen-round'
+import type { ClimbConfig, ClimbItemInput } from '@/core/mechanics/climb'
 import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
 
@@ -22,18 +22,33 @@ export async function getVenueConfig(venueId: string) {
   return config
 }
 
-export function toRoundConfig(config: {
-  quizLengthSec: number
-  countdownBufferSec: number
-  quizQuestionCount: number
-  winThresholdPct: number
-}): RoundConfig {
+export function toClimbConfig(config: {
+  climbRungs: number
+  climbHandSec: number
+  climbMinRunSec: number
+}): ClimbConfig {
   return {
-    quizLengthSec: config.quizLengthSec,
-    countdownBufferSec: config.countdownBufferSec,
-    quizQuestionCount: config.quizQuestionCount,
-    winThresholdPct: config.winThresholdPct,
+    rungs: config.climbRungs,
+    handSec: config.climbHandSec,
+    minRunSec: config.climbMinRunSec,
   }
+}
+
+/**
+ * The venue's menu as the climb sees it: id, name, price.
+ *
+ * Only active items, and only ones with a name and a price — a half-entered
+ * row from a venue still onboarding must not turn up in a hand at a table.
+ * Ordered by price then id so the deal is a function of the data rather than
+ * of whatever order Postgres felt like returning.
+ */
+export async function getMenuForClimb(venueId: string): Promise<ClimbItemInput[]> {
+  const rows = await db.menuItem.findMany({
+    where: { venueId, active: true, pricePaise: { gt: 0 } },
+    select: { id: true, name: true, pricePaise: true },
+    orderBy: [{ pricePaise: 'asc' }, { id: 'asc' }],
+  })
+  return rows.filter((r) => r.name.trim().length > 0)
 }
 
 /** The service currently running at this venue, or null between services. */

@@ -27,9 +27,9 @@ export const en = {
   landing: {
     eyebrow: BRAND.name,
     heading: 'The wait between ordering and eating is unsold inventory.',
-    body: 'A short skill game on the guest’s own phone while their food cooks. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
+    body: 'A skill game on the guest’s own phone, lasting exactly as long as their food does. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
     forGuests:
-      'Your guest scans a code on the table, plays for 60–90 seconds, and wins a named item off your menu.',
+      'Your guest scans a code on the table and plays for as long as their food takes — a slow kitchen is a longer game, not a worse wait. They climb a ladder of dishes off your own menu, and keep the rung they reach.',
     forYou:
       'You control the menu, the prizes, the discount depth, and a kill switch for when the kitchen is slammed.',
     honesty:
@@ -111,7 +111,7 @@ export const en = {
   guest: {
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,
-      body: 'A short game while your food is cooking. No account, no app, no email.',
+      body: 'A game while your food cooks, and it lasts as long as the food does. No account, no app, no email.',
       // DPDP purpose limitation: say what is stored, before anything is stored.
       privacy:
         'We record which table played and what you won, so your server can bring it. Nothing else, and nothing yet.',
@@ -121,15 +121,37 @@ export const en = {
     waiting: {
       heading: 'Your food is on its way',
       subheadWithMinutes: (minutes: number) =>
-        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out. Beat the kitchen.`,
-      subheadNoTimer: 'Beat the kitchen before your food lands.',
-      start: 'Start the round',
+        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out — so that is how long you have to climb.`,
+      subheadNoTimer: 'Climb as far as you can before your food lands.',
+      start: 'Start climbing',
       notFiredYet: "Your order hasn't gone into the kitchen yet. Hang tight — this'll wake up.",
     },
     round: {
-      questionCounter: (n: number, total: number) => `${n} of ${total}`,
-      timeLeft: (seconds: number) => `${seconds}s`,
       foodArriving: 'Food incoming!',
+    },
+    // The climb. Nothing here may imply a draw, a wheel or luck: every rung is
+    // won by getting the order right, and the answers are printed on the menu
+    // on the table (PLATFORM.md §7).
+    climb: {
+      rungCounter: (rung: number, total: number) => `Rung ${rung} of ${total}`,
+      // The countdown is the food, not an arbitrary limit — say so, because it
+      // is the reason a slow kitchen is a longer climb rather than a worse wait.
+      foodIn: (seconds: number) => {
+        const m = Math.floor(seconds / 60)
+        const sec = seconds % 60
+        return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `${sec}s`
+      },
+      pairPrompt: 'Which one costs more?',
+      ladderPrompt: 'Cheapest to dearest.',
+      menuHint: 'The prices are on your menu. That is not cheating.',
+      lockIn: 'Lock it in',
+      cleared: 'Cleared.',
+      clearedNote: 'Next rung is worth more.',
+      missed: 'Not that one.',
+      // A missed hand must not read as the end of the run, because it is not.
+      missedNote: 'Same rung, new hand. You still have time.',
+      moveUp: (itemName: string) => `Move ${itemName} earlier`,
+      moveDown: (itemName: string) => `Move ${itemName} later`,
     },
     // Which table are you at? Shown after a venue QR scan, before consent.
     // Nothing is recorded on this screen — it is a list of links.
@@ -139,14 +161,15 @@ export const en = {
       tableLabel: (label: string) => `Table ${label}`,
       noTables: 'Nothing set up here yet. Enjoy your meal.',
     },
-    // Which stake, not which game — the eight questions are the same either
+    // Which stake, not which game — the climb is the same either
     // way. Nothing here may imply a draw or a wheel: the mystery plate is a
     // fixed-price dish the guest wins the *right to buy* (PLATFORM.md §7).
     gamePicker: {
       heading: 'Pick your stake',
-      body: 'Same questions either way. Different thing riding on them.',
+      body: 'Same climb either way. Different thing riding on it.',
       kitchenRound: 'Beat the kitchen',
-      kitchenRoundBlurb: 'Win something off tonight’s menu before your food lands.',
+      kitchenRoundBlurb:
+        'Climb as far as you can before your food lands. The higher you get, the better the dish.',
       mysteryPlate: 'Tonight’s chef’s plate',
       // Deliberately does not repeat the other button's heading. Two adjacent
       // buttons whose accessible names each contain the other's are ambiguous
@@ -172,7 +195,7 @@ export const en = {
       lostFixed: (itemName: string, price: string) =>
         `Close though — you can still have a ${itemName} for ${price}.`,
       nothingOffered: 'Nothing to give away right now, but thanks for playing.',
-      scoreLine: (score: number, total: number) => `${score} of ${total} right`,
+      scoreLine: (score: number, total: number) => `You reached rung ${score} of ${total}`,
       awaitingConfirm: 'Waiting for your server to confirm…',
       confirmed: 'Confirmed. Enjoy.',
     },

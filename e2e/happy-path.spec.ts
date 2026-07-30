@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { arrangeService, correctAnswerFor, db, fireOrderFor, optionsFor } from './fixtures'
+import { arrangeService, climbRungs, db, fireOrderFor, menuPricesFor } from './fixtures'
 
 /**
  * The wave-1 ship gate: scan → consent → play → win → add-on → staff confirms.
@@ -33,31 +33,25 @@ test('a guest scans, beats the kitchen, adds a dessert, and staff confirms it', 
   await expect(page.getByText(/minutes out/)).toBeVisible()
   expect(await db.guestSession.count({ where: { serviceId } })).toBe(1)
 
-  // ── The round ──────────────────────────────────────────────────────────
+  // ── The climb ──────────────────────────────────────────────────────────
   // Both games are seeded on, so the waiting screen offers the stake picker.
   await page.getByRole('button', { name: 'Beat the kitchen' }).click()
-  await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
+  await expect(page.getByText('Rung 1 of')).toBeVisible()
 
   const play = await db.play.findFirstOrThrow({
     where: { guestSession: { serviceId } },
   })
   expect(play.endsAt.getTime(), 'the end time is issued by the server').toBeGreaterThan(Date.now())
+  expect(
+    play.endsAt.getTime() - Date.now(),
+    'the run lasts as long as the food does, not a fixed length'
+  ).toBeGreaterThan(10 * 60_000)
 
-  // Answer every question correctly, so the win is deliberate rather than luck.
-  // The round advances on a short delay, so wait for the heading to actually
-  // change before reading it — otherwise we look up the answer to the question
-  // we just finished.
-  const heading = page.locator('h1')
-  let previous = ''
-
-  for (let i = 0; i < play.maxScore; i++) {
-    if (previous) await expect(heading).not.toHaveText(previous, { timeout: 10_000 })
-    const prompt = (await heading.innerText()).trim()
-    previous = prompt
-
-    const [answerIndex, options] = await Promise.all([correctAnswerFor(prompt), optionsFor(prompt)])
-    await page.getByRole('button', { name: options[answerIndex]!, exact: true }).click()
-  }
+  // Climb every rung deliberately, reading the dish names off the page and
+  // ordering them by the menu's own prices — so the win is earned rather than
+  // clicked hopefully.
+  const prices = await menuPricesFor('pilot')
+  await climbRungs(page, prices, play.maxScore)
 
   // ── Outcome ────────────────────────────────────────────────────────────
   await expect(page.getByRole('heading', { level: 1 })).toContainText('You beat the kitchen', {
@@ -71,6 +65,11 @@ test('a guest scans, beats the kitchen, adds a dessert, and staff confirms it', 
   expect(award.status).toBe('PENDING')
   expect(award.reason.trim().length, 'every award carries a reason').toBeGreaterThan(0)
   expect(award.menuItem.isHero, 'a hero item is never given away').toBe(false)
+
+  const topped = await db.play.findUniqueOrThrow({ where: { id: play.id } })
+  expect(topped.score, 'every rung was cleared, so the top of the ladder was reached').toBe(
+    play.maxScore
+  )
 
   // ── Add-on ─────────────────────────────────────────────────────────────
   await expect(page.getByRole('heading', { name: /Add something/ })).toBeVisible()

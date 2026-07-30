@@ -56,11 +56,24 @@ model VenueConfig {
   venueId String @unique
   venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
-  // Round shape
-  quizLengthSec      Int @default(75)
+  // Round shape.
+  //
+  // The run is no longer a fixed length. It lasts from the guest starting it
+  // until `countdownBufferSec` before the food is due, so a slow kitchen is a
+  // longer climb rather than a worse wait — see core/mechanics/climb.ts.
   countdownBufferSec Int @default(60)
+  /// Rungs on the ladder. Also the most prizes a single run can put in play.
+  climbRungs         Int @default(6)
+  /// Seconds a single hand is worth attempting, shown as the per-hand bar.
+  climbHandSec       Int @default(25)
+  /// Below this much cooking time left, do not offer a run at all.
+  climbMinRunSec     Int @default(45)
+
+  /// Deprecated with the trivia quiz the climb replaced. Kept as columns rather
+  /// than dropped: a venue that already tuned them loses nothing, and dropping
+  /// a column is the one migration that cannot be rolled back cleanly.
+  quizLengthSec      Int @default(75)
   quizQuestionCount  Int @default(8)
-  /// Percentage of questions that must be right to beat the kitchen.
   winThresholdPct    Int @default(70)
 
   /// Category -> minutes. Drives the Manual POS adapter's ready estimate.

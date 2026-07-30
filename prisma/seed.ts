@@ -283,110 +283,6 @@ const MENU: Seed[] = [
   },
 ]
 
-/** Food-native questions. Nothing licensed, nothing that needs a rights holder. */
-const QUESTIONS: Array<{ prompt: string; options: string[]; answer: number }> = [
-  {
-    prompt: 'Which spice gives biryani its yellow colour?',
-    options: ['Saffron', 'Paprika', 'Cumin', 'Fennel'],
-    answer: 0,
-  },
-  {
-    prompt: 'Paneer is made by curdling milk with what?',
-    options: ['Sugar', 'Lemon juice', 'Salt', 'Yeast'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which of these is a leavened bread?',
-    options: ['Roti', 'Naan', 'Papad', 'Puri'],
-    answer: 1,
-  },
-  {
-    prompt: 'Dal makhani is traditionally made with which lentil?',
-    options: ['Toor', 'Moong', 'Urad', 'Masoor'],
-    answer: 2,
-  },
-  {
-    prompt: 'What does "tandoori" refer to?',
-    options: ['A spice blend', 'A clay oven', 'A region', 'A cutting style'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which is the hottest by Scoville rating?',
-    options: ['Kashmiri chilli', 'Bhut jolokia', 'Guntur chilli', 'Byadgi chilli'],
-    answer: 1,
-  },
-  {
-    prompt: 'Rogan josh originates from which region?',
-    options: ['Kerala', 'Kashmir', 'Gujarat', 'Bengal'],
-    answer: 1,
-  },
-  {
-    prompt: 'Garam masala literally means what?',
-    options: ['Hot spice', 'Mixed spice', 'Ground spice', 'Sweet spice'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which ingredient makes gulab jamun spongy?',
-    options: ['Semolina', 'Khoya', 'Coconut', 'Rice flour'],
-    answer: 1,
-  },
-  {
-    prompt: 'Tiramisu is soaked in what?',
-    options: ['Rum', 'Espresso', 'Orange juice', 'Milk'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which is not a South Indian dish?',
-    options: ['Dosa', 'Idli', 'Litti chokha', 'Uttapam'],
-    answer: 2,
-  },
-  {
-    prompt: 'Asafoetida is better known in Hindi as what?',
-    options: ['Hing', 'Ajwain', 'Methi', 'Kalonji'],
-    answer: 0,
-  },
-  {
-    prompt: 'What gives butter chicken its orange colour?',
-    options: ['Turmeric', 'Tomato and paprika', 'Saffron', 'Food colour only'],
-    answer: 1,
-  },
-  {
-    prompt: 'Which lentil cooks fastest?',
-    options: ['Chana dal', 'Rajma', 'Moong dal', 'Urad whole'],
-    answer: 2,
-  },
-  {
-    prompt: 'Kulfi differs from ice cream because it is what?',
-    options: ['Churned less', 'Frozen faster', 'Made with eggs', 'Always vegan'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which is a fermented batter dish?',
-    options: ['Paratha', 'Dhokla', 'Samosa', 'Pakora'],
-    answer: 1,
-  },
-  {
-    prompt: 'Cardamom belongs to which plant family?',
-    options: ['Ginger', 'Pepper', 'Mint', 'Citrus'],
-    answer: 0,
-  },
-  {
-    prompt: 'What is "chaat masala" primarily flavoured with?',
-    options: ['Black salt', 'Cinnamon', 'Clove', 'Nutmeg'],
-    answer: 0,
-  },
-  {
-    prompt: 'Which cut of bread is used for keema pav?',
-    options: ['Baguette', 'Ladi pav', 'Focaccia', 'Brioche'],
-    answer: 1,
-  },
-  {
-    prompt: 'Ghee is what, exactly?',
-    options: ['Whipped butter', 'Clarified butter', 'Butter substitute', 'Cultured cream'],
-    answer: 1,
-  },
-]
-
 interface SeedVenue {
   name: string
   slug: string
@@ -502,26 +398,10 @@ async function main() {
     `  venue: ${second.name} — 8 tables, ${MENU.slice(0, 6).length} menu items, operator owner-two@example.com, staff PIN 4321/8765`
   )
 
-  // The quiz pack stays attached to the first venue only. `startRound` already
-  // falls back to a pack with `venueId: null` when a venue has none of its
-  // own, so Copper deliberately gets no pack of its own and plays on that
-  // fallback rather than a duplicate — one shared question bank is enough for
-  // two dev venues, and it exercises the fallback path the same way a brand
-  // new self-onboarded venue would.
-  const pack = await db.quizPack.create({
-    data: { venueId: venue.id, name: 'Food basics', active: true },
-  })
-  await db.quizQuestion.createMany({
-    data: QUESTIONS.map((q, i) => ({
-      packId: pack.id,
-      prompt: q.prompt,
-      options: q.options,
-      answerIndex: q.answer,
-      difficulty: 1,
-      orderHint: i,
-    })),
-  })
-  console.log(`  quiz: ${QUESTIONS.length} questions`)
+  // No question bank, and that is the point: the climb deals from the venue's
+  // own menu, so a new restaurant has nothing to author before it can run a
+  // game. The `QuizPack` tables are left in the schema but are no longer
+  // seeded or read.
 
   const tokens = await db.table.findMany({
     where: { venueId: venue.id },

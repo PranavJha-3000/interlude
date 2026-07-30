@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import {
   arrangeService,
-  correctAnswerFor,
+  climbRungs,
   db,
   fireOrderFor,
   issueMagicLinkFor,
-  optionsFor,
+  menuPricesFor,
 } from './fixtures'
 
 /**
@@ -47,20 +47,13 @@ test('with both games on, the guest picks a stake and the choice is what gets pl
   await expect(page.getByRole('button', { name: 'Beat the kitchen' })).toBeVisible()
   await page.getByRole('button', { name: 'Tonight’s chef’s plate' }).click()
 
-  await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
+  await expect(page.getByText('Rung 1 of')).toBeVisible()
   const play = await db.play.findFirstOrThrow({ where: { guestSession: { serviceId } } })
   expect(play.mechanic, 'the guest chose the stake, not the server').toBe('MYSTERY_PLATE')
 
   // Play it out, so the award proves the mechanic reached the prize engine.
-  const heading = page.locator('h1')
-  let previous = ''
-  for (let i = 0; i < play.maxScore; i++) {
-    if (previous) await expect(heading).not.toHaveText(previous, { timeout: 10_000 })
-    const prompt = (await heading.innerText()).trim()
-    previous = prompt
-    const [answerIndex, options] = await Promise.all([correctAnswerFor(prompt), optionsFor(prompt)])
-    await page.getByRole('button', { name: options[answerIndex]!, exact: true }).click()
-  }
+  const prices = await menuPricesFor('pilot')
+  await climbRungs(page, prices, play.maxScore)
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('You beat the kitchen', {
     timeout: 15_000,
@@ -91,9 +84,9 @@ test('with one game on, there is no picker and the round starts as it always did
 
   await expect(page.getByRole('button', { name: 'Pick your stake' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Tonight’s chef’s plate' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Start the round' }).click()
+  await page.getByRole('button', { name: 'Start climbing' }).click()
 
-  await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
+  await expect(page.getByText('Rung 1 of')).toBeVisible()
   const play = await db.play.findFirstOrThrow({ where: { guestSession: { serviceId } } })
   expect(play.mechanic).toBe('KITCHEN_ROUND')
 })
@@ -117,25 +110,18 @@ test('a round already in progress finishes after every game is switched off', as
 
   await page.goto(`/t/${treatmentToken}`)
   await page.getByRole('button', { name: 'Start' }).click()
-  await page.getByRole('button', { name: 'Start the round' }).click()
-  await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
+  await page.getByRole('button', { name: 'Start climbing' }).click()
+  await expect(page.getByText('Rung 1 of')).toBeVisible()
 
-  // The operator closes the door mid-round. The promise made on `/dash/games`
+  // The operator closes the door mid-climb. The promise made on `/dash/games`
   // — "a round already in progress finishes normally" — is this assertion.
   await enableGames([])
   await page.reload()
-  await expect(page.getByText(/^\d+ of \d+$/)).toBeVisible()
+  await expect(page.getByText('Rung 1 of')).toBeVisible()
 
   const play = await db.play.findFirstOrThrow({ where: { guestSession: { serviceId } } })
-  const heading = page.locator('h1')
-  let previous = ''
-  for (let i = 0; i < play.maxScore; i++) {
-    if (previous) await expect(heading).not.toHaveText(previous, { timeout: 10_000 })
-    const prompt = (await heading.innerText()).trim()
-    previous = prompt
-    const [answerIndex, options] = await Promise.all([correctAnswerFor(prompt), optionsFor(prompt)])
-    await page.getByRole('button', { name: options[answerIndex]!, exact: true }).click()
-  }
+  const prices = await menuPricesFor('pilot')
+  await climbRungs(page, prices, play.maxScore)
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('You beat the kitchen', {
     timeout: 15_000,
@@ -231,5 +217,5 @@ test('the operator turns a game off and the guest stops being offered it', async
   await page.goto(`/t/${treatmentToken}`)
   await page.getByRole('button', { name: 'Start' }).click()
   await expect(page.getByRole('button', { name: 'Tonight’s chef’s plate' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Start the round' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start climbing' })).toBeVisible()
 })

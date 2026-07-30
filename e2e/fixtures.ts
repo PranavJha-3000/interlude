@@ -2,14 +2,15 @@ import 'dotenv/config'
 import { createHash, randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
+import { expect, type Page } from '@playwright/test'
 import { planArmAssignments } from '../src/core/measurement/arm-assignment'
 
 /**
  * Direct database access for the E2E test.
  *
  * Used to arrange state the UI cannot reach yet (opening a service) and to
- * read the quiz answer key, so the test can deliberately *win* rather than
- * clicking hopefully and asserting whatever came out.
+ * read the venue's own menu prices, so the test can deliberately *climb*
+ * rather than clicking hopefully and asserting whatever came out.
  */
 export const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -124,15 +125,76 @@ export async function fireOrderFor(serviceId: string, tableId: string, minutesOu
   })
 }
 
-/** The answer key, so the test can win on purpose. */
-export async function correctAnswerFor(prompt: string): Promise<number> {
-  const q = await db.quizQuestion.findFirstOrThrow({ where: { prompt } })
-  return q.answerIndex
+/**
+ * The answer key for the climb: dish name to price, for one venue.
+ *
+ * The climb has no secret answers — the prices are printed on the menu on the
+ * guest's table — so this is not privileged access, it is the test reading the
+ * same menu the guest is holding. Keyed by name because that is what the guest
+ * surface renders.
+ */
+export async function menuPricesFor(venueSlug = 'pilot'): Promise<Map<string, number>> {
+  const rows = await db.menuItem.findMany({
+    where: { venue: { slug: venueSlug }, active: true },
+    select: { name: true, pricePaise: true },
+  })
+  return new Map(rows.map((r) => [r.name, r.pricePaise]))
 }
 
-export async function optionsFor(prompt: string): Promise<string[]> {
-  const q = await db.quizQuestion.findFirstOrThrow({ where: { prompt } })
-  return q.options as string[]
+/**
+ * Climb `rungs` rungs deliberately, through the real UI.
+ *
+ * Deliberately does not touch the database to decide what to click: it reads
+ * the dish names the page is actually showing and orders them by the menu
+ * price. A hand dealt pre-sorted, a stale arrangement left over from the
+ * previous hand, or a name rendered that is not on the menu would all fail here
+ * rather than passing quietly.
+ */
+export async function climbRungs(
+  page: Page,
+  prices: Map<string, number>,
+  rungs: number
+): Promise<void> {
+  const priceOf = (name: string) => {
+    const p = prices.get(name.trim())
+    if (p === undefined) throw new Error(`the climb showed "${name}", which is not on the menu`)
+    return p
+  }
+
+  for (let rung = 1; rung <= rungs; rung++) {
+    await expect(page.getByText(`Rung ${rung} of`)).toBeVisible({ timeout: 15_000 })
+
+    if (rung % 2 === 1) {
+      // A pair: tap the dearer of the two.
+      const buttons = page.getByRole('button').filter({ hasNotText: /Lock it in/ })
+      const names = (await buttons.allInnerTexts())
+        .map((t) => t.trim())
+        .filter((t) => prices.has(t))
+      if (names.length !== 2) throw new Error(`rung ${rung} showed ${names.length} choices, want 2`)
+      const dearer = priceOf(names[0]!) >= priceOf(names[1]!) ? names[0]! : names[1]!
+      await page.getByRole('button', { name: dearer, exact: true }).click()
+    } else {
+      // A ladder: bubble the arrangement into ascending price order using the
+      // move buttons the guest has, then lock it in.
+      for (let pass = 0; pass < 12; pass++) {
+        const rows = page.locator('ol > li')
+        const count = await rows.count()
+        const names: string[] = []
+        for (let i = 0; i < count; i++) {
+          names.push((await rows.nth(i).locator('span').nth(1).innerText()).trim())
+        }
+        const wrong = names.findIndex((n, i) => i > 0 && priceOf(names[i - 1]!) > priceOf(n))
+        if (wrong === -1) break
+        await rows
+          .nth(wrong)
+          .getByRole('button', { name: /Move .* earlier/ })
+          .click()
+      }
+      await page.getByRole('button', { name: 'Lock it in' }).click()
+    }
+
+    await expect(page.getByText('Cleared.')).toBeVisible({ timeout: 10_000 })
+  }
 }
 
 /**
