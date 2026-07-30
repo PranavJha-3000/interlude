@@ -3,21 +3,65 @@
 /*
  * Guest-first. One-handed, thumb-reachable, readable in a dim restaurant on a
  * phone at 20% brightness. No web font and no imagery anywhere in the guest
- * route: the competitor is Instagram Reels and it loads instantly, so the
- * budget is under 100KB of JS and interactive in under 2s on 3G.
+ * route: the competitor is Instagram Reels and it loads instantly.
+ *
+ * The payload rule was measured and revised. An empty App Router page ships
+ * 181.7KB gzipped because React's hydration runtime loads regardless of
+ * whether a route has any client component, so "under 100KB" was never
+ * reachable. The enforceable rule is that **our own code adds ≤15KB over that
+ * floor**, with a 200KB regression ceiling.
+ *
+ * ── Colour ────────────────────────────────────────────────────────────────
+ * A warm palette, because heat drives appetite and arousal and this is a game
+ * played over food. The whole difficulty is that red, amber and green already
+ * carry *meaning* here — the chef's load switch and the owner's negative
+ * number — so an ambient palette of reds would drown its own alarms.
+ *
+ * Two rules resolve it. UI-SPEC.md §5 is the contract:
+ *
+ *   1. **Saturation is information.** Every ambient colour is a low-chroma
+ *      warm. The only saturated colours in the product are the three status
+ *      hues and one accent, and the accent is deliberately duller than every
+ *      status hue and ~28° of hue from the crimson alarm, so status always
+ *      outshouts brand.
+ *   2. **Status colours own the dark.** The staff surfaces are near-black and
+ *      the load hues are the only chroma in the room. The accent never
+ *      appears on them.
+ *
+ * Every pair here was checked for WCAG AA at its shipped size. The light and
+ * dark status colours are deliberately *separate tokens*: the single `bad`
+ * they replace sat at 2.48:1 on the staff ground, which is why it could never
+ * honestly be used as text there.
  */
 
 @theme {
-  --color-ink: #16130f;
-  --color-paper: #fbf7f0;
-  --color-warm: #f4ede1;
-  --color-line: #e2d8c8;
-  --color-muted: #6f665a;
-  --color-accent: #b4451f;
-  --color-accent-soft: #f6e4dc;
-  --color-good: #2f6b4f;
-  --color-amber: #b8860b;
-  --color-bad: #9b2c2c;
+  /* Light surfaces — guest, landing, operator */
+  --color-paper: #fff3e4;
+  --color-warm: #ffe4c8;
+  --color-line: #ebcfa9;
+  --color-ink: #26130a;
+  --color-muted: #7a4b2e;
+
+  /* The accent. Four reserved uses only — see UI-SPEC.md §5. */
+  --color-accent: #9e4a00;
+  --color-accent-soft: #ffe0cc;
+
+  /* Light-surface status. Only ever negative contribution on /dash — the one
+   * time the dashboard is allowed to raise its voice. */
+  --color-bad: #ad1f1f;
+
+  /* Dark staff surfaces — /floor and /pass only */
+  --color-staff-ground: #1a0f07;
+  --color-staff-panel: #26170c;
+  --color-staff-ink: #ffedd9;
+  --color-staff-muted: #c9a183;
+
+  /* Kitchen load. Bright enough to read as text *or* as a fill on the dark
+   * ground, at arm's length, across a pass. An active fill carries
+   * `text-staff-ground`, never white — white on these is ~1.8:1. */
+  --color-load-green: #3ddc84;
+  --color-load-amber: #ffb648;
+  --color-load-red: #ff5b3d;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -39,8 +83,8 @@ body {
 
 /* Staff surfaces are read at arm's length on a mounted tablet, mid-service. */
 .surface-staff {
-  background: #14120f;
-  color: #f6f1e8;
+  background: var(--color-staff-ground);
+  color: var(--color-staff-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {

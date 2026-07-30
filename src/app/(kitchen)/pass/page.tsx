@@ -104,7 +104,15 @@ export default async function PassPage() {
           <div className="grid grid-cols-3 gap-3">
             {(['GREEN', 'AMBER', 'RED'] as const).map((level) => {
               const on = load === level
-              const bg = level === 'GREEN' ? 'bg-good' : level === 'AMBER' ? 'bg-amber' : 'bg-bad'
+              // Dark text on the active fill, not white. These hues are bright
+              // by design — they have to read across a pass — and white on them
+              // is about 1.8:1. The dark ground they sit on is 6.1:1 at worst.
+              const bg =
+                level === 'GREEN'
+                  ? 'bg-load-green'
+                  : level === 'AMBER'
+                    ? 'bg-load-amber'
+                    : 'bg-load-red'
               return (
                 <form key={level} action={setKitchenLoad}>
                   <input type="hidden" name="level" value={level} />
@@ -112,7 +120,7 @@ export default async function PassPage() {
                     type="submit"
                     aria-pressed={on}
                     className={`min-h-28 w-full rounded-2xl text-xl font-bold tracking-wide ${
-                      on ? `${bg} text-white` : 'bg-white/8 text-white/35'
+                      on ? `${bg} text-staff-ground` : 'bg-white/8 text-white/35'
                     }`}
                   >
                     {level === 'GREEN'
@@ -171,7 +179,7 @@ export default async function PassPage() {
                             <input type="hidden" name="menuItemId" value={e.itemId} />
                             <button
                               type="submit"
-                              className="min-h-11 rounded-lg border border-white/25 px-4 text-sm text-white/70 active:bg-bad active:text-white"
+                              className="min-h-11 rounded-lg border border-white/25 px-4 text-sm text-white/70 active:bg-load-red active:text-staff-ground"
                             >
                               {en.pass.pool.veto}
                             </button>
@@ -198,7 +206,7 @@ export default async function PassPage() {
                 .map((m) => (
                   <li
                     key={m.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-bad/40 px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-load-red/40 px-4 py-3"
                   >
                     <span className="truncate text-lg text-white/60 line-through">{m.name}</span>
                     <form action={toggleVeto} className="shrink-0">

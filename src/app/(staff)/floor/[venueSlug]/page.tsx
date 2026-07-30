@@ -56,11 +56,11 @@ export default async function FloorSignInPage({
         />
         {/* A wrong PIN and a PIN belonging to another venue say the same thing,
             or the message would tell someone probing which venue a PIN is for.
-            Filled rather than coloured text: `bad` is a dark red that does not
-            carry as type on this ground, and it is already the fill under the
-            kitchen's RED switch. */}
+            `load-red` rather than the light-surface `bad`: status colours own
+            the dark surfaces, and this is the same red the kitchen's RED switch
+            uses. Filled with dark text, like every other fill in here. */}
         {e && (
-          <p className="mt-3 rounded-lg bg-bad px-3 py-2 text-sm text-white">
+          <p className="mt-3 rounded-lg bg-load-red px-3 py-2 text-sm text-staff-ground">
             {en.floor.signIn.wrongPin}
           </p>
         )}

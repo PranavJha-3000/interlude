@@ -156,7 +156,7 @@ export default async function FloorPage() {
                   <span className="text-2xl font-semibold">{t.label}</span>
                   <span
                     className={`text-[11px] tracking-wide uppercase ${
-                      arm === 'CONTROL' ? 'text-white/35' : 'text-amber'
+                      arm === 'CONTROL' ? 'text-white/35' : 'text-load-amber'
                     }`}
                   >
                     {arm === 'CONTROL' ? en.floor.tables.control : en.floor.tables.tented}
@@ -171,7 +171,7 @@ export default async function FloorPage() {
                     <input type="hidden" name="tableId" value={t.id} />
                     <button
                       type="submit"
-                      className="min-h-11 w-full rounded-lg bg-white/90 text-sm font-semibold text-black active:bg-amber"
+                      className="min-h-11 w-full rounded-lg bg-white/90 text-sm font-semibold text-black active:bg-load-amber"
                     >
                       {en.floor.tables.fireOrder}
                     </button>
@@ -236,12 +236,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+/**
+ * A one-tap action row.
+ *
+ * Both fills carry dark text rather than white. These are read on a dark
+ * tablet mid-service, and the load green is bright enough that white on it is
+ * about 1.8:1 — the same trap the kitchen switch had.
+ */
 function Row({ label, action, tone }: { label: string; action: string; tone: 'accent' | 'good' }) {
   return (
     <button
       type="submit"
       className={`flex min-h-16 w-full items-center justify-between rounded-xl px-4 text-left ${
-        tone === 'accent' ? 'bg-accent text-white' : 'bg-good text-white'
+        tone === 'accent' ? 'bg-accent text-paper' : 'bg-load-green text-staff-ground'
       }`}
     >
       <span className="text-lg">{label}</span>

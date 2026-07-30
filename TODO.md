@@ -279,13 +279,18 @@ the visual treatment is not. UI-SPEC §6 still governs when it is.
       that scans the rendered text for eight banned words
 - [ ] The **decision card** hero — a rendered fragment of the engine's own audit trail, showing what
       it put in tonight's pool and what it refused, each with its `reason`. Not a phone mockup, not a
-      stat with a gradient. The refusal is the pitch. **Deferred with the palette decision**
+      stat with a gradient. The refusal is the pitch. **Unblocked — the palette is decided**
 - [ ] IBM Plex Sans + Mono via `next/font`, operator routes only — a `next/font` import under
-      `(guest)` is a budget regression. **Deferred with the palette decision**
+      `(guest)` is a budget regression. **Unblocked — the palette is decided**
 - [ ] **No pricing table, no logo wall, no testimonials.** There are no customers yet, and inventing
       social proof on the front door of an honest-measurement product is the most expensive lie
       available
-- [ ] Fix the stale budget comment at the top of `src/app/globals.css` (UI-SPEC §10)
+- [x] Fix the stale budget comment at the top of `src/app/globals.css` (UI-SPEC §10)
+- [x] **The palette is decided and applied.** Warm — apricot ground, burnt-orange accent — under two
+      rules that keep it from eating its own alarms: saturation means information, and status colours
+      own the dark surfaces. Light and dark status are now separate token sets, which fixed a real
+      accessibility defect: the old `bad` was **2.48:1** on the staff ground and `good` **2.97:1**,
+      so neither could be used as type there. UI-SPEC §5 carries the contract and the ratios
 
 **How to test**
 

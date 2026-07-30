@@ -131,21 +131,65 @@ shifts as it updates is the fastest way to make a money screen feel untrustworth
 
 ## 5. Colour
 
-Tokens already in `globals.css`. **No new colour tokens without editing this table first.**
+Tokens live in `globals.css`. **No new colour tokens without editing this table first.**
 
-| Role | Token | Value | Usage |
-|---|---|---|---|
-| Dominant (60%) | `paper` | `#fbf7f0` | Page background, guest + operator |
-| Secondary (30%) | `warm` | `#f4ede1` | Cards, stat tiles, inset panels |
-| Line | `line` | `#e2d8c8` | Borders, dividers |
-| Text | `ink` | `#16130f` | Body copy |
-| Muted text | `muted` | `#6f665a` | Captions, reasons, secondary labels |
-| **Accent (10%)** | `accent` | `#b4451f` | **See the reserved list below** |
-| Accent wash | `accent-soft` | `#f6e4dc` | Pressed state on add-on options |
-| Positive | `good` | `#2f6b4f` | Kitchen GREEN, add-on ack |
-| Caution | `amber` | `#b8860b` | Kitchen AMBER, "tented" arm marker |
-| Destructive | `bad` | `#9b2c2c` | Kitchen RED, veto, negative contribution |
-| Staff ground | `.surface-staff` | `#14120f` / `#f6f1e8` | `/floor` and `/pass` only |
+The palette is warm on purpose. Heat drives appetite and arousal — it is why quick-service
+restaurants and arcades both live there — and this product is a game played over food, whose whole
+moment is "beat the kitchen before the food lands."
+
+**The difficulty that shapes everything below:** red, amber and green already carry *meaning* here.
+The chef's load switch is the biggest control in the product, and the owner's headline number turns
+red only when contribution is negative. An ambient palette of reds would drown its own alarms.
+
+### The two rules
+
+1. **Saturation is information.** Every ambient colour is a low-chroma warm. The only saturated
+   colours in the product are the three status hues and one accent — and the accent is deliberately
+   duller than every status hue, and about 28° of hue away from the crimson alarm, so status always
+   outshouts brand. If a colour is saturated, it is telling you something.
+2. **Status colours own the dark.** The staff surfaces are near-black and the load hues are the only
+   chroma in the room. The accent never appears on them.
+
+Rule 1 is the one to enforce in review, because it survives new surfaces. "Heat only on certain
+routes" would not — there are four more operator screens coming.
+
+### Light surfaces — guest, landing, operator
+
+| Role | Token | Value | Contrast | Usage |
+|---|---|---|---|---|
+| Dominant (60%) | `paper` | `#fff3e4` | — | Page background |
+| Secondary (30%) | `warm` | `#ffe4c8` | — | Cards, stat tiles, inset panels |
+| Line | `line` | `#ebcfa9` | 1.37 on paper | Borders, dividers |
+| Text | `ink` | `#26130a` | 16.3 / 14.6 | Body copy |
+| Muted text | `muted` | `#7a4b2e` | 6.7 / 6.0 | Captions, reasons, secondary labels |
+| **Accent (10%)** | `accent` | `#9e4a00` | 5.6 / 5.0 | **See the reserved list below** |
+| Accent wash | `accent-soft` | `#ffe0cc` | ink 14.2 on it | Pressed state on add-on options |
+| Alarm | `bad` | `#ad1f1f` | 6.4 on paper | **Negative contribution only** |
+
+Ratios are against `paper` / `warm`. `paper` text on an `accent` fill is 5.6.
+
+### Dark surfaces — `/floor` and `/pass` only
+
+| Role | Token | Value | Contrast on ground | Usage |
+|---|---|---|---|---|
+| Ground | `staff-ground` | `#1a0f07` | — | `.surface-staff` background |
+| Panel | `staff-panel` | `#26170c` | — | Raised rows |
+| Text | `staff-ink` | `#ffedd9` | 16.5 | Body copy on dark |
+| Muted | `staff-muted` | `#c9a183` | 8.0 | Secondary text on dark |
+| Load GREEN | `load-green` | `#3ddc84` | 10.6 | Kitchen GREEN, add-on ack row |
+| Load AMBER | `load-amber` | `#ffb648` | 10.8 | Kitchen AMBER, "tented" arm marker |
+| Load RED | `load-red` | `#ff5b3d` | 6.1 | Kitchen RED, veto, refused PIN |
+
+**An active fill carries `text-staff-ground`, never white.** These hues are bright because they must
+read across a pass; white on them is about 1.8:1. Dark text on them is 6.1:1 at worst.
+
+**Why light and dark status are separate tokens.** They used to be one set. The single `bad`
+(`#9b2c2c`) sat at **2.48:1** on the staff ground and `good` at **2.97:1** — both far below AA — which
+is why neither could honestly be used as text there, and why an implementer building the venue-scoped
+sign-in had to reach for a filled band instead of coloured type. One token cannot serve a cream page
+and a near-black tablet.
+
+### Accent discipline
 
 **Accent is reserved for exactly these, and nothing else:**
 
@@ -158,10 +202,23 @@ It is **not** for links, not for headings, not for every interactive element, an
 headline number — that number is `ink`, or `bad` when negative. Contribution turning red is the only
 time the dashboard should raise its voice.
 
-**The named risk:** cream-plus-terracotta is a well-worn default. It stays because it is right for a
-phone held at low brightness in a dim room and because terracotta belongs to this food vernacular —
-not because it was the first thing to hand. If the guest surface is ever restyled, that reasoning is
-the thing to re-examine, not the hex values.
+**`/dash` defects from the heat.** The money screen is `paper`, `ink` and one alarm. No accent, no
+gold, no warm panel behind a figure. A P&L that looks promotional undercuts the one claim this
+product rests on, and arousal palettes read as less trustworthy exactly where trust is the product.
+
+**Known exception, recorded rather than hidden:** `/floor` fills its redemption rows with `accent`,
+which is not on the list above. It predates this table. The row is the single most urgent action on
+the server's screen and nothing else on that surface competes for the colour, so it stays until
+`/floor` is revisited — but it is drift, not precedent.
+
+**Dark mode: no.** `color-scheme: light` is declared and the staff surfaces are permanently dark by
+design. Guests scan for four minutes; a theme toggle is a preference control for a product nobody
+lives in.
+
+**What was rejected and why it matters:** the previous palette was cream plus terracotta
+(`#fbf7f0` / `#b4451f`). It was not wrong, but it was the look an AI reaches for by default, and it
+did nothing for the arousal moment the guest surface is built around. The replacement had to earn
+its heat without spending the status colours, which is what the two rules above buy.
 
 **Dark mode: no.** `color-scheme: light` is declared and the staff surfaces are permanently dark by
 design. Guests scan for four minutes; a theme toggle is a preference control for a product nobody
@@ -300,9 +357,13 @@ Not negotiable, not announced in the UI:
 
 ## 10. Known drift to fix
 
-- **`src/app/globals.css` header comment is stale.** It still states "the budget is under 100KB of JS
-  and interactive in under 2s on 3G" — the rule that was measured and revised. It should read
-  ≤15KB over the framework floor, 200KB regression ceiling. Fix when the operator layout lands.
+- **`/floor` fills its redemption rows with `accent`**, which is not one of the four reserved uses.
+  Recorded in §5; stays until `/floor` is revisited.
+- **The landing page and operator surfaces still ship without their type decision.** IBM Plex Sans +
+  Mono via `next/font` in `(operator)/layout.tsx` is specified in §2 and not yet applied.
+
+**Fixed:** the stale `globals.css` header comment claiming a sub-100KB budget now states the
+measured rule — ≤15KB over the framework floor, 200KB ceiling.
 
 ---
 
