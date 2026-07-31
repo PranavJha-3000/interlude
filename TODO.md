@@ -1,5 +1,32 @@
 # Interlude — Build Sequence
 
+> ## ⚠️ Superseded in part by the Pilot Build Specification v1.0
+>
+> A build spec was issued (`Interlude_Pilot_Build_Spec.pdf`, **not in this repo** — get a copy
+> before working from this file). It takes precedence for **the game, the control design, the
+> compliance rules, and the design system**. This document still governs stack, data model and
+> everything else.
+>
+> Three things below are now wrong, and the code has moved:
+>
+> | Was | Is now |
+> |---|---|
+> | The climb — a ladder of hands off the menu | **Beat the Kitchen** — higher-or-lower, "which do more people order here?" |
+> | Arm assignment per table, within a service | **The service is the unit.** Tents on every table or none; historical baseline is the primary comparison |
+> | `GuestSession` as the unit of play | **`TableRun`** is the unit; `DeviceSession` is one phone under it |
+>
+> **What is built against the spec** (all pure, all tested — none of it wired to a screen yet):
+> `core/game/pairing.ts` (§4.2 gap ratio), `core/game/run.ts` (§4.3 ladder, lives, the gamble),
+> `core/measurement/bill-import.ts` (§6.5), `core/measurement/metrics.ts` (§6.3 from the event log),
+> `core/measurement/service-arm.ts` (§3 counterbalancing), `core/review/prompt.ts` (§7.2, isolated by
+> a lint rule), and the §5 invariants as property tests over generated menus.
+>
+> **What is not:** every screen. The guest flow still runs the climb, `/floor` has no party-size
+> capture, `/pass` has no kill switch, `/dash` has neither tier against the new metrics, and there is
+> no bill-import UI, Monday email, or tent print sheet to the spec's design. The schema carries the
+> new records; nothing writes to most of them yet. See **Pilot spec — remaining** at the foot of this
+> file.
+
 **A linear sequence of shippable steps.** Every phase ends in something you can open, click, or run
 a command against. Every phase carries a **How to test** block with the actual commands and the
 actual click-path — "done" is a command that passes, not a judgement call.
@@ -672,3 +699,71 @@ payment processing · discounts on hero items · licensed-property games without
 a native app · the W1 queue window · the shared screen (V1.5) ·
 **multiplayer of any kind — #7 table-vs-table and #12 beat-the-house are cut. New mechanics are
 single-player.**
+
+---
+
+# Pilot spec — remaining
+
+Against `Interlude_Pilot_Build_Spec.pdf` v1.0, in its own §11 build order. The spec's rule is
+**measurement code before game code**: if the game slips, a paper pilot still runs against a working
+instrument, whereas the reverse produces entertainment with no evidence.
+
+## Wave zero — the import
+
+- [x] Bill-export parser: quoted commas, CRLF, Excel's BOM, day-first timestamps, rupee formats
+- [x] Merged tables, split bills, unjoinable rows surfaced with a reason and never dropped
+- [x] Idempotent parse; attribution to a service by bill-close time
+- [ ] **Run it against a real export from the actual pilot venue.** Not a sample, not a fixture —
+      §6.5 is explicit, and every shape it lists was written from a real one. The parser is built to
+      the shapes the spec names; it has never seen the venue's file
+- [ ] `PosTableMap` editing UI, so unjoinable rows can actually be mapped
+- [ ] Menu and velocity import, margin tagging output
+- [ ] Historical baseline import — `HistoricalService` exists and nothing writes it
+
+## Wave one — the instrument
+
+- [x] `ServiceArmAssignment`, append-only, corrections as new rows
+- [x] Counterbalanced scheduling, and a check that refuses a confounded schedule
+- [x] `TableRun` / `DeviceSession` / `Event` in the schema
+- [x] §6.3 metrics from the event log alone, over table runs
+- [ ] **Write the events.** Nothing emits an `Event` row yet; the metrics are tested against
+      synthetic logs
+- [ ] `/floor`: party size at the fire tap (2 / 3 / 4 / 5+, one thumb), the now-list, redemption
+- [ ] `/pass`: the kill switch (§7.4), separate from RED
+- [ ] Open a service with an arm, from the floor
+
+## Wave two — the product
+
+- [x] §5 invariants as property tests
+- [x] Pairing rule, ranking basis, no-repeats, determinism
+- [x] Ladder, lives, inheritance, the gamble
+- [ ] Ladder/rung output on the prize engine — it still returns a flat pool
+- [ ] Empty-pool fallback: the zero-kitchen item. `fallbackMenuItemId` is a column nothing reads,
+      and §5 is explicit that a pool of nothing must never reach a guest screen
+- [ ] Guest screens: before the fire, the round, rung reached, won, lost, device spent, not running
+- [ ] Single-use redemption codes bound to table and service
+
+## Wave three — the dashboard
+
+- [ ] Both tiers, never merged; the ledger; the refusal log reading louder than the acceptance
+- [ ] Monday email
+
+## Wave four
+
+- [ ] Review prompt at the bill (the module and its funnel are built; no screen)
+- [ ] First-party feedback, granting a life
+- [ ] Landing page and tent print sheet to the spec's design
+
+## Design system §8
+
+- [x] Tokens present in `globals.css`; the spec's names added alongside the existing ones
+- [ ] Type: Instrument Serif display-only, IBM Plex Sans for interface, **IBM Plex Mono for every
+      figure**. Currently Plex is loaded on operator routes only
+- [ ] Audit the accent against the four-slot ledger (§8.5)
+
+## Carried debts, not spec items
+
+- [ ] The climb and the mystery plate still exist. The spec ships **one** game, so both retire once
+      Beat the Kitchen is wired — deleting them before that would leave no working guest flow
+- [ ] `PosAdapter` port location: PLATFORM.md §6 says `core/pos`, it is at `lib/pos`, because the
+      adapter does I/O and `core/` is pure. Split the port from the adapters, or amend §6
