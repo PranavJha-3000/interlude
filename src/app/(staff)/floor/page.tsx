@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
-import { getArmRows, getOpenService } from '@/lib/service'
+import { getArmRows, getOpenService, getVenueConfig } from '@/lib/service'
 import { armAt } from '@/core/measurement/arm-assignment'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
 import { ackAddOn, closeService, confirmAward, fireOrder, openService, swapArms } from './actions'
@@ -38,7 +38,8 @@ export default async function FloorPage() {
   // request" is what the arm lookup needs. See the same note in the guest page.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
-  const [tables, armRows, addOns, awards] = await Promise.all([
+  const [config, tables, armRows, addOns, awards] = await Promise.all([
+    getVenueConfig(staff.venueId),
     db.table.findMany({
       where: { venueId: staff.venueId, active: true },
       orderBy: { label: 'asc' },
@@ -67,6 +68,10 @@ export default async function FloorPage() {
   ])
 
   const sorted = [...tables].sort((a, b) => Number(a.label) - Number(b.label))
+
+  // The venue's own categories, in its own order. A venue that has configured
+  // no prep minutes gets no chips at all rather than an empty disclosure.
+  const courses = Object.keys(config.prepMinutesByCategory as Record<string, number>)
 
   return (
     <Shell>
@@ -175,6 +180,38 @@ export default async function FloorPage() {
                     >
                       {en.floor.tables.fireOrder}
                     </button>
+
+                    {/* Collapsed by default, and that is the whole design. A
+                        server holding three plates fires with one tap and the
+                        venue's default prep time applies; naming the courses is
+                        for the quieter moment, and it can only sharpen the
+                        estimate. Six always-visible chips across thirty tiles
+                        would turn this surface into a form. */}
+                    {courses.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer list-none text-[11px] text-staff-muted underline underline-offset-2">
+                          {en.floor.tables.coursesToggle}
+                        </summary>
+                        <p className="mt-1 text-[10px] text-staff-muted">
+                          {en.floor.tables.coursesHint}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {courses.map((c) => (
+                            <label key={c} className="cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="course"
+                                value={c}
+                                className="peer sr-only"
+                              />
+                              <span className="flex min-h-11 items-center rounded-lg border border-white/20 px-2 text-xs text-staff-muted peer-checked:border-load-amber peer-checked:bg-load-amber peer-checked:text-staff-ground peer-focus-visible:outline-2 peer-focus-visible:outline-staff-ink">
+                                {en.floor.tables.course(c)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </form>
                 ) : (
                   <p className="mt-2 text-xs text-white/40">

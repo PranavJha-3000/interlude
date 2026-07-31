@@ -336,6 +336,13 @@ export const en = {
       control: 'Control',
       fireOrder: 'Fire order',
       fired: (time: string) => `Fired ${time}`,
+      // Optional refinement, collapsed by default. The estimate takes the
+      // quickest course fired, because that is the plate that interrupts the
+      // guest — so naming the courses only ever makes the run shorter and
+      // safer, never longer.
+      coursesToggle: 'Courses',
+      coursesHint: 'Optional — sharpens the timing',
+      course: (category: string) => category.charAt(0).toUpperCase() + category.slice(1),
       statusSeated: 'Seated',
       statusFired: 'Order fired',
       statusPlaying: 'Playing',

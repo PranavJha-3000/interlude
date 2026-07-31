@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-session'
-import { estimateReadyAt, getOpenService, getVenueConfig, type PrepMinutes } from '@/lib/service'
+import { getOpenService, getVenueConfig } from '@/lib/service'
+import { resolvePosAdapter } from '@/lib/pos'
 import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
 /**
@@ -145,7 +146,17 @@ export async function swapArms(): Promise<void> {
   revalidatePath('/floor')
 }
 
-/** The Manual POS adapter. Staff taps when food goes in; that starts the clock. */
+/**
+ * Food went in. This starts the guest's clock, so it is the one action on
+ * `/floor` a guest can feel.
+ *
+ * The work happens behind the `PosAdapter` port — this action only decides
+ * *who* fired and *what*, never how long the food takes.
+ *
+ * Courses are optional by design. One tap sends none and the venue's
+ * `defaultPrepMinutes` applies; a server with a spare second taps the chips and
+ * the estimate sharpens. Nothing on the busy path requires the second tap.
+ */
 export async function fireOrder(formData: FormData): Promise<void> {
   const staff = await readStaffSession()
   if (!staff) return
@@ -159,23 +170,23 @@ export async function fireOrder(formData: FormData): Promise<void> {
   const table = await db.table.findFirst({ where: { id: tableId, venueId: staff.venueId } })
   if (!table) return
 
+  // Only categories the venue actually configured. A form field is client
+  // input, and an unrecognised course would otherwise silently widen the
+  // estimate's vocabulary.
   const config = await getVenueConfig(staff.venueId)
-  const now = Date.now()
+  const known = new Set(Object.keys(config.prepMinutesByCategory as Record<string, number>))
+  const courses = formData
+    .getAll('course')
+    .map(String)
+    .filter((c) => known.has(c))
 
-  // Without a POS we do not know what was ordered, so assume the slowest
-  // category the venue configured. Guessing short would end the round after
-  // the food has already landed.
-  const prep = config.prepMinutesByCategory as PrepMinutes
-  const estReadyAt = estimateReadyAt(now, Object.keys(prep), prep)
-
-  await db.orderFire.create({
-    data: {
-      tableId,
-      serviceId: service.id,
-      firedAt: new Date(now),
-      estReadyAt,
-      firedById: staff.staffId,
-    },
+  await resolvePosAdapter(staff.venueId).recordFire({
+    venueId: staff.venueId,
+    serviceId: service.id,
+    tableId,
+    courses,
+    firedAtMs: Date.now(),
+    firedByStaffId: staff.staffId,
   })
 
   revalidatePath('/floor')

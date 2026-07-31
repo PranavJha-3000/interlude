@@ -5,15 +5,12 @@ import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assig
 import type { ClimbConfig, ClimbItemInput } from '@/core/mechanics/climb'
 import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
+import { resolvePosAdapter } from '@/lib/pos'
 
 /**
  * Reads the live state a guest surface needs. Everything here is I/O; the
  * decisions themselves live in `core/` and take this data as arguments.
  */
-
-export interface PrepMinutes {
-  [category: string]: number
-}
 
 /** The venue's own numbers, never constants (PLATFORM.md §10). */
 export async function getVenueConfig(venueId: string) {
@@ -182,13 +179,14 @@ export async function armForTable(
 
 /**
  * The most recent order fired for this table in this service, which is what
- * drives the #5 countdown through the Manual POS adapter.
+ * drives the countdown.
+ *
+ * Goes through the `PosAdapter` port rather than the table directly, so that
+ * the day a venue has a real till, the guest surface does not change
+ * (PLATFORM.md §6).
  */
-export async function getLatestOrderFire(serviceId: string, tableId: string) {
-  return db.orderFire.findFirst({
-    where: { serviceId, tableId },
-    orderBy: { firedAt: 'desc' },
-  })
+export async function getLatestOrderFire(serviceId: string, tableId: string, venueId: string) {
+  return resolvePosAdapter(venueId).latestFire(serviceId, tableId)
 }
 
 /** Current kitchen load. Defaults to GREEN when the chef has not set one. */
@@ -284,17 +282,10 @@ export function serviceClockMinute(atMs: number, timezone: string): number {
   return hour * 60 + minute
 }
 
-/** Estimated ready time from the venue's configured prep minutes per category. */
-export function estimateReadyAt(
-  firedAtMs: number,
-  categories: readonly string[],
-  prepMinutes: PrepMinutes,
-  fallbackMinutes = 15
-): Date {
-  const longest = categories.reduce((max, c) => Math.max(max, prepMinutes[c] ?? 0), 0)
-  const minutes = longest > 0 ? longest : fallbackMinutes
-  return new Date(firedAtMs + minutes * 60_000)
-}
+// The ready estimate used to live here. It is now a pure function in
+// core/mechanics/prep-estimate.ts, reached through the PosAdapter port, so the
+// rule can be tested without a database — and so nothing outside the port
+// computes it independently.
 
 /**
  * The games this venue is currently running, in the order the guest sees them.

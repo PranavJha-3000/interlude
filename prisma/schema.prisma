@@ -76,8 +76,14 @@ model VenueConfig {
   quizQuestionCount  Int @default(8)
   winThresholdPct    Int @default(70)
 
-  /// Category -> minutes. Drives the Manual POS adapter's ready estimate.
+  /// Category -> minutes. Drives the Manual POS adapter's ready estimate,
+  /// which takes the *earliest* of the courses fired — see
+  /// core/mechanics/prep-estimate.ts.
   prepMinutesByCategory Json @default("{}")
+  /// Used when the floor fires without naming courses, which is the one-tap
+  /// default on a busy night. The venue's own "how long, typically?" — not a
+  /// fallback constant (PLATFORM.md §10).
+  defaultPrepMinutes    Int  @default(12)
 
   // Prize depth fences
   depthCapPerItemPct     Int @default(100)
@@ -495,6 +501,11 @@ model OrderFire {
   firedAt   DateTime   @default(now())
   /// Server-computed from the venue's configured prep minutes.
   estReadyAt DateTime
+  /// Menu categories this fire covered, as the floor reported them. Empty means
+  /// the server fired without naming courses and the estimate used
+  /// `defaultPrepMinutes`. Recorded because the estimate is a guess we will want
+  /// to check against a real service once bill exports land in wave 2.
+  courses   String[]   @default([])
   firedById String?
   firedBy   StaffUser? @relation(fields: [firedById], references: [id], onDelete: SetNull)
 

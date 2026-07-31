@@ -34,6 +34,16 @@ export const DEFAULT_PREP_MINUTES: Record<string, number> = {
 }
 
 /**
+ * What we assume when the floor fires without naming courses — the common case,
+ * because one tap is the whole point of that button.
+ *
+ * Sits between the quickest and slowest categories above rather than at either
+ * end: too low and every run is pointlessly short, too high and the run is
+ * still going when the food lands. Written into the row like everything else.
+ */
+export const DEFAULT_PREP_FALLBACK_MINUTES = 12
+
+/**
  * The games a venue starts with. Both on, so a new venue gets the picker
  * without configuring anything.
  *
@@ -125,7 +135,12 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
       phoneSalt: newPhoneSalt(),
       qrToken: newQrToken(),
       onboardingStep: 'TABLES',
-      config: { create: { prepMinutesByCategory: DEFAULT_PREP_MINUTES } },
+      config: {
+        create: {
+          prepMinutesByCategory: DEFAULT_PREP_MINUTES,
+          defaultPrepMinutes: DEFAULT_PREP_FALLBACK_MINUTES,
+        },
+      },
       games: { create: defaultVenueGames() },
       ...(input.operatorId ? { operators: { connect: { id: input.operatorId } } } : {}),
     },

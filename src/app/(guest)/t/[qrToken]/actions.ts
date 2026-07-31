@@ -101,7 +101,7 @@ export async function startRound(qrToken: string, mechanic: Mechanic): Promise<v
   // The run is bounded by the food, not by a fixed length. No kitchen estimate
   // means no run: an unbounded climb whose ladder never resolves is worse than
   // none, and the page renders the "order first" copy instead.
-  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId)
+  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
   const window = computeRunWindow(
     now,
     fire?.estReadyAt.getTime() ?? null,

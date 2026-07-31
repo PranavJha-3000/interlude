@@ -207,7 +207,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   }
 
   // ── 2. Waiting for the kitchen ─────────────────────────────────────────
-  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId)
+  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
 
   if (!fire) {
     return (
