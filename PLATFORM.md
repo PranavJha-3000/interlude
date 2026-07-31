@@ -1,8 +1,6 @@
 # Interlude — Platform Reference
 
 Single source of truth for what the platform is and how it is built.
-Business rationale lives in *INTERLUDE — Business Foundation v1.0*; this file is the engineering
-counterpart. Section references (§) point at that document.
 
 **Status:** pre-validation, shipping anyway. The business doc gates code behind Tests 0–2; that gate
 is lifted by explicit owner decision. We ship a staged MLP, run it at one venue, and validate from

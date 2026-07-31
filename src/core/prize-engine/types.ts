@@ -6,7 +6,7 @@
 export type MarginTier = 'HIGH' | 'MID' | 'LOW'
 export type PrepBurden = 'LOW' | 'MEDIUM' | 'HIGH'
 export type LoadLevel = 'GREEN' | 'AMBER' | 'RED'
-export type Mechanic = 'KITCHEN_ROUND' | 'MYSTERY_PLATE'
+export type Mechanic = 'BEAT_THE_KITCHEN' | 'KITCHEN_ROUND' | 'MYSTERY_PLATE'
 export type Outcome = 'WIN' | 'LOSE'
 
 /**

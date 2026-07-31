@@ -47,6 +47,8 @@ model Venue {
   guestIdents  GuestIdentity[]
   prizeRules   PrizeRule[]
   games        VenueGame[]
+  posTableMap  PosTableMap[]
+  history      HistoricalService[]
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -75,6 +77,38 @@ model VenueConfig {
   quizLengthSec      Int @default(75)
   quizQuestionCount  Int @default(8)
   winThresholdPct    Int @default(70)
+
+  // ── Beat the Kitchen (§4) ────────────────────────────────────────────────
+  // Every one of these is an estimate. None is measured. When the pilot
+  // returns real numbers, these change and the code does not.
+
+  /// **The pairing rule, and it is load-bearing** (§4.2). A pair is only
+  /// eligible when the higher seller outsells the lower by at least this
+  /// multiple. There is real money on a wrong answer, and a guest who loses a
+  /// dessert on what looks like a coin flip will argue with a server — so every
+  /// answer has to be defensible out loud, without hesitation.
+  pairGapRatio       Float @default(2.0)
+  /// Trailing window, in days, for the sales counts that ranking comes from.
+  velocityWindowDays Int   @default(30)
+  /// Rungs on the ladder, and so the most prizes one run can put in play.
+  ladderRungs        Int   @default(6)
+  /// Runs a table gets before it has to earn more. One per device.
+  startingLives      Int   @default(2)
+  /// How far a wrong answer drops the table while pushing on (§4.3). There is
+  /// no protected floor and no consolation prize.
+  gamblePenaltyRungs Int   @default(1)
+  /// Each extra-life action, independently disableable (§4.4).
+  lifeForAddOn       Boolean @default(true)
+  lifeForPhone       Boolean @default(true)
+  lifeForFeedback    Boolean @default(true)
+  /// Per-question limit. Off for the pilot — the kitchen is the clock (§4.6).
+  questionSeconds    Int?
+  /// If the floor never fires an order, run untimed rather than not at all. The
+  /// game must not depend on staff memory (§10 degradation).
+  untimedAfterSec    Int   @default(600)
+  /// The zero-kitchen fallback: something the bar pours or the counter hands
+  /// over. A pool of nothing must never reach a guest screen (§5).
+  fallbackMenuItemId String?
 
   /// Category -> minutes. Drives the Manual POS adapter's ready estimate,
   /// which takes the *earliest* of the courses fired — see
@@ -140,6 +174,8 @@ model Table {
   guestSessions  GuestSession[]
   orderFires     OrderFire[]
   tickets        Ticket[]
+  tableRuns      TableRun[]
+  posRefs        PosTableMap[]
 
   @@unique([venueId, label])
   @@index([venueId])
@@ -231,17 +267,196 @@ model Service {
   venueId   String
   venue     Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
   name      String
+  /// The service's own date, so a baseline can compare Saturday to Saturday
+  /// without deriving a weekday from a timestamp in the wrong timezone.
+  serviceDate DateTime @default(now()) @db.Date
   startedAt DateTime  @default(now())
   endedAt   DateTime?
 
-  armAssignments TableArmAssignment[]
-  guestSessions  GuestSession[]
-  kitchenLoads   KitchenLoad[]
-  prizePools     PrizePool[]
-  orderFires     OrderFire[]
-  tickets        Ticket[]
+  /// Denormalised from the latest `ServiceArmAssignment` for cheap reads. The
+  /// assignment rows remain the evidence; this is a cache of them, and
+  /// `armForService()` is the only thing allowed to write it.
+  arm       ServiceArm @default(LIVE)
+
+  /// The chef's "this is embarrassing me" button (§7.4). Distinct from RED:
+  /// RED is a kitchen state that shapes the pool, this stops offers and awards
+  /// outright while the game, the event log and the measurement carry on.
+  killedAt   DateTime?
+  killedById String?
+
+  armAssignments  TableArmAssignment[]
+  serviceArms     ServiceArmAssignment[]
+  guestSessions   GuestSession[]
+  kitchenLoads    KitchenLoad[]
+  prizePools      PrizePool[]
+  orderFires      OrderFire[]
+  tickets         Ticket[]
+  tableRuns       TableRun[]
+  events          Event[]
+  reviewPrompts   ReviewPrompt[]
+  venueFeedback   VenueFeedback[]
 
   @@index([venueId, startedAt])
+  @@index([venueId, serviceDate])
+}
+
+/// The evidentiary basis of the business, and the one table that must never be
+/// editable after the fact.
+///
+/// **The service is the unit of assignment, not the table.** Tents go out on
+/// every table in a service or on none — a per-table split inside one service
+/// contaminates through conversation between tables, and cannot be reconciled
+/// with a bill export that only knows the night. This replaces the per-table
+/// arm design.
+///
+/// Append-only. No updates, no deletes: a correction is a **new row** carrying
+/// its own reason, and the arm in force is the latest row by `recordedAt`. If
+/// this could be edited, so could the result of the pilot.
+model ServiceArmAssignment {
+  id        String     @id @default(cuid())
+  serviceId String
+  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  arm       ServiceArm
+  /// Why this service is on this arm — "counterbalance: week 2 Saturday live".
+  reason    String
+  /// Set only on a correction, naming the row being superseded. The original
+  /// stays exactly as written.
+  supersedesId String?
+  recordedAt DateTime  @default(now())
+  recordedBy String?
+
+  @@index([serviceId, recordedAt])
+}
+
+/// **The unit of play.** One per table per service.
+///
+/// Not the phone. Four people at one table are four `DeviceSession` rows under
+/// one run, and every metric in §6.3 is computed over runs unless it says
+/// device — counting devices instead would inflate scan rate and deflate
+/// completion rate, and both would look like product signal rather than
+/// arithmetic.
+///
+/// The streak lives here rather than on the device because the next person to
+/// pick up the game inherits it. That inheritance is the mechanic.
+model TableRun {
+  id        String   @id @default(cuid())
+  tableId   String
+  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  /// Consecutive correct answers standing right now.
+  streak      Int      @default(0)
+  /// Highest rung the table currently holds. Prizes are taken from here.
+  currentRung Int      @default(0)
+  /// Runs still available. Starts at the configured allowance and is spent one
+  /// per device; the extra-life actions add to it.
+  livesRemaining Int   @default(0)
+  /// Pairs already shown to this table, as "loId:hiId" keys. Table-level, not
+  /// device-level — the second guest must not be re-asked the first guest's
+  /// questions.
+  pairsShown  String[] @default([])
+
+  partySize   Int?
+  openedAt    DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  endedAt     DateTime?
+
+  devices  DeviceSession[]
+  events   Event[]
+  awards   Award[]
+  addOns   AddOnRequest[]
+  feedback VenueFeedback[]
+
+  @@unique([serviceId, tableId])
+  @@index([serviceId, openedAt])
+}
+
+/// One phone. Created by a QR scan, identified by an anonymous cookie.
+///
+/// A device is *spent* once its run ends — that is what forces the table to
+/// hand the phone over or earn a life, and it is the most-seen screen on night
+/// one (§4.5).
+model DeviceSession {
+  id         String   @id @default(cuid())
+  tableRunId String
+  tableRun   TableRun @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+
+  /// Nothing above this line is written before consent is given (§7.3).
+  consentAt  DateTime
+  startedAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  /// Set when this device's single run is over. A spent device never plays
+  /// again in this service.
+  spentAt    DateTime?
+
+  events Event[]
+
+  @@index([tableRunId])
+}
+
+/// Append-only funnel log (§6.2). Drop-off location is the entire diagnostic.
+///
+/// Every metric in §6.3 computes from this table alone, which is why arm and
+/// service are denormalised onto each row: a metric that needs a join to know
+/// which arm it belongs to will eventually be computed against the wrong one.
+model Event {
+  id        String     @id @default(cuid())
+  type      EventType
+  serviceId String
+  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  arm       ServiceArm
+  tableRunId String?
+  tableRun   TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  deviceSessionId String?
+  deviceSession   DeviceSession? @relation(fields: [deviceSessionId], references: [id], onDelete: SetNull)
+
+  /// Event-specific detail: the pair shown and its gap ratio, which life-earning
+  /// action fired, why a run ended. Kept as Json so a new event type does not
+  /// need a migration to carry its own context.
+  detail    Json     @default("{}")
+  at        DateTime @default(now())
+
+  @@index([serviceId, at])
+  @@index([type, at])
+  @@index([tableRunId, at])
+}
+
+/// Venue table id to the point-of-sale's own table reference. Without it the
+/// bill import cannot join, and an import that cannot join produces no
+/// measurement at all (§6.1).
+model PosTableMap {
+  id        String  @id @default(cuid())
+  venueId   String
+  venue     Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId   String
+  table     Table   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  /// As it appears in the export. Free text because every POS spells it
+  /// differently — "T12", "12", "Table 12".
+  posRef    String
+
+  @@unique([venueId, posRef])
+  @@index([tableId])
+}
+
+/// First-party feedback, delivered to the owner (§7.2).
+///
+/// **Structurally separate from `ReviewPrompt` and it must stay that way.**
+/// This one may carry a rating and may grant a life; the Google prompt may do
+/// neither. Merging them would create exactly the ability to gate a public
+/// review on sentiment that §7.2 exists to make impossible.
+model VenueFeedback {
+  id         String   @id @default(cuid())
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tableRunId String?
+  tableRun   TableRun? @relation(fields: [tableRunId], references: [id], onDelete: SetNull)
+  body       String
+  /// Optional, and never read by anything that decides a prize or a review.
+  rating     Int?
+  submittedAt DateTime @default(now())
+
+  @@index([serviceId, submittedAt])
 }
 
 /// The entire evidentiary basis of the business (PLATFORM.md §8). A recorded
@@ -285,9 +500,27 @@ model MenuItem {
   /// Hero items are never discounted (PLATFORM.md §12).
   isHero         Boolean    @default(false)
   active         Boolean    @default(true)
-  /// Units sold in the trailing window. Fed by CSV import in wave 2.
+  /// Units sold in the trailing window. **Imported, never guessed** (§4.2) —
+  /// this is what decides which of two dishes "more people order here", and a
+  /// guessed answer is one a server cannot defend to a guest who just lost a
+  /// dessert on it.
   trailingSales  Int        @default(0)
+  /// Set when the count came from a real sales export rather than a seed. The
+  /// guest-facing question copy changes when it did not: a chef's ranking is
+  /// presented as the chef's opinion, never as data.
+  salesImportedAt DateTime?
+  /// The chef's own ordering, used only where item-level history is missing.
+  /// Lower sorts as more popular.
+  chefRank       Int?
   lastSoldAt     DateTime?
+
+  /// Which section fires it. Shown on the pass beside the fire time.
+  station        String?
+  /// Minutes on the pass for this specific item.
+  prepMinutes    Int?
+  /// A missing photo is a typographic card of the same size and weight, never
+  /// a broken image and never a placeholder icon (§10 degradation).
+  photoUrl       String?
 
   vetoes        ChefVeto[]
   awards        Award[]
@@ -446,6 +679,18 @@ model Play {
 
 model Award {
   id          String   @id @default(cuid())
+  /// The run that won it. Nullable because the older per-play awards predate
+  /// the table being the unit of play.
+  tableRunId  String?
+  tableRun    TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  /// Which rung of the ladder this was taken at.
+  rung        Int?
+  /// Single-use, bound to table and service (§7.4). Short enough to read aloud
+  /// across a noisy room, because that is how it will actually be used.
+  code        String?  @unique
+  redeemedAt  DateTime?
+  redeemedById String?
+
   playId      String   @unique
   play        Play     @relation(fields: [playId], references: [id], onDelete: Cascade)
   menuItemId  String
@@ -480,6 +725,9 @@ model Award {
 
 model AddOnRequest {
   id             String       @id @default(cuid())
+  tableRunId     String?
+  tableRun       TableRun?    @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  cancelledAt    DateTime?
   guestSessionId String
   guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
   menuItemId     String
@@ -511,6 +759,11 @@ model OrderFire {
   /// `defaultPrepMinutes`. Recorded because the estimate is a guess we will want
   /// to check against a real service once bill exports land in wave 2.
   courses   String[]   @default([])
+  /// Captured in the same tap that fires the order (§3). Spend per table is
+  /// dominated by how many people are sitting at it, so without this the spend
+  /// comparison is noise — which is why it is mandatory rather than nice to
+  /// have. Nullable only so a legacy row does not lie about having one.
+  partySize Int?
   firedById String?
   firedBy   StaffUser? @relation(fields: [firedById], references: [id], onDelete: SetNull)
 
@@ -552,31 +805,81 @@ model QuizQuestion {
 // ---------------------------------------------------------------------------
 
 /// Closed bill lines from the venue's end-of-day POS export (CSV). Wave 2.
+/// One imported bill (§6.1).
+///
+/// `tableId` is null when the export's table reference did not resolve through
+/// `PosTableMap`. **Unjoinable rows are surfaced for manual mapping, never
+/// silently dropped** (§6.5) — a silent drop is a biased dataset, and it biases
+/// in the direction of whichever tables the POS happens to name oddly.
 model Ticket {
   id          String   @id @default(cuid())
   serviceId   String
   service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   tableId     String?
   table       Table?   @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  /// The table reference exactly as the export spelled it, kept even after a
+  /// successful join so a mis-mapping can be found later.
+  posRef      String?
   externalRef String
   closedAt    DateTime
   totalPaise  Int
+  /// Heads on the bill. Spend per cover is the primary figure (§3), so a bill
+  /// without covers can only contribute to the secondary one.
+  covers      Int?
   /// { name, qty, pricePaise }[] as exported. Parsed, never trusted.
   lines       Json
   importedAt  DateTime @default(now())
 
   @@unique([serviceId, externalRef])
   @@index([serviceId, closedAt])
+  @@index([serviceId, tableId])
+}
+
+/// A pre-launch service imported from the venue's own history, so Saturday can
+/// be compared to Saturday without spending a live service on a control (§3).
+///
+/// This is the **primary** comparison. The counterbalanced live services are
+/// secondary, and scanners-versus-non-scanners is diagnostic only.
+model HistoricalService {
+  id          String   @id @default(cuid())
+  venueId     String
+  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  serviceDate DateTime @db.Date
+  /// 0 = Sunday, matching `Date.getUTCDay`. Stored rather than derived so a
+  /// timezone change cannot silently re-bucket a night.
+  weekday     Int
+  covers      Int
+  tableCount  Int
+  totalPaise  Int
+  /// Bills carrying at least one dessert or beverage line, for attach rate.
+  attachedTableCount Int @default(0)
+  importedAt  DateTime @default(now())
+
+  @@unique([venueId, serviceDate])
+  @@index([venueId, weekday])
 }
 
 /// Funnel counts only — shown, drafted, handed off. No rating is stored, ever,
 /// because storing sentiment would create the ability to gate on it
 /// (PLATFORM.md §7). This model must never reference Award or PrizePool.
+/// Funnel counts only: shown, opened, handed off. **No rating, ever** (§7.2).
+///
+/// The absence of a rating column is the enforcement, not a convention. If
+/// sentiment were stored here it would become possible to gate a public review
+/// on it, and Google's penalty for that lands on the restaurant's Business
+/// Profile — which is most of a Delhi restaurant's discovery. The harm would
+/// fall on the customer, not on us.
+///
+/// First-party sentiment lives in `VenueFeedback`, which is a different table
+/// reached by a different module on a different screen.
 model ReviewPrompt {
   id             String       @id @default(cuid())
+  serviceId      String?
+  service        Service?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   guestSessionId String
   guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
   shownAt        DateTime     @default(now())
+  openedAt       DateTime?
   draftedAt      DateTime?
   handedOffAt    DateTime?
 
@@ -604,6 +907,62 @@ enum Arm {
   CONTROL
 }
 
+/// The service-level arm. `LIVE` means tents went out on every table that
+/// night; `CONTROL` means none did.
+enum ServiceArm {
+  LIVE
+  CONTROL
+}
+
+/// §6.2, in the order a night actually produces them. Append-only in spirit:
+/// removing a member rewrites history that has already been logged.
+enum EventType {
+  TENT_PRESENT
+  SESSION_OPEN
+  CONSENT_GIVEN
+  RUN_START
+  PAIR_SHOWN
+  ANSWER
+  RUNG_REACHED
+  GAMBLE_TAKEN
+  GAMBLE_DECLINED
+  RUN_END
+  DEVICE_SPENT
+  LIFE_EARNED
+  PRIZE_TAKEN
+  ADDON_REQUESTED
+  ADDON_CONFIRMED
+  ADDON_CANCELLED
+  PHONE_SUBMITTED
+  FEEDBACK_SUBMITTED
+  AWARD_REDEEMED
+  AWARD_EXPIRED
+  REVIEW_SHOWN
+  REVIEW_OPENED
+  REVIEW_HANDED_OFF
+}
+
+/// Why a run ended.
+///
+/// `FOOD_ARRIVED` is a success wearing a failure's clothes and must never be
+/// counted with `ABANDONED`: conflating them makes completion rate look broken
+/// while the product is working exactly as designed (§6.2).
+enum RunEndReason {
+  WRONG_ANSWER
+  FOOD_ARRIVED
+  ABANDONED
+  TIMEOUT
+  PRIZE_TAKEN
+}
+
+/// The three actions that buy a table another run (§4.4). Each is independently
+/// disableable per venue.
+enum LifeAction {
+  ADDON_CONFIRMED
+  PHONE_SUBMITTED
+  FEEDBACK_SUBMITTED
+}
+
 enum StaffRole {
   SERVER
   KITCHEN
@@ -628,6 +987,10 @@ enum LoadLevel {
 }
 
 enum Mechanic {
+  /// Beat the Kitchen — higher-or-lower on the venue's own menu (§4). The one
+  /// game that ships. `KITCHEN_ROUND` is its predecessor and is kept only so
+  /// already-logged rows still read.
+  BEAT_THE_KITCHEN
   KITCHEN_ROUND
   MYSTERY_PLATE
 }

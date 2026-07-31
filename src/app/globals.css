@@ -31,6 +31,24 @@
  */
 
 @theme {
+  /* ── The build spec's §8 names ────────────────────────────────────────────
+   * The pilot spec names these tokens `ground-cotton`, `ink-soft`, `loss` and
+   * so on. Every value already matched; only the names did not. Both spellings
+   * are defined rather than renaming across forty files for no visual change —
+   * the §8 names are canonical for anything written from here on, and the older
+   * ones are kept so existing screens keep working.
+   *
+   * The rule that matters is unchanged either way: no raw hex outside this
+   * file. */
+  --color-ground-cotton: #faf5ee;
+  --color-ground-clay: #efe4d4;
+  --color-ground-iron: #161210;
+  --color-panel-iron: #221b16;
+  --color-ink-soft: #6e5b49;
+  --color-ink-iron: #f2eae0;
+  --color-ink-iron-soft: #a99a8b;
+  --color-loss: #b01e1e;
+
   /* Light grounds. Cotton is the operator's; clay is the guest's and doubles
    * as the panel colour on cotton. */
   --color-paper: #faf5ee;

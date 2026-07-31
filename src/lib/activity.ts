@@ -1,5 +1,7 @@
 import 'server-only'
 
+import type { Mechanic } from '@/core/prize-engine'
+
 import { db } from '@/lib/db'
 import { getArmRows } from '@/lib/service'
 import { compareLabels, partitionByArm } from '@/core/measurement/arm-assignment'
@@ -20,7 +22,7 @@ export interface ActivityRow {
   sessionId: string
   tableLabel: string
   scannedAt: Date
-  mechanic: 'KITCHEN_ROUND' | 'MYSTERY_PLATE' | null
+  mechanic: Mechanic | null
   score: number | null
   maxScore: number | null
   outcome: 'WIN' | 'LOSE' | null

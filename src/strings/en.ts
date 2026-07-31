@@ -457,6 +457,7 @@ export const en = {
       off: 'Off',
       turnOn: 'Turn on',
       turnOff: 'Turn off',
+      beatTheKitchen: 'Beat the Kitchen',
       kitchenRound: 'Kitchen round',
       kitchenRoundBlurb: 'The guest races the kitchen and wins something off your menu.',
       mysteryPlate: 'Mystery plate',

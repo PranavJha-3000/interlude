@@ -5,6 +5,7 @@ import { formatPaise } from '@/lib/money'
 import { publicBaseUrl } from '@/lib/base-url'
 import { ONBOARDING_ORDER, type OnboardingStepName } from '@/lib/venue-setup'
 import { en } from '@/strings/en'
+import type { Mechanic } from '@/core/prize-engine'
 import {
   advanceStep,
   removeItem,
@@ -41,8 +42,9 @@ const ERRORS: Record<string, string> = {
   need_one: en.onboarding.menu.needOne,
 }
 
-/** The same two labels `/dash/games` uses — one wording for one mechanic. */
-const GAME_LABEL: Record<'KITCHEN_ROUND' | 'MYSTERY_PLATE', string> = {
+/** One wording per mechanic, shared with `/dash/games`. */
+const GAME_LABEL: Record<Mechanic, string> = {
+  BEAT_THE_KITCHEN: en.dash.games.beatTheKitchen,
   KITCHEN_ROUND: en.dash.games.kitchenRound,
   MYSTERY_PLATE: en.dash.games.mysteryPlate,
 }
