@@ -109,6 +109,51 @@ const eslintConfig = defineConfig([
     },
   },
 
+  /**
+   * The review module's isolation (§7.2), as a boundary rather than as
+   * discipline.
+   *
+   * The rule the product cannot bend is that a Google review is never
+   * incentivised, gated, or filtered on sentiment. Enforcing that by review
+   * means someone eventually imports award state "just to log it". Enforcing it
+   * here means they cannot: the module is not permitted to see prize, award,
+   * life or game state, so it cannot gate on any of them.
+   *
+   * Violating this requires deleting this block, which is a much louder thing
+   * to do in a diff than adding an import.
+   */
+  {
+    name: 'interlude/review-isolation',
+    files: ['src/core/review/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/core/prize-engine',
+                '@/core/prize-engine/*',
+                '@/core/game',
+                '@/core/game/*',
+                '@/core/mechanics',
+                '@/core/mechanics/*',
+                '@/generated/prisma',
+                '@prisma/*',
+                '@/lib/db',
+                '@/lib/db*',
+                'next',
+                'next/*',
+              ],
+              message:
+                'The review module is given no prize, award, life or game state (§7.2). It cannot gate on what it cannot read, and that is the enforcement — not a convention. Incentivised or sentiment-gated reviews put the restaurant’s Business Profile at risk, so the harm lands on the customer.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   globalIgnores([
     '.next/**',
     'out/**',
