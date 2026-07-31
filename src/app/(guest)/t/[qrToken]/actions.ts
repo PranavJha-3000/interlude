@@ -38,7 +38,7 @@ import {
 
 export async function giveConsent(qrToken: string): Promise<void> {
   const now = Date.now()
-  const scan = await resolveScan(qrToken, now)
+  const scan = await resolveScan(qrToken)
   if (scan.kind !== 'OK') return
 
   const existing = await readGuestSessionId()
@@ -75,7 +75,7 @@ export async function giveConsent(qrToken: string): Promise<void> {
 
 export async function startRound(qrToken: string, mechanic: Mechanic): Promise<void> {
   const now = Date.now()
-  const scan = await resolveScan(qrToken, now)
+  const scan = await resolveScan(qrToken)
   if (scan.kind !== 'OK') return
 
   // Re-checked here, not just in the page that rendered the form. A game the
@@ -183,7 +183,7 @@ function replayClimb(
 
 export async function submitRound(qrToken: string, formData: FormData): Promise<void> {
   const now = Date.now()
-  const scan = await resolveScan(qrToken, now)
+  const scan = await resolveScan(qrToken)
   if (scan.kind !== 'OK') return
 
   const sessionId = await readGuestSessionId()
@@ -373,7 +373,7 @@ async function awardFor(
 }
 
 export async function requestAddOn(qrToken: string, formData: FormData): Promise<void> {
-  const scan = await resolveScan(qrToken, Date.now())
+  const scan = await resolveScan(qrToken)
   if (scan.kind !== 'OK') return
 
   const sessionId = await readGuestSessionId()

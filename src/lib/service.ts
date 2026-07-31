@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assignment'
+import { armAt, type ArmRow } from '@/core/measurement/arm-assignment'
 import type { ClimbConfig, ClimbItemInput } from '@/core/mechanics/climb'
 import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
@@ -78,6 +78,9 @@ export type ScanResolution =
       venueId: string
       venueName: string
       serviceId: string
+      arm: 'LIVE' | 'CONTROL'
+      /** The chef has hit the kill switch: play on, award nothing (§7.4). */
+      killed: boolean
       tableId: string
       tableLabel: string
     }
@@ -91,7 +94,7 @@ export type ScanResolution =
  * The guest sees an ordinary "nothing running" screen — they must never learn
  * they are in a control group, or the behaviour we are measuring changes.
  */
-export async function resolveScan(qrToken: string, atMs: number): Promise<ScanResolution> {
+export async function resolveScan(qrToken: string): Promise<ScanResolution> {
   const table = await db.table.findUnique({
     where: { qrToken },
     include: { venue: { select: { id: true, name: true } } },
@@ -101,17 +104,24 @@ export async function resolveScan(qrToken: string, atMs: number): Promise<ScanRe
   const service = await getOpenService(table.venueId)
   if (!service) return { kind: 'NO_SERVICE', venueName: table.venue.name }
 
-  const rows = await getArmRows(service.id)
-  const verdict = canOpenSession(rows, table.id, atMs)
-  if (!verdict.allowed) {
-    return { kind: 'BLOCKED', venueName: table.venue.name, reason: verdict.reason }
+  // The service is the unit of assignment now, not the table. A control service
+  // put no tents out at all, so a scan during one is a guest holding last
+  // week's tent — and they get the closed-venue screen, byte for byte. They
+  // must never learn a control night is a control night, or the behaviour being
+  // measured changes.
+  if (service.arm === 'CONTROL') {
+    return { kind: 'NO_SERVICE', venueName: table.venue.name }
   }
 
+  // The chef's kill switch (§7.4) stops offers and awards, never the game or
+  // the measurement. The night still produces a number, so the scan resolves.
   return {
     kind: 'OK',
     venueId: table.venueId,
     venueName: table.venue.name,
     serviceId: service.id,
+    arm: service.arm,
+    killed: service.killedAt !== null,
     tableId: table.id,
     tableLabel: table.label,
   }

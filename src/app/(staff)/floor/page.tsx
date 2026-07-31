@@ -187,6 +187,30 @@ export default async function FloorPage() {
                         for the quieter moment, and it can only sharpen the
                         estimate. Six always-visible chips across thirty tiles
                         would turn this surface into a form. */}
+                    {/* Party size, in the same tap flow (§3). A segmented
+                        control, not a keyboard: this is pressed one-thumbed
+                        while holding plates. Radios rather than a select, so
+                        it is one tap and not two. */}
+                    <fieldset className="mt-2">
+                      <legend className="sr-only">{en.floor.tables.partySize}</legend>
+                      <div className="flex gap-1">
+                        {[2, 3, 4, 5].map((n) => (
+                          <label key={n} className="flex-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="partySize"
+                              value={n}
+                              defaultChecked={n === 2}
+                              className="peer sr-only"
+                            />
+                            <span className="flex min-h-11 items-center justify-center rounded-lg border border-white/20 font-mono text-sm text-staff-muted peer-checked:border-load-amber peer-checked:bg-load-amber peer-checked:text-staff-ground peer-focus-visible:outline-2 peer-focus-visible:outline-staff-ink">
+                              {n === 5 ? '5+' : n}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+
                     {courses.length > 0 && (
                       <details className="mt-2">
                         <summary className="cursor-pointer list-none text-[11px] text-staff-muted underline underline-offset-2">

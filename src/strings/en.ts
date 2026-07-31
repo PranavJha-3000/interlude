@@ -215,6 +215,68 @@ export const en = {
   },
 
   guest: {
+    /**
+     * Beat the Kitchen (§9.1). Short, plain, never chirpy, never exclamatory.
+     *
+     * The question copy has two forms on purpose. When the ranking comes from
+     * the venue's own sales export it is a fact and is stated as one; when it
+     * falls back to the chef's ordering it is an opinion and says so. §4.2 is
+     * explicit that a guess must never be presented as data — a guest who loses
+     * a dessert to "the chef reckons" has been told the truth, and one who
+     * loses it to a fake statistic has not.
+     */
+    game: {
+      heading: 'Beat the kitchen',
+      question: 'Which one do more people order here?',
+      questionChef: 'Which one does the chef reckon sells more?',
+      streak: (n: number) => `Streak ${n}`,
+      rung: (n: number, of: number) => `Rung ${n}/${of}`,
+      untimed: 'No timer',
+      takeIt: (rung: number) => `Take rung ${rung} and stop`,
+      wonHeading: 'You beat the kitchen.',
+      wonBody: (rung: number, of: number) =>
+        `You stopped at rung ${rung} of ${of}. Show this to your server.`,
+      lostHeading: 'The kitchen won this one.',
+      // No consolation, no discount, no second chance offered here (§9.1).
+      lostBody: 'That one went the other way.',
+      enjoy: 'Your food is on its way. Enjoy your meal.',
+      claim: 'Claim it',
+      outOfPairs: 'That is every question we can ask you tonight.',
+    },
+
+    start: {
+      fresh: (rungs: number) =>
+        `${rungs} rungs. Each one is a dish off this menu, and you keep the rung you stop on.`,
+      // A second guest picking up a phone must see what they are inheriting
+      // rather than being dropped mid-ladder with no explanation.
+      inherited: (rung: number, of: number) =>
+        `Your table is on rung ${rung} of ${of}. Carry on from there, or stop and take it.`,
+      lives: (n: number) => (n === 1 ? '1 go left at this table' : `${n} goes left at this table`),
+      begin: 'Start',
+    },
+
+    /**
+     * The spent-device screen (§4.5) — the most frequently seen state on night
+     * one. It must read as an instruction with a bit of theatre, never as a
+     * wall: the game-show register the venue's guests already know. A flat
+     * rejection is where people put the phone down.
+     */
+    spent: {
+      heading: 'Lifelines used.',
+      body: (streak: number, rung: number, of: number) =>
+        `This phone has had its go. Your table is on rung ${rung} of ${of}, best streak ${streak}.`,
+      handOver:
+        'Hand the phone to someone else at the table — they carry on from your rung, not from zero.',
+      earnHeading: 'Or earn another go:',
+      actions: {
+        // The strongest one, and it is the exact behaviour the product exists
+        // to cause. The life lands on staff confirmation, never on the request.
+        ADDON_CONFIRMED: 'Add something to your order — the go lands when your server confirms it.',
+        PHONE_SUBMITTED: 'Leave a phone number.',
+        FEEDBACK_SUBMITTED: 'Tell the restaurant how tonight went.',
+      },
+      standing: (rung: number) => `Rung ${rung} is still yours to claim.`,
+    },
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,
       body: 'A game while your food cooks, and it lasts as long as the food does. No account, no app, no email.',
@@ -224,12 +286,21 @@ export const en = {
       accept: 'Start',
       declineNote: 'Not interested? Just close this — nothing has been recorded.',
     },
+    /**
+     * Before the fire (§9.1). The clock starts when the kitchen starts the
+     * order, so there is genuinely nothing to do yet — and the copy says that
+     * plainly rather than offering a disabled mystery. It also promises the
+     * page wakes itself, because the alternative is a table staring at a screen
+     * wondering whether it has broken.
+     */
     waiting: {
-      heading: 'Your food is on its way',
+      heading: 'Your food hasn’t hit the fire yet.',
+      body: 'A clock starts the moment the kitchen starts your order. Beat it and you win something off this menu. Keep this page open — it wakes up on its own.',
+      notYet: 'Nothing to do yet',
       subheadWithMinutes: (minutes: number) =>
-        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out — so that is how long you have to climb.`,
-      subheadNoTimer: 'Climb as far as you can before your food lands.',
-      start: 'Start climbing',
+        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out.`,
+      subheadNoTimer: 'Play until your food lands.',
+      start: 'Start',
       notFiredYet: "Your order hasn't gone into the kitchen yet. Hang tight — this'll wake up.",
     },
     round: {
@@ -340,6 +411,7 @@ export const en = {
       // quickest course fired, because that is the plate that interrupts the
       // guest — so naming the courses only ever makes the run shorter and
       // safer, never longer.
+      partySize: 'How many people?',
       coursesToggle: 'Courses',
       coursesHint: 'Optional — sharpens the timing',
       course: (category: string) => category.charAt(0).toUpperCase() + category.slice(1),
@@ -371,6 +443,20 @@ export const en = {
 
   pass: {
     heading: 'Pass',
+
+    /**
+     * The kill switch (§7.4). Deliberately not a fourth load state — RED is a
+     * kitchen condition, this is an operator decision. The copy says what
+     * carries on, because a chef who thinks this stops the pilot will not use
+     * it until it is too late to matter.
+     */
+    kill: {
+      off: 'Stop all prizes',
+      on: 'Prizes stopped — tap to resume',
+      offNote: 'Stops every offer and award at once. The game and tonight’s numbers carry on.',
+      onNote: 'No prizes are being offered. Guests still play, and tonight still gets measured.',
+    },
+
     load: {
       label: 'Kitchen load',
       green: 'Green',

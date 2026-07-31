@@ -16,7 +16,7 @@ import {
 import { decidePrizePool, type Mechanic, type PrizePoolResult } from '@/core/prize-engine'
 import { parseRankingWeights } from '@/lib/prize-config'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
-import { setKitchenLoad, toggleVeto } from './actions'
+import { setKitchenLoad, toggleKillSwitch, toggleVeto } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +57,7 @@ export default async function PassPage() {
   ])
   const menu = [...menuData.rows].sort((a, b) => a.name.localeCompare(b.name))
   const conceded = service ? await getConcededSoFarPaise(service.id) : 0
+  const killed = service?.killedAt !== null && service?.killedAt !== undefined
 
   // The same pure function the guest flow calls, with the same inputs and the
   // venue's own rules — so what the chef sees here is exactly what the next
@@ -99,6 +100,30 @@ export default async function PassPage() {
       <Poller everyMs={10000} />
       <div className="mx-auto max-w-2xl">
         <h1 className="text-xs tracking-widest text-white/40 uppercase">{en.pass.heading}</h1>
+
+        {/* The kill switch (§7.4). Below the load switch, because nothing goes
+            above that one — but unmissable, because a chef who does not know
+            this exists will find a worse way to stop the product. It is not a
+            fourth load state: the game and the measurement carry on and the
+            night still produces a number. */}
+        {service && (
+          <form action={toggleKillSwitch} className="mt-5">
+            <button
+              type="submit"
+              aria-pressed={killed}
+              className={`min-h-16 w-full rounded-2xl border-2 text-base font-semibold tracking-wide ${
+                killed
+                  ? 'border-load-red bg-load-red text-staff-ground'
+                  : 'border-load-red/40 text-load-red'
+              }`}
+            >
+              {killed ? en.pass.kill.on : en.pass.kill.off}
+            </button>
+            <p className="mt-2 text-xs text-staff-muted">
+              {killed ? en.pass.kill.onNote : en.pass.kill.offNote}
+            </p>
+          </form>
+        )}
 
         {/* The one control that matters. */}
         <section className="mt-5">

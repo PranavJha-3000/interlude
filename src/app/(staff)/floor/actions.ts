@@ -180,7 +180,15 @@ export async function fireOrder(formData: FormData): Promise<void> {
     .map(String)
     .filter((c) => known.has(c))
 
-  await resolvePosAdapter(staff.venueId).recordFire({
+  // Party size, captured in the same tap (§3). Spend per table is dominated by
+  // how many people are sitting at it, so without this the spend comparison is
+  // noise — which is why it is a required part of firing rather than a separate
+  // screen somebody will skip on a Saturday.
+  const partySizeRaw = Number(formData.get('partySize'))
+  const partySize =
+    Number.isInteger(partySizeRaw) && partySizeRaw > 0 && partySizeRaw <= 20 ? partySizeRaw : null
+
+  const fire = await resolvePosAdapter(staff.venueId).recordFire({
     venueId: staff.venueId,
     serviceId: service.id,
     tableId,
@@ -188,6 +196,16 @@ export async function fireOrder(formData: FormData): Promise<void> {
     firedAtMs: Date.now(),
     firedByStaffId: staff.staffId,
   })
+
+  if (partySize !== null) {
+    await db.orderFire.update({ where: { id: fire.id }, data: { partySize } })
+    // Onto the run too, where the metrics read it — a run may outlive the fire
+    // row's usefulness, and spend per cover is computed over runs.
+    await db.tableRun.updateMany({
+      where: { serviceId: service.id, tableId },
+      data: { partySize },
+    })
+  }
 
   revalidatePath('/floor')
 }
