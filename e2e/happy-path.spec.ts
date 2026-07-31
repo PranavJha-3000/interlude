@@ -1,26 +1,21 @@
 import { expect, test } from '@playwright/test'
-import { arrangeService, climbRungs, db, fireOrderFor, menuPricesFor } from './fixtures'
 
 /**
- * The wave-1 ship gate: scan → consent → play → win → add-on → staff confirms.
+ * What is left of the wave-1 ship gate.
  *
- * Plus the invariant that matters more than the happy path — a control table
- * must be unable to play, and must not be able to tell that it is a control
- * table.
- */
-
-test.afterAll(async () => {
-  await db.$disconnect()
-})
-
-/**
- * The climb-era happy path and the per-table control test lived here.
+ * The climb-era happy path and the per-table control test both lived here, and
+ * both are superseded rather than broken:
  *
- * Both are superseded rather than broken. The guest loop is now Beat the
- * Kitchen and is covered in `beat-the-kitchen.spec.ts`; the control arm moved
- * from the table to the service (§3), so "a control *table* cannot play" is no
- * longer a thing the product does — a control *night* puts no tents out at all,
- * and that invariant is asserted in the new spec.
+ * - The guest loop is Beat the Kitchen now, covered end to end in
+ *   `beat-the-kitchen.spec.ts`.
+ * - The control arm moved from the table to the **service** (§3), so "a control
+ *   *table* cannot play" is no longer something this product does. A control
+ *   *night* puts no tents out at all, and the invariant that replaces it — a
+ *   control night reading byte-identically to a closed venue — is asserted in
+ *   the new spec.
+ *
+ * The 404 survives both changes, because an unknown token is an unknown token
+ * whatever the guest route happens to be running.
  */
 
 test('an unknown QR token is a 404, not a blank page', async ({ page }) => {
