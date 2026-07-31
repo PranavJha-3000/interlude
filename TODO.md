@@ -71,13 +71,27 @@ Genuinely shipped and verifiable today:
       the guest route ships 184.5KB, so our code is ~3KB. The rule is now **our code adds ≤15KB over
       the framework floor**, 200KB regression ceiling
 
+- [x] **Manual POS adapter — the port.** `PosAdapter` in `src/lib/pos/`, with `Manual` as the
+      shipping adapter and `BillImportingPosAdapter` declared for wave 2's CSV importer. `fireOrder`
+      and `getLatestOrderFire` both go through it, so no surface names a vendor. `recordFire` is
+      idempotent per service and table — a replayed POST on venue wifi used to mint a second row and
+      hand the guest a longer run than the kitchen was giving them
+- [x] **The ready estimate was backwards, and is fixed.** `estimateReadyAt` took the *longest*
+      configured prep time, so a table ordering starters and mains got 18 minutes when the starters
+      land at 8 — the guest was still climbing with food in front of them. It now takes the earliest
+      course, lives in `core/mechanics/prep-estimate.ts` as a pure function, and `/floor` can name
+      the courses fired from a disclosure that leaves the one-tap path untouched.
+      `fallbackMinutes = 15` is `VenueConfig.defaultPrepMinutes`
+- [x] **Prize-engine ranking weights are venue config.** The nine literals in `scoreItem` — weights
+      *and* the unit/day thresholds they fire on — are `VenueConfig.rankingWeights`, parsed per
+      field so one bad value cannot revert a venue's tuning. Values unchanged, so no pool reorders
+- [ ] **Editing prep minutes and ranking weights without a SQL client** — both are columns now, and
+      neither has a screen. Lands with `/dash/prizes` in phase 7
+
 Still genuinely open:
 
-- [ ] **Manual POS adapter — the port, and the UI.** `fireOrder` already computes `estReadyAt` from
-      `VenueConfig.prepMinutesByCategory`, so the mechanism works. What is missing is the
-      `PosAdapter` interface it should sit behind, and any way to edit prep minutes without a SQL
-      client. The UI lands in phase 7
-- [ ] **Vercel deploy** — including `SESSION_SECRET`, `DATABASE_URL`, `NEXT_PUBLIC_BASE_URL`
+- [ ] **Vercel deploy** — `vercel.json` and the build command are committed; the project itself is
+      not created yet. See **Deploying** below
 
 **How to test**
 
@@ -98,6 +112,34 @@ service and print one treatment and one control token:
 | `/pass` | flip to RED, confirm kitchen-work prizes vanish from the pool |
 | `/dash` | one large net-contribution number with the estimate caveat |
 | `/tents` | 30 QR tents, `Ctrl+P` shows a clean print layout |
+
+**Deploying**
+
+`vercel.json` pins functions to `sin1` — the database is Neon `ap-southeast-1`, and on the default
+`iad1` every query on a surface that polls would cross the Pacific and come back.
+
+The build command is `prisma generate && prisma migrate deploy && next build`. All three matter:
+`src/generated/` is gitignored so a build without `generate` fails outright, and without
+`migrate deploy` nothing applies migrations and the deploy ships code against an older schema. It is
+deliberately *not* in `package.json`'s `build` — the E2E suite builds too, and it should not be
+migrating a database to run tests.
+
+Environment variables to set on the project, all four required — `db.ts`, `operator-session.ts` and
+`base-url.ts` each throw rather than fall back, so a missing one fails loudly at boot instead of
+quietly at 9pm on a Saturday:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon **pooled** (`-pooler` in the hostname). Serverless opens a connection per invocation |
+| `DIRECT_URL` | Neon **unpooled**. `migrate deploy` needs a real session for its advisory locks |
+| `SESSION_SECRET` | 32 random bytes, hex. Rotating it signs everyone out |
+| `NEXT_PUBLIC_BASE_URL` | The deployment origin. Wrong here means every printed QR points somewhere else |
+
+`RESEND_API_KEY` and `EMAIL_FROM` are required for operator sign-in email, and `EMAIL_FROM`'s domain
+must be verified in Resend. Never set `EMAIL_TRANSPORT` on a deployment — it waives the refusal that
+exists to stop sign-in mail vanishing in silence.
+
+After the first deploy, seed a venue and confirm `/t/<token>` on a real phone, not an emulator.
 
 ---
 
