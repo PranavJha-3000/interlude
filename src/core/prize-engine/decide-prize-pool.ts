@@ -5,6 +5,7 @@ import type {
   PrizeExclusion,
   PrizePoolResult,
   PrizeRuleInput,
+  RankingWeights,
   VelocityInput,
 } from './types'
 
@@ -36,6 +37,7 @@ export function decidePrizePool(input: PrizeEngineInput): PrizePoolResult {
     mechanic,
     outcome,
     prizeRules,
+    rankingWeights,
     concededSoFarPaise,
     serviceClockMinute,
     peakStartMinute,
@@ -149,7 +151,7 @@ export function decidePrizePool(input: PrizeEngineInput): PrizePoolResult {
     // --- Scoring: margin first, then what is not moving -------------------
 
     const v = velocityById.get(item.id)
-    const { score, reason } = scoreItem(item, v, rule)
+    const { score, reason } = scoreItem(item, v, rule, rankingWeights)
 
     entries.push({
       itemId: item.id,
@@ -241,7 +243,8 @@ function costOf(item: MenuItemInput, valuePaise: number): number {
 function scoreItem(
   item: MenuItemInput,
   v: VelocityInput | undefined,
-  rule: PrizeRuleInput
+  rule: PrizeRuleInput,
+  weights: RankingWeights
 ): { score: number; reason: string } {
   const marginPct = Math.round(((item.pricePaise - item.foodCostPaise) / item.pricePaise) * 100)
 
@@ -249,26 +252,26 @@ function scoreItem(
   const parts: string[] = [`${marginTierLabel(item.marginTier)} margin (${marginPct}%)`]
 
   if (v === undefined || v.unitsSold === 0) {
-    score += 40
+    score += weights.notSelling
     parts.push('not selling')
-  } else if (v.unitsSold <= 3) {
-    score += 25
+  } else if (v.unitsSold <= weights.slowMoverMaxUnits) {
+    score += weights.slowMover
     parts.push(`only ${v.unitsSold} sold recently`)
-  } else if (v.unitsSold >= 20) {
-    score -= 20
+  } else if (v.unitsSold >= weights.fastMoverMinUnits) {
+    score += weights.fastMoverPenalty
     parts.push('already sells well')
   }
 
-  if (v?.daysSinceLastSale !== undefined && v.daysSinceLastSale >= 2) {
-    score += 15
+  if (v?.daysSinceLastSale !== undefined && v.daysSinceLastSale >= weights.staleMinDays) {
+    score += weights.stale
     parts.push(`${v.daysSinceLastSale} days since the last one`)
   }
 
   if (item.prepBurden === 'LOW') {
-    score += 10
+    score += weights.lowPrepBonus
     parts.push('quick to plate')
   } else if (item.prepBurden === 'HIGH') {
-    score -= 10
+    score += weights.highPrepPenalty
   }
 
   // The operator's own words for their own rule, so the audit trail reads back

@@ -1,6 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto'
 import type { PrismaClient } from '@/generated/prisma/client'
-import { defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
+import { DEFAULT_RANKING_WEIGHTS, defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
 
 /**
  * Creating a venue — the one code path, used by both the seed script and
@@ -139,6 +139,9 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
         create: {
           prepMinutesByCategory: DEFAULT_PREP_MINUTES,
           defaultPrepMinutes: DEFAULT_PREP_FALLBACK_MINUTES,
+          // Spread into a plain record: Prisma's Json input wants an index
+          // signature, and `RankingWeights` is deliberately a closed shape.
+          rankingWeights: { ...DEFAULT_RANKING_WEIGHTS } as Record<string, number>,
         },
       },
       games: { create: defaultVenueGames() },

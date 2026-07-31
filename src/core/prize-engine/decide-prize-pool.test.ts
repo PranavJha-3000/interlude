@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decidePrizePool } from './decide-prize-pool'
-import { defaultPrizeRules } from './default-rules'
+import { DEFAULT_RANKING_WEIGHTS, defaultPrizeRules } from './default-rules'
 import type { MenuItemInput, PrizeEngineInput, PrizeRuleInput } from './types'
 
 /**
@@ -56,6 +56,7 @@ function input(over: Partial<PrizeEngineInput> = {}): PrizeEngineInput {
     mechanic: 'KITCHEN_ROUND',
     outcome: 'WIN',
     prizeRules: defaultPrizeRules(MYSTERY_PRICE),
+    rankingWeights: DEFAULT_RANKING_WEIGHTS,
     concededSoFarPaise: 0,
     serviceClockMinute: 13 * 60,
     peakStartMinute: 19 * 60,
@@ -380,5 +381,112 @@ describe('peak behaviour concedes less', () => {
     )
     expect(quiet.entries[0]?.kind).toBe('FREE')
     expect(busy.entries[0]?.percentOff).toBe(10)
+  })
+})
+
+/**
+ * The ranking is the venue's, not ours (PLATFORM.md §10).
+ *
+ * These weights were literals until the operator surface needed to reach them.
+ * The point of each test below is that changing a venue's row changes the
+ * order — if any of them can pass against a hardcoded number, the weight has
+ * quietly moved back into the code.
+ */
+describe('ranking weights are venue configuration', () => {
+  const slow = item({ id: 'slow', pricePaise: 20000, foodCostPaise: 10000 })
+  const quick = item({ id: 'quick', pricePaise: 20000, foodCostPaise: 10000 })
+  const velocity = [
+    { itemId: 'slow', unitsSold: 0 },
+    { itemId: 'quick', unitsSold: 25 },
+  ]
+
+  it('ranks the item that is not selling above the one that is', () => {
+    const r = decidePrizePool(input({ menu: [quick, slow], velocity }))
+
+    expect(r.entries[0]?.itemId).toBe('slow')
+  })
+
+  it('reverses that order when the venue says fast movers are what it wants to push', () => {
+    // Not a sensible policy, and that is the point: the engine applies the
+    // venue's judgement rather than one of its own.
+    const r = decidePrizePool(
+      input({
+        menu: [quick, slow],
+        velocity,
+        rankingWeights: {
+          ...DEFAULT_RANKING_WEIGHTS,
+          notSelling: -50,
+          fastMoverPenalty: 50,
+        },
+      })
+    )
+
+    expect(r.entries[0]?.itemId).toBe('quick')
+  })
+
+  it('honours a changed slow-mover threshold rather than a hardcoded 3', () => {
+    const menu = [
+      item({ id: 'a', pricePaise: 20000, foodCostPaise: 10000 }),
+      item({ id: 'b', pricePaise: 20000, foodCostPaise: 10000 }),
+    ]
+    const v = [
+      { itemId: 'a', unitsSold: 8 },
+      { itemId: 'b', unitsSold: 12 },
+    ]
+
+    // At the seeded threshold of 3, neither counts as a slow mover and the tie
+    // breaks elsewhere. Raised to 10, only 'a' earns the lift.
+    const raised = decidePrizePool(
+      input({
+        menu,
+        velocity: v,
+        rankingWeights: { ...DEFAULT_RANKING_WEIGHTS, slowMoverMaxUnits: 10 },
+      })
+    )
+
+    expect(raised.entries[0]?.itemId).toBe('a')
+    expect(raised.entries[0]?.reason).toContain('only 8 sold recently')
+  })
+
+  it('honours a changed stale threshold rather than a hardcoded 2 days', () => {
+    const menu = [item({ id: 'a', pricePaise: 20000, foodCostPaise: 10000 })]
+    const v = [{ itemId: 'a', unitsSold: 5, daysSinceLastSale: 3 }]
+
+    const counted = decidePrizePool(input({ menu, velocity: v }))
+    const notCounted = decidePrizePool(
+      input({
+        menu,
+        velocity: v,
+        rankingWeights: { ...DEFAULT_RANKING_WEIGHTS, staleMinDays: 10 },
+      })
+    )
+
+    expect(counted.entries[0]?.reason).toContain('3 days since the last one')
+    expect(notCounted.entries[0]?.reason).not.toContain('days since')
+    expect(counted.entries[0]!.score).toBeGreaterThan(notCounted.entries[0]!.score)
+  })
+
+  it('still explains itself whatever the weights are', () => {
+    // The audit trail is not weight-dependent. An operator who tunes these must
+    // not end up with entries that cannot be explained back to them.
+    const r = decidePrizePool(
+      input({
+        rankingWeights: {
+          notSelling: 0,
+          slowMover: 0,
+          fastMoverPenalty: 0,
+          stale: 0,
+          lowPrepBonus: 0,
+          highPrepPenalty: 0,
+          slowMoverMaxUnits: 0,
+          fastMoverMinUnits: 0,
+          staleMinDays: 0,
+        },
+      })
+    )
+
+    expect(r.entries.length).toBeGreaterThan(0)
+    for (const e of r.entries) expect(e.reason.length).toBeGreaterThan(0)
+    for (const x of r.excluded) expect(x.reason.length).toBeGreaterThan(0)
   })
 })

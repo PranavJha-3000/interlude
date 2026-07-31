@@ -14,6 +14,7 @@ import {
   serviceClockMinute,
 } from '@/lib/service'
 import { decidePrizePool, type Mechanic, type PrizePoolResult } from '@/core/prize-engine'
+import { parseRankingWeights } from '@/lib/prize-config'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
 import { setKitchenLoad, toggleVeto } from './actions'
 
@@ -81,6 +82,7 @@ export default async function PassPage() {
         mechanic,
         outcome: 'WIN',
         prizeRules,
+        rankingWeights: parseRankingWeights(config.rankingWeights),
         concededSoFarPaise: conceded,
         serviceClockMinute: serviceClockMinute(now, venue.timezone),
         peakStartMinute: config.peakStartMinute,

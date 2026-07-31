@@ -90,6 +90,40 @@ export interface PrizeRuleInput {
   fixedPricePaise?: number
 }
 
+/**
+ * How this venue ranks its own pool.
+ *
+ * The engine decides *what may be offered*; these decide *what to offer
+ * first*. They were literals in `scoreItem` — "+40 for not selling", "3 units
+ * is a slow mover" — which made the most commercially load-bearing judgement in
+ * the product the one thing an operator could not touch (PLATFORM.md §10).
+ *
+ * Both halves are venue judgements and both are here. A dessert bar where three
+ * units is a good night and a 300-cover canteen where it is a dead item need
+ * different thresholds, not just different weights.
+ *
+ * Every field is a score adjustment except the three `…Units`/`…Days` ones,
+ * which are the thresholds those adjustments trigger on.
+ */
+export interface RankingWeights {
+  /** Nothing sold in the window at all. The tiramisu-since-Tuesday case. */
+  notSelling: number
+  /** Sold, but barely — at or under `slowMoverMaxUnits`. */
+  slowMover: number
+  /** Moving well already, at or above `fastMoverMinUnits`. Normally negative. */
+  fastMoverPenalty: number
+  /** Applied once when the last sale is `staleMinDays` or more ago. */
+  stale: number
+  /** Cheap to plate, so promoting it costs the kitchen little. */
+  lowPrepBonus: number
+  /** Expensive to plate. Normally negative. */
+  highPrepPenalty: number
+
+  slowMoverMaxUnits: number
+  fastMoverMinUnits: number
+  staleMinDays: number
+}
+
 export interface PrizeEngineInput {
   menu: MenuItemInput[]
   velocity: VelocityInput[]
@@ -105,6 +139,8 @@ export interface PrizeEngineInput {
   outcome: Outcome
   /** The venue's own policy. Empty means no prize can be offered at all. */
   prizeRules: PrizeRuleInput[]
+  /** The venue's own ranking. Passed in — the engine reads no config. */
+  rankingWeights: RankingWeights
   /** Value already conceded this service, so the cap is a running total. */
   concededSoFarPaise: number
   /** Minutes from midnight, venue local time. Passed in — the engine has no clock. */

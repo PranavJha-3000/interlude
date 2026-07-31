@@ -85,6 +85,11 @@ model VenueConfig {
   /// fallback constant (PLATFORM.md §10).
   defaultPrepMinutes    Int  @default(12)
 
+  /// How this venue ranks its own pool — weights and the thresholds they fire
+  /// on. Seeded from DEFAULT_RANKING_WEIGHTS and edited in /dash/prizes. Shape
+  /// is core/prize-engine's `RankingWeights`; parsed, never trusted raw.
+  rankingWeights Json @default("{\"notSelling\":40,\"slowMover\":25,\"fastMoverPenalty\":-20,\"stale\":15,\"lowPrepBonus\":10,\"highPrepPenalty\":-10,\"slowMoverMaxUnits\":3,\"fastMoverMinUnits\":20,\"staleMinDays\":2}")
+
   // Prize depth fences
   depthCapPerItemPct     Int @default(100)
   depthCapPerServicePaise Int @default(500000)

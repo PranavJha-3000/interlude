@@ -1,4 +1,28 @@
-import type { PrizeRuleInput } from './types'
+import type { PrizeRuleInput, RankingWeights } from './types'
+
+/**
+ * The ranking a venue starts with, on the same terms as the rules below: a
+ * **seed, not a constant**. Written into `VenueConfig.rankingWeights` at venue
+ * creation and editable from `/dash/prizes`; nothing reads this file at
+ * runtime.
+ *
+ * These numbers used to be literals inside `scoreItem`, which meant the one
+ * judgement the operator most needs to own — *what do I most want to shift
+ * tonight?* — was the only one they could not reach. The values are unchanged,
+ * so no venue's pool reorders on the way in.
+ */
+export const DEFAULT_RANKING_WEIGHTS: RankingWeights = {
+  notSelling: 40,
+  slowMover: 25,
+  fastMoverPenalty: -20,
+  stale: 15,
+  lowPrepBonus: 10,
+  highPrepPenalty: -10,
+
+  slowMoverMaxUnits: 3,
+  fastMoverMinUnits: 20,
+  staleMinDays: 2,
+}
 
 /**
  * The policy a venue starts with, before the operator touches anything.

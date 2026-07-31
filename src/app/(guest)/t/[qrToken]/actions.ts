@@ -19,6 +19,7 @@ import {
   getMenuForClimb,
 } from '@/lib/service'
 import { decidePrizePool } from '@/core/prize-engine'
+import { parseRankingWeights } from '@/lib/prize-config'
 import type { Mechanic } from '@/core/prize-engine'
 import {
   buildPrizeLadder,
@@ -302,6 +303,7 @@ async function awardFor(
     mechanic,
     outcome,
     prizeRules,
+    rankingWeights: parseRankingWeights(config.rankingWeights),
     concededSoFarPaise: conceded,
     serviceClockMinute: serviceClockMinute(nowMs, venue.timezone),
     peakStartMinute: config.peakStartMinute,
