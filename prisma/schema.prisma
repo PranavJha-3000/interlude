@@ -368,6 +368,7 @@ model TableRun {
   awards   Award[]
   addOns   AddOnRequest[]
   feedback VenueFeedback[]
+  reviewPrompts ReviewPrompt[]
 
   @@unique([serviceId, tableId])
   @@index([serviceId, openedAt])
@@ -900,8 +901,12 @@ model ReviewPrompt {
   id             String       @id @default(cuid())
   serviceId      String?
   service        Service?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  guestSessionId String
-  guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  /// Climb-era rows hang off a GuestSession; the table is the unit now, so new
+  /// rows hang off the TableRun instead. One of the two is always set.
+  guestSessionId String?
+  guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  tableRunId     String?
+  tableRun       TableRun?    @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
   shownAt        DateTime     @default(now())
   openedAt       DateTime?
   draftedAt      DateTime?

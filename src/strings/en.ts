@@ -405,6 +405,17 @@ export const en = {
       sent: 'Sent to your server.',
       skip: 'No thanks',
     },
+    review: {
+      heading: 'How was it?',
+      body: 'Say it in your own words — good, bad, or complicated. It goes to Google in your name, not through us.',
+      draftLabel: 'Your words',
+      draftPlaceholder: 'What you ate, how it felt, whether you’d come back…',
+      copyHint: 'Copy your words first — Google opens in a new page and you paste them there.',
+      handOff: 'Open Google reviews',
+      noPlaceId: 'This venue hasn’t linked its Google profile yet — tell them in person instead.',
+      entry: 'On your way out — tell people how it went',
+      thanks: 'Thank you. Your words, your name, your call.',
+    },
     closed: {
       heading: 'Nothing running right now',
       body: "The kitchen's not taking games at the moment. Enjoy your meal.",

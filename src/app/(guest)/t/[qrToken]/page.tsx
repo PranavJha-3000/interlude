@@ -14,6 +14,21 @@ import { StartRun } from './StartRun'
 export const dynamic = 'force-dynamic'
 
 /**
+ * The way to the review prompt (§7.2), shown on the screens a visit ends on.
+ * A plain link with no state attached — the prompt itself renders identically
+ * whatever happened at the table, and never learns.
+ */
+function ReviewLink({ qrToken }: { qrToken: string }) {
+  return (
+    <p className="mt-8 text-center">
+      <a href={`/t/${qrToken}/review`} className="text-sm text-muted underline">
+        {en.guest.review.entry}
+      </a>
+    </p>
+  )
+}
+
+/**
  * The guest surface (§9.1).
  *
  * A state machine rendered on the server — consent, waiting, the round, the
@@ -150,6 +165,8 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
         {canTakePrize(state) && (
           <p className="mt-6 text-base">{en.guest.spent.standing(run.currentRung)}</p>
         )}
+
+        <ReviewLink qrToken={qrToken} />
       </Screen>
     )
   }
@@ -160,6 +177,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.spent.heading}</Heading>
         <Body>{en.guest.spent.body(run.streak, run.currentRung, config.ladderRungs)}</Body>
+        <ReviewLink qrToken={qrToken} />
       </Screen>
     )
   }

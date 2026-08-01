@@ -160,6 +160,40 @@ const eslintConfig = defineConfig([
     },
   },
 
+  /**
+   * The review *screen* gets the same isolation as the review module, minus
+   * the database ban — it writes funnel rows, which is its job. What it may
+   * never do is read a win, a prize, a rung or a mechanic, because a screen
+   * that can read them can be taught to branch on them (§7.2).
+   */
+  {
+    name: 'interlude/review-screen-isolation',
+    files: ['src/app/(guest)/t/[qrToken]/review/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/core/prize-engine',
+                '@/core/prize-engine/*',
+                '@/core/game',
+                '@/core/game/*',
+                '@/core/mechanics',
+                '@/core/mechanics/*',
+                '@/lib/table-run',
+                '@/lib/prize-config',
+              ],
+              message:
+                'The review screen is given no prize, award, life or game state (§7.2). It renders identically for a table that never played, lost, or won — enforced here, not by discipline.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   globalIgnores([
     '.next/**',
     'out/**',
