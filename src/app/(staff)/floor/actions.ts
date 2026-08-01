@@ -6,6 +6,9 @@ import { db } from '@/lib/db'
 import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-session'
 import { getOpenService, getVenueConfig } from '@/lib/service'
 import { resolvePosAdapter } from '@/lib/pos'
+import { recordEvent } from '@/lib/events'
+import { earnedLifeActions, runStateOf, saveRunState, toLadderConfig } from '@/lib/table-run'
+import { grantLife } from '@/core/game/run'
 import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
 /**
@@ -216,10 +219,45 @@ export async function ackAddOn(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
-  await db.addOnRequest.updateMany({
-    where: { id, status: 'REQUESTED', guestSession: { table: { venueId: staff.venueId } } },
+  const request = await db.addOnRequest.findFirst({
+    where: { id, status: 'REQUESTED', tableRun: { table: { venueId: staff.venueId } } },
+    include: { tableRun: true },
+  })
+  if (!request) return
+
+  await db.addOnRequest.update({
+    where: { id },
     data: { status: 'ACKED', ackedAt: new Date() },
   })
+
+  // **The life lands here, on confirmation — never on the request** (§4.4).
+  // This is the strongest of the three earning actions precisely because it is
+  // the behaviour the product exists to cause; granting it on the tap would pay
+  // for the intention rather than the sale.
+  if (request.tableRun) {
+    const config = await getVenueConfig(staff.venueId)
+    const ladder = toLadderConfig(config)
+    const earned = await earnedLifeActions(request.tableRun.id)
+    const { state, granted } = grantLife(
+      runStateOf(request.tableRun),
+      'ADDON_CONFIRMED',
+      earned,
+      ladder
+    )
+
+    const context = {
+      serviceId: request.tableRun.serviceId,
+      arm: 'LIVE' as const,
+      tableRunId: request.tableRun.id,
+    }
+    await recordEvent('ADDON_CONFIRMED', context, { addOnId: id })
+
+    if (granted) {
+      await saveRunState(request.tableRun.id, state)
+      await recordEvent('LIFE_EARNED', context, { action: 'ADDON_CONFIRMED' })
+    }
+  }
+
   revalidatePath('/floor')
 }
 
@@ -234,13 +272,37 @@ export async function confirmAward(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
+  // Scoped through the table run, not through a play. Awards stopped hanging
+  // off a play when the table became the unit — matching on the old path here
+  // silently confirmed nothing, which on a Saturday reads as a broken button.
+  const now = new Date()
   await db.award.updateMany({
     where: {
       id,
       status: 'PENDING',
-      play: { guestSession: { table: { venueId: staff.venueId } } },
+      tableRun: { table: { venueId: staff.venueId } },
     },
-    data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: staff.staffId },
+    data: {
+      status: 'CONFIRMED',
+      confirmedAt: now,
+      confirmedById: staff.staffId,
+      redeemedAt: now,
+      redeemedById: staff.staffId,
+    },
   })
+
+  const award = await db.award.findUnique({ where: { id }, include: { tableRun: true } })
+  if (award?.tableRun) {
+    await recordEvent(
+      'AWARD_REDEEMED',
+      {
+        serviceId: award.tableRun.serviceId,
+        arm: 'LIVE',
+        tableRunId: award.tableRun.id,
+      },
+      { awardId: id, code: award.code }
+    )
+  }
+
   revalidatePath('/floor')
 }

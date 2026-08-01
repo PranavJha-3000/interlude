@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Award" ALTER COLUMN "playId" DROP NOT NULL;

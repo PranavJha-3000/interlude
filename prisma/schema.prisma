@@ -691,8 +691,11 @@ model Award {
   redeemedAt  DateTime?
   redeemedById String?
 
-  playId      String   @unique
-  play        Play     @relation(fields: [playId], references: [id], onDelete: Cascade)
+  /// Nullable since the table became the unit of play. `Play` belonged to the
+  /// climb, where one device played one round; a Beat the Kitchen award hangs
+  /// off the `TableRun` above instead. Kept so climb-era awards still read.
+  playId      String?  @unique
+  play        Play?    @relation(fields: [playId], references: [id], onDelete: Cascade)
   menuItemId  String
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
   prizePoolId String?

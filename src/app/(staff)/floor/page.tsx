@@ -57,12 +57,11 @@ export default async function FloorPage() {
       include: { menuItem: true, guestSession: { include: { table: true } } },
       orderBy: { requestedAt: 'asc' },
     }),
+    // Awards hang off the table run now, not off a play — the table is the
+    // unit, and one run can hand its rung to whoever is holding the phone.
     db.award.findMany({
-      where: { status: 'PENDING', play: { guestSession: { serviceId: service.id } } },
-      include: {
-        menuItem: true,
-        play: { include: { guestSession: { include: { table: true } } } },
-      },
+      where: { status: 'PENDING', tableRun: { serviceId: service.id } },
+      include: { menuItem: true, tableRun: { include: { table: true } } },
       orderBy: { createdAt: 'asc' },
     }),
   ])
@@ -86,18 +85,15 @@ export default async function FloorPage() {
               <Row
                 label={
                   a.kind === 'FREE'
-                    ? en.floor.redemptions.lineFree(
-                        a.play.guestSession.table.label,
-                        a.menuItem.name
-                      )
+                    ? en.floor.redemptions.lineFree(a.tableRun?.table.label ?? '—', a.menuItem.name)
                     : a.kind === 'PERCENT_OFF'
                       ? en.floor.redemptions.linePercent(
-                          a.play.guestSession.table.label,
+                          a.tableRun?.table.label ?? '—',
                           a.menuItem.name,
                           a.percentOff ?? 0
                         )
                       : en.floor.redemptions.lineFixed(
-                          a.play.guestSession.table.label,
+                          a.tableRun?.table.label ?? '—',
                           a.menuItem.name,
                           // What the guest hands over. Read off the award, not
                           // recomputed — the menu price may have changed since.
