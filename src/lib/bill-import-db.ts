@@ -39,11 +39,16 @@ export async function importBillExport(
   const parsed = parseBillExport(text, columns)
   if (parsed.bills.length === 0) return { ok: false, reason: 'PARSE' }
 
-  const mapRows = await db.posTableMap.findMany({
-    where: { venueId },
-    select: { posRef: true, tableId: true },
-  })
-  const posMap = new Map(mapRows.map((r) => [r.posRef, r.tableId]))
+  // The venue's own table labels are implicit mappings — an export that says
+  // "12" means table 12 without anyone teaching it that. Explicit PosTableMap
+  // rows are written second so they win over a label collision.
+  const [mapRows, labelRows] = await Promise.all([
+    db.posTableMap.findMany({ where: { venueId }, select: { posRef: true, tableId: true } }),
+    db.table.findMany({ where: { venueId, active: true }, select: { id: true, label: true } }),
+  ])
+  const posMap = new Map<string, string>()
+  for (const t of labelRows) posMap.set(t.label, t.id)
+  for (const r of mapRows) posMap.set(r.posRef, r.tableId)
   const { joined, unjoinable } = joinBills(parsed.bills, posMap)
 
   // Attribute each bill to the service whose window contains its close time.

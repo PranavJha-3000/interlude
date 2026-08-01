@@ -116,7 +116,8 @@ test('an owner signs up from the landing page and reaches a working dashboard', 
     await db.prizeRule.count({ where: { venueId: venue.id } }),
     'a venue with no prize rules offers nothing on night one'
   ).toBeGreaterThan(0)
-  expect(await db.venueGame.count({ where: { venueId: venue.id, enabled: true } })).toBe(2)
+  // One game ships (the climb and the mystery plate are retired).
+  expect(await db.venueGame.count({ where: { venueId: venue.id, enabled: true } })).toBe(1)
 })
 
 test('setup resumes where it stopped, on a different session', async ({ page }) => {
@@ -219,7 +220,8 @@ test('a photo upload uses the extractor draft, and discarding writes nothing', a
   await page.getByRole('button', { name: 'Read my menu' }).click()
 
   await expect(page.locator('main')).toContainText('Check what we read')
-  await expect(page.locator('main')).toContainText('Paneer Tikka')
+  // Draft rows are editable inputs, so the names live in values, not text.
+  await expect(page.locator('input[value="Paneer Tikka"]')).toBeVisible()
 
   await page.getByRole('button', { name: 'Discard draft' }).click()
 

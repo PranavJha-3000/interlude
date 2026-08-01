@@ -30,14 +30,19 @@ test('a guest scans the venue QR, picks their table, and reaches consent', async
   expect(await db.guestSession.count({ where: { serviceId } })).toBe(0)
 })
 
-test('control tables appear in the picker and fail indistinguishably', async ({ page }) => {
+test('a control service fails indistinguishably from a closed venue', async ({ page }) => {
+  // The service is the unit of assignment now (pilot spec §3): tents go out on
+  // every table of a LIVE service or on none of a CONTROL one. A guest holding
+  // last week's tent on a control night must see the closed-venue screen, byte
+  // for byte — a distinguishable failure tells them which arm tonight is.
   const { venueToken, controlLabel, controlToken, treatmentToken, serviceId } =
     await arrangeService()
+  await db.service.update({ where: { id: serviceId }, data: { arm: 'CONTROL' } })
 
   await page.goto(`/v/${venueToken}`)
 
-  // Omitting control tables would be the easiest possible way to leak the arm:
-  // a guest whose table is missing from the list learns something.
+  // The picker itself must not leak the arm either: every table is listed on a
+  // control night exactly as on a live one.
   const controlLink = page.getByRole('link', { name: `Table ${controlLabel}`, exact: true })
   await expect(controlLink).toBeVisible()
 
@@ -47,6 +52,7 @@ test('control tables appear in the picker and fail indistinguishably', async ({ 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Nothing running right now')
   const controlText = await page.locator('main').innerText()
   expect(await db.guestSession.count({ where: { serviceId } })).toBe(0)
+  expect(await db.tableRun.count({ where: { serviceId } })).toBe(0)
 
   // And the failure must read exactly like a closed venue.
   await page.context().clearCookies()

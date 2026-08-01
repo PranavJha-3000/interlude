@@ -17,7 +17,10 @@ export default async function OperatorLayout({ children }: { children: React.Rea
   return (
     <div className={`${operatorFontVars} surface-operator min-h-dvh`}>
       <header className="border-b border-line">
-        <nav className="mx-auto flex w-full max-w-4xl items-center gap-5 px-6 py-4">
+        {/* flex-wrap is load-bearing: the nav outgrew a phone's width when menu,
+            prizes and bills arrived, and an overflowing nav swallows taps on
+            whatever ends up past the edge. */}
+        <nav className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-5 gap-y-2 px-6 py-4">
           <Link href="/" className="text-xs tracking-widest text-muted uppercase">
             {BRAND.name}
           </Link>

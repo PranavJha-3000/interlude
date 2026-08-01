@@ -86,6 +86,8 @@ test('a known export imports once, re-imports nothing, and surfaces the unjoinab
   // Map the mystery reference; the stranded ticket joins retroactively.
   await page.getByLabel('“MYSTERY-REF” is table').selectOption({ label: '7' })
   await page.getByRole('button', { name: 'Map' }).click()
+  // Wait for the round-trip: the mapping chip renders after the write lands.
+  await expect(page.locator('main')).toContainText('“MYSTERY-REF” → 7')
   const joined = await db.ticket.findFirstOrThrow({
     where: { serviceId: arranged.serviceId, externalRef: 'B-9003' },
     select: { table: { select: { label: true } } },
