@@ -39,6 +39,9 @@ export default async function OperatorLayout({ children }: { children: React.Rea
               <Link href="/dash/games" className="text-sm">
                 {en.dash.gamesNav}
               </Link>
+              <Link href="/dash/import" className="text-sm">
+                {en.dash.importNav}
+              </Link>
               <Link href="/tents" className="text-sm">
                 {en.dash.tents}
               </Link>
