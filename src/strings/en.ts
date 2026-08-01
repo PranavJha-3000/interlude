@@ -627,6 +627,8 @@ export const en = {
       turnOn: 'Turn on',
       turnOff: 'Turn off',
       beatTheKitchen: 'Beat the Kitchen',
+      beatTheKitchenBlurb:
+        'Higher or lower on your own menu, against the kitchen’s clock. The one game the pilot runs.',
       kitchenRound: 'Kitchen round',
       kitchenRoundBlurb: 'The guest races the kitchen and wins something off your menu.',
       mysteryPlate: 'Mystery plate',

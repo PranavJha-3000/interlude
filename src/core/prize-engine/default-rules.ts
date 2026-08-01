@@ -37,13 +37,13 @@ export const DEFAULT_RANKING_WEIGHTS: RankingWeights = {
  * table at 8pm on Saturday was coming anyway; a table at 4pm on Tuesday is the
  * one worth buying.
  */
-export function defaultPrizeRules(mysteryPlatePricePaise: number): PrizeRuleInput[] {
+export function defaultPrizeRules(): PrizeRuleInput[] {
   return [
     {
       id: 'default-win-low-margin-peak',
       priority: 10,
       label: 'Low margin at peak — half off rather than free',
-      mechanic: 'KITCHEN_ROUND',
+      mechanic: 'BEAT_THE_KITCHEN',
       outcome: 'WIN',
       marginTier: 'LOW',
       window: 'PEAK',
@@ -54,7 +54,7 @@ export function defaultPrizeRules(mysteryPlatePricePaise: number): PrizeRuleInpu
       id: 'default-win',
       priority: 100,
       label: 'Beat the kitchen — on the house',
-      mechanic: 'KITCHEN_ROUND',
+      mechanic: 'BEAT_THE_KITCHEN',
       outcome: 'WIN',
       window: 'ANY',
       kind: 'FREE',
@@ -66,31 +66,11 @@ export function defaultPrizeRules(mysteryPlatePricePaise: number): PrizeRuleInpu
       id: 'default-lose',
       priority: 100,
       label: 'Close one — half off',
-      mechanic: 'KITCHEN_ROUND',
+      mechanic: 'BEAT_THE_KITCHEN',
       outcome: 'LOSE',
       window: 'ANY',
       kind: 'PERCENT_OFF',
       percentOff: 50,
-    },
-    {
-      id: 'default-mystery-win',
-      priority: 100,
-      label: "Mystery plate — the kitchen's choice at a fixed price",
-      mechanic: 'MYSTERY_PLATE',
-      outcome: 'WIN',
-      window: 'ANY',
-      kind: 'FIXED_PRICE',
-      fixedPricePaise: mysteryPlatePricePaise,
-    },
-    {
-      id: 'default-mystery-lose',
-      priority: 100,
-      label: "Mystery plate — the kitchen's choice at a fixed price",
-      mechanic: 'MYSTERY_PLATE',
-      outcome: 'LOSE',
-      window: 'ANY',
-      kind: 'FIXED_PRICE',
-      fixedPricePaise: mysteryPlatePricePaise,
     },
   ]
 }

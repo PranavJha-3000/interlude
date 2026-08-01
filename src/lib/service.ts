@@ -2,8 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { armAt, type ArmRow } from '@/core/measurement/arm-assignment'
-import type { ClimbConfig, ClimbItemInput } from '@/core/mechanics/climb'
-import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
+import { MECHANICS, type Mechanic, type PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
 import { resolvePosAdapter } from '@/lib/pos'
 
@@ -17,35 +16,6 @@ export async function getVenueConfig(venueId: string) {
   const config = await db.venueConfig.findUnique({ where: { venueId } })
   if (!config) throw new Error(`Venue ${venueId} has no config row`)
   return config
-}
-
-export function toClimbConfig(config: {
-  climbRungs: number
-  climbHandSec: number
-  climbMinRunSec: number
-}): ClimbConfig {
-  return {
-    rungs: config.climbRungs,
-    handSec: config.climbHandSec,
-    minRunSec: config.climbMinRunSec,
-  }
-}
-
-/**
- * The venue's menu as the climb sees it: id, name, price.
- *
- * Only active items, and only ones with a name and a price — a half-entered
- * row from a venue still onboarding must not turn up in a hand at a table.
- * Ordered by price then id so the deal is a function of the data rather than
- * of whatever order Postgres felt like returning.
- */
-export async function getMenuForClimb(venueId: string): Promise<ClimbItemInput[]> {
-  const rows = await db.menuItem.findMany({
-    where: { venueId, active: true, pricePaise: { gt: 0 } },
-    select: { id: true, name: true, pricePaise: true },
-    orderBy: [{ pricePaise: 'asc' }, { id: 'asc' }],
-  })
-  return rows.filter((r) => r.name.trim().length > 0)
 }
 
 /** The service currently running at this venue, or null between services. */
@@ -311,7 +281,9 @@ export async function getEnabledGames(venueId: string): Promise<Mechanic[]> {
     orderBy: [{ displayOrder: 'asc' }, { mechanic: 'asc' }],
     select: { mechanic: true },
   })
-  return rows.map((r) => r.mechanic)
+  // Retired mechanics never reach a guest even if a venue's old row is still
+  // enabled — the platform list is the gate, the rows are the preference.
+  return rows.map((r) => r.mechanic).filter((m) => MECHANICS.some((known) => known === m))
 }
 
 /** Every game, on or off — what the operator's toggle page lists. */

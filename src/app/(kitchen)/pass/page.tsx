@@ -256,7 +256,9 @@ export default async function PassPage() {
 }
 
 function gameLabel(mechanic: Mechanic): string {
-  return mechanic === 'MYSTERY_PLATE'
-    ? en.pass.pool.gameMysteryPlate
-    : en.pass.pool.gameKitchenRound
+  // Retired mechanics keep their labels so an old service's snapshot still
+  // reads; the platform runs one game.
+  if (mechanic === 'MYSTERY_PLATE') return en.pass.pool.gameMysteryPlate
+  if (mechanic === 'KITCHEN_ROUND') return en.pass.pool.gameKitchenRound
+  return en.dash.games.beatTheKitchen
 }

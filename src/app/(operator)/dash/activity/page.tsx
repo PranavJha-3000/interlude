@@ -110,8 +110,10 @@ function timeOf(d: Date, timezone: string): string {
 }
 
 function gameLabel(mechanic: ActivityRow['mechanic']): string {
+  // Old rows keep their old names — history stays legible after retirement.
   if (mechanic === 'KITCHEN_ROUND') return en.dash.activity.gameKitchenRound
   if (mechanic === 'MYSTERY_PLATE') return en.dash.activity.gameMysteryPlate
+  if (mechanic === 'BEAT_THE_KITCHEN') return en.dash.games.beatTheKitchen
   return en.common.none
 }
 

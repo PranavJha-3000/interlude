@@ -67,7 +67,7 @@ function generateCase(seed: number): Case {
   const vetoCount = rng.int(0, menu.length)
   const chefVetoes = menu.slice(0, vetoCount).map((m) => m.id)
 
-  const rules: PrizeRuleInput[] = rng.bool(0.85) ? defaultPrizeRules(rng.int(1000, 20000)) : []
+  const rules: PrizeRuleInput[] = rng.bool(0.85) ? defaultPrizeRules() : []
 
   return {
     seed,

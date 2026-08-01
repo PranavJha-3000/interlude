@@ -44,8 +44,8 @@ export const DEFAULT_PREP_MINUTES: Record<string, number> = {
 export const DEFAULT_PREP_FALLBACK_MINUTES = 12
 
 /**
- * The games a venue starts with. Both on, so a new venue gets the picker
- * without configuring anything.
+ * The games a venue starts with — one, on. The spec ships one game; the row
+ * (rather than a flag) is the seam a future mechanic plugs into.
  *
  * Pure, and separate from the write, for the same reason `defaultPrizeRules` is:
  * a starting point written into rows the operator then owns — never a constant
@@ -56,10 +56,7 @@ export function defaultVenueGames(): Array<{
   enabled: boolean
   displayOrder: number
 }> {
-  return [
-    { mechanic: 'KITCHEN_ROUND', enabled: true, displayOrder: 0 },
-    { mechanic: 'MYSTERY_PLATE', enabled: true, displayOrder: 1 },
-  ]
+  return [{ mechanic: 'BEAT_THE_KITCHEN', enabled: true, displayOrder: 0 }]
 }
 
 /**
@@ -119,10 +116,9 @@ export interface CreateVenueInput {
  * The `VenueGame` rows are nested in the same `create` for a sharper reason: a
  * venue with no game rows is **closed to guests**, so a half-written venue
  * would be a venue nobody can play at. Nesting makes them arrive with the venue
- * or not at all. The prize rules cannot join them — they are priced from the
- * config row's own `mysteryPlatePricePaise`, which does not exist until the
- * insert returns — but a venue with no prize rules merely offers nothing and
- * says why, which is recoverable from `/dash/prizes`.
+ * or not at all. The prize rules follow in a second write; a venue with no
+ * prize rules merely offers nothing and says why, which is recoverable from
+ * `/dash/prizes`.
  */
 export async function createVenue(db: Db, input: CreateVenueInput) {
   const slug = input.slug ?? slugify(input.name)
@@ -150,7 +146,7 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
     include: { config: true },
   })
 
-  await createDefaultPrizeRules(db, venue.id, venue.config!.mysteryPlatePricePaise)
+  await createDefaultPrizeRules(db, venue.id)
 
   return venue
 }
@@ -163,12 +159,8 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
  * but it must never be the state a venue is *created* in, or night one is a
  * guest winning nothing and nobody knowing why.
  */
-export async function createDefaultPrizeRules(
-  db: Db,
-  venueId: string,
-  mysteryPlatePricePaise: number
-) {
-  const rules = defaultPrizeRules(mysteryPlatePricePaise)
+export async function createDefaultPrizeRules(db: Db, venueId: string) {
+  const rules = defaultPrizeRules()
   await db.prizeRule.createMany({
     data: rules.map((r) => ({
       venueId,

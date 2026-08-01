@@ -29,7 +29,7 @@ function rule(over: Partial<PrizeRuleInput> & { id: string }): PrizeRuleInput {
   return {
     priority: 100,
     label: 'Test rule',
-    mechanic: 'KITCHEN_ROUND',
+    mechanic: 'BEAT_THE_KITCHEN',
     outcome: 'WIN',
     window: 'ANY',
     kind: 'FREE',
@@ -53,9 +53,9 @@ function input(over: Partial<PrizeEngineInput> = {}): PrizeEngineInput {
     kitchenLoad: 'GREEN',
     chefVetoes: [],
     depthCaps: { perItemPct: 100, perServicePaise: 500000 },
-    mechanic: 'KITCHEN_ROUND',
+    mechanic: 'BEAT_THE_KITCHEN',
     outcome: 'WIN',
-    prizeRules: defaultPrizeRules(MYSTERY_PRICE),
+    prizeRules: defaultPrizeRules(),
     rankingWeights: DEFAULT_RANKING_WEIGHTS,
     concededSoFarPaise: 0,
     serviceClockMinute: 13 * 60,
@@ -330,7 +330,7 @@ describe('the venue sets the prizes (PLATFORM.md §10 — config, not constants)
       input({
         menu: [item({ id: 'tiramisu' })],
         velocity: [],
-        mechanic: 'KITCHEN_ROUND',
+        mechanic: 'BEAT_THE_KITCHEN',
         prizeRules: [rule({ id: 'wrong-mechanic', mechanic: 'MYSTERY_PLATE', kind: 'FREE' })],
       })
     )
@@ -339,9 +339,11 @@ describe('the venue sets the prizes (PLATFORM.md §10 — config, not constants)
   })
 })
 
-describe('the mystery plate is a product, never a draw (PLATFORM.md §7)', () => {
-  it('always issues it as a fixed-price award', () => {
-    const r = decidePrizePool(input({ mechanic: 'MYSTERY_PLATE' }))
+describe('a fixed price is a product, never a draw (PLATFORM.md §7)', () => {
+  const fixedRules = [rule({ id: 'fixed', kind: 'FIXED_PRICE', fixedPricePaise: MYSTERY_PRICE })]
+
+  it("issues fixed-price awards carrying the venue's own price", () => {
+    const r = decidePrizePool(input({ prizeRules: fixedRules }))
     expect(r.entries.length).toBeGreaterThan(0)
     for (const e of r.entries) {
       expect(e.kind).toBe('FIXED_PRICE')
@@ -351,7 +353,7 @@ describe('the mystery plate is a product, never a draw (PLATFORM.md §7)', () =>
 
   it('refuses items the fixed price would not actually discount', () => {
     const menu = [item({ id: 'cheap', pricePaise: 8000, foodCostPaise: 2000 })]
-    const r = decidePrizePool(input({ menu, velocity: [], mechanic: 'MYSTERY_PLATE' }))
+    const r = decidePrizePool(input({ menu, velocity: [], prizeRules: fixedRules }))
     expect(r.entries).toHaveLength(0)
     expect(r.excluded[0]?.reason).toBe('Fixed price is not below the menu price')
   })
