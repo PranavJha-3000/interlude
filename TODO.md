@@ -117,8 +117,11 @@ Genuinely shipped and verifiable today:
 
 Still genuinely open:
 
-- [ ] **Vercel deploy** — `vercel.json` and the build command are committed; the project itself is
-      not created yet. See **Deploying** below
+- [ ] **Vercel deploy** — `vercel.json`, the build command and the Monday cron are committed; the
+      project itself is not created yet. See **Deploying** below.
+      **The cron schedule is UTC.** `30 3 * * 1` is Monday 09:00 IST — Vercel does not read
+      `Venue.timezone`, so a venue outside IST needs its own entry or a route that filters by local
+      Monday
 
 **How to test**
 

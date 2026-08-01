@@ -486,6 +486,56 @@ export const en = {
   },
 
   dash: {
+    /**
+     * The two tiers (§6.4). Told apart by label and a dashed underline, never
+     * by colour, and never averaged into one figure — an average of a measured
+     * number and an estimated one has no defensible meaning, and defensible is
+     * the entire pitch.
+     */
+    tier: {
+      appEstimate: 'App estimate',
+      posBacked: 'Point-of-sale backed',
+      appCaveat:
+        "Spend above each table's own baseline, minus prize cost at cost price. Blind to cash tips, to walk-ins with no history, and to what these tables would have ordered anyway.",
+      posCaveat:
+        'Measured from your own bill export against the same-weekday baseline. Prize cost is at cost price.',
+      billsCounted: (n: number) =>
+        n === 1 ? '1 bill imported for this service.' : `${n} bills imported for this service.`,
+      editAssumption: 'Edit that assumption',
+    },
+
+    ledger: {
+      heading: 'Tonight, table by table',
+      table: 'Table',
+      result: 'Result',
+      prize: 'Prize',
+      prizeCost: 'Prize cost',
+      extraSpend: 'Extra spend',
+      net: 'Net',
+      totals: 'Totals',
+    },
+
+    /**
+     * The refusal log. Listed second and set louder than the cleared column —
+     * what the engine refused is the product, and the operator can read it back
+     * the next morning and argue with it.
+     */
+    refusals: {
+      clearedHeading: 'Cleared tonight',
+      refusedHeading: 'Refused, and why',
+      none: 'Nothing recorded for this service.',
+      link: 'See what the engine refused',
+    },
+
+    engagement: {
+      heading: 'Engagement',
+      runs: 'Table runs',
+      tented: 'Tables tented',
+      scanRate: 'Scan rate',
+      completion: 'Completion',
+      devicesPerRun: 'Phones per table',
+      foodArrived: 'Ended: food arrived',
+    },
     heading: 'Tonight',
     tents: 'Tents',
     tier1: {
