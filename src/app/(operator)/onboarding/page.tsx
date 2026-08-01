@@ -8,12 +8,17 @@ import { en } from '@/strings/en'
 import type { Mechanic } from '@/core/prize-engine'
 import {
   advanceStep,
+  confirmUploadedMenu,
+  discardUploadedMenu,
   removeItem,
   submitDetails,
   submitMenuDone,
   submitMenuItem,
   submitTables,
+  uploadMenu,
 } from './actions'
+import { MenuDraftGrid, MenuUploadForm } from '../menu-upload-ui'
+import { getMenuDraft } from '@/lib/menu-draft'
 import { StaffPins } from './StaffPins'
 import { ShareLink } from './ShareLink'
 
@@ -40,6 +45,9 @@ const ERRORS: Record<string, string> = {
   invalid: en.onboarding.menu.invalid,
   cost_over_price: en.onboarding.menu.costOverPrice,
   need_one: en.onboarding.menu.needOne,
+  upload_failed: en.onboarding.menu.upload.failed,
+  nothing_selected: en.onboarding.menu.upload.nothingSelected,
+  missing_cost_pct: en.onboarding.menu.upload.missingCostPct,
 }
 
 /** One wording per mechanic, shared with `/dash/games`. */
@@ -189,10 +197,29 @@ async function Menu({ venueId }: { venueId: string }) {
     orderBy: { name: 'asc' },
   })
 
+  // An unconfirmed upload takes over the screen: the operator is mid-decision,
+  // and showing the manual form beside 40 draft rows buries both.
+  const pending = await getMenuDraft(venueId)
+  if (pending) {
+    return (
+      <>
+        <h1 className="mt-3 text-3xl font-semibold">{en.onboarding.menu.heading}</h1>
+        <MenuDraftGrid
+          source={pending.source}
+          draft={pending.draft}
+          confirmAction={confirmUploadedMenu}
+          discardAction={discardUploadedMenu}
+        />
+      </>
+    )
+  }
+
   return (
     <>
       <h1 className="mt-3 text-3xl font-semibold">{en.onboarding.menu.heading}</h1>
       <p className="mt-3 text-lg text-muted">{en.onboarding.menu.body}</p>
+
+      <MenuUploadForm action={uploadMenu} />
 
       <form action={submitMenuItem} className="mt-8">
         <label htmlFor="item-name" className="block text-sm text-muted">

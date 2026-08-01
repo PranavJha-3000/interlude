@@ -3,9 +3,17 @@
 Single source of truth for what the platform is and how it is built.
 
 **Status:** pre-validation, shipping anyway. The business doc gates code behind Tests 0–2; that gate
-is lifted by explicit owner decision. We ship a staged MLP, run it at one venue, and validate from
-live data rather than ahead of it. Consequence — and this is what makes the decision recoverable:
-every unmeasured number (Appendix B, B1–B16) is **venue configuration, never a constant.**
+is lifted by explicit owner decision. We ship a staged MLP, run it across **4–6 venues on one
+weekend**, and validate from live data rather than ahead of it. Consequence — and this is what makes
+the decision recoverable: every unmeasured number (Appendix B, B1–B16) is **venue configuration,
+never a constant.**
+
+**Launch moved out by one week** (owner decision). The week buys menu upload — self-setup in ten
+minutes rather than an hour — and the venue count that makes one weekend's numbers readable.
+
+**The market we are taking.** Every restaurant already has a table QR. It opens a static menu and
+earns nothing. We replace it with one that occupies the food wait, moves the menu, and reports the
+result in rupees. The incumbent is a PDF.
 
 ---
 
@@ -19,8 +27,9 @@ The games are the surface. The product is a **prize engine** that decides *which
 depth, through which mechanic, at which moment* — configured by margin, sales velocity and live
 kitchen load.
 
-**One number:** attach-rate delta — engaged/tented tables vs. same-night control tables, read from
-the merchant's own POS.
+**One number, eventually:** attach-rate delta — tented tables vs. same-night control tables, read
+from the merchant's own POS. **It is not the pilot's number**, because one weekend cannot produce it
+at any useful confidence. What the pilot reports instead, and why, is §9a.
 
 ---
 
@@ -82,10 +91,13 @@ Locked per §12. Anything not on this list is out.
 **Shipped with the guest loop, not after it:** kitchen-load input and the chef veto switch (§5.2,
 §12). Pushing a dying dessert at 9pm Saturday without them makes the chef the product's enemy by 9:15.
 
-**Operator plumbing is scope, but it is not a mechanic.** The landing page, magic-link auth, venue
-onboarding, menu management and prize admin (TODO.md phases 1–8) are how a restaurant reaches the
-four rows above without us in the room. They add no guest-facing mechanic and open no door to
-anything in §12.
+**Operator plumbing is scope, but it is not a mechanic.** The landing page, auth, venue onboarding,
+**menu upload**, menu management and prize admin are how a restaurant reaches the rows above without
+us in the room. They add no guest-facing mechanic and open no door to anything in §12.
+
+**Menu upload is scope, and it is the one that decides venue count.** Typing forty items by hand is
+roughly an hour and is where self-serve setup is abandoned. Photo/PDF/CSV upload takes it to ten
+minutes, which is the difference between a six-venue pilot weekend and a one-venue one. §6a.
 
 **Cut from V1 by owner decision:** #7 table-vs-table and #12 beat-the-house. **Multiplayer is out
 entirely** — new mechanics are single-player. This removes match lobbies, pairing, server-authoritative
@@ -131,7 +143,7 @@ testable against the invariants in §7.
 
 ---
 
-## 6. POS — port and adapters (`core/pos`)
+## 6. POS — port and adapters (`lib/pos`)
 
 T3 is unrun; nothing may depend on a vendor API existing.
 
@@ -153,6 +165,56 @@ interface PosAdapter {
 
 ---
 
+## 6a. AI — port, adapters, and the line it may not cross
+
+**The rule: AI reads and drafts; a person confirms; it never decides.**
+
+It lives in `src/lib/ai/` behind an adapter, exactly like the POS port, with a `Mock` for tests and
+dev so no API key is needed to develop. **It is banned from `core/`** — and this is not tidiness. An
+LLM is nondeterministic. `core/prize-engine` and `core/mechanics` are where the no-pure-chance
+guarantee (§7) is enforced by proving outcomes are a pure function of skill input. A model call
+anywhere in that path would destroy the proof, and the guarantee is what keeps the product on the
+right side of gambling law. The existing ESLint no-RNG rule extends to cover the AI module.
+
+```ts
+interface AiAdapter {
+  extractMenu(file: Upload): Promise<MenuDraft>        // photo | PDF → items, never saved directly
+  narrateReport(metrics: WeeklyMetrics): Promise<string>
+  draftReview(spoken: string): Promise<string>          // guest approves before it leaves
+  describeItem(item: MenuItem): Promise<string>
+}
+```
+
+| Use | Cadence | Marginal cost | Confirmed by |
+|---|---|---|---|
+| **Menu extraction** — photo or PDF → a draft grid | Once per venue | A few rupees | Operator, before anything is written |
+| **Weekly report narration** — numbers already computed, put into three sentences | Weekly per venue | Under ₹1 | Nobody. It narrates; it does not compute |
+| **Review drafting** — the guest's own words, tidied | Per review | Under ₹1 | The guest, before hand-off |
+| **Item descriptions** for tents and guest cards | Once per item | Paise | Operator |
+
+A cheap model does all of it, because every task above is transcription or restatement rather than
+judgement — the thing these models are actually dependable at.
+
+**Banned outright, each for its own reason:**
+
+| Never | Why |
+|---|---|
+| Choosing a prize, a pair, or an outcome | The gambling line. Outcomes must be a pure function of skill |
+| Writing a food cost | Food cost drives contribution, which is the headline number. A hallucinated cost is a wrong rupee figure shown to an owner as fact |
+| Reading or inferring a review's sentiment | §7's review boundary. Storing sentiment creates the ability to gate on it |
+| Any call on the guest's critical path that can block a screen | Venue wifi. Extraction is setup-time; drafting degrades to the typed fallback |
+
+**Menu extraction is deliberately narrow.** It reads names, categories, prices and portion options —
+what is printed on the page. It is not asked for food cost (the operator gives one rough percentage
+per category and we compute), and margin tier is derived from price and cost rather than guessed.
+Narrowing the ask to transcription is what makes a cheap model sufficient and the output checkable.
+
+**Commercially it is the demo.** An owner watching forty items appear from a photograph of their own
+menu is the moment the rest becomes believable, and it removes the hour of typing that is where
+self-serve setup actually gets abandoned.
+
+---
+
 ## 7. Compliance guardrails — enforced in code, not intention
 
 §5.3 and §17.1 treat these as existential. Each is a test or a lint rule.
@@ -160,6 +222,7 @@ interface PosAdapter {
 | Rule | Enforcement |
 |---|---|
 | **No pure chance** (§3.3) | `Math.random` and `crypto.getRandomValues` banned by ESLint inside `core/prize-engine` and `core/mechanics`. Test asserts outcome is a pure function of the skill input. Mystery plate is modelled as a fixed-price product, never a draw |
+| **AI decides nothing** (§6a) | The AI module is import-banned from `core/`, enforced as a lint rule alongside the no-RNG one. Test asserts a menu extraction writes no row until the operator confirms, and that the CSV path makes no model call at all |
 | **Review capture separated from rewards** (§5.3) | The review module is given no prize or award state — a module boundary, not discipline. Test asserts the prompt fires for 100% of sessions regardless of play, win, or sentiment. No rating is captured before hand-off, so gating is structurally impossible |
 | **Venue's fences respected** | Property test: no chef-vetoed item, no item over its depth cap, no kitchen-work item while load is RED |
 | **Control-arm integrity** | Control tables cannot open a session or receive an offer. Test asserts it |
@@ -193,9 +256,44 @@ Notes on the two that carry weight:
 
 ---
 
+## 9a. What a small weekend can prove — the MLP's measurement design
+
+The MLP has to make an owner want to buy after **two nights**. That constraint is statistical before
+it is anything else, and designing as though it were not is the way this fails quietly.
+
+| Kind | Examples | What one pooled weekend yields |
+|---|---|---|
+| **Counts** — a census, not a sample | Confirmed add-ons, contribution ₹, prize cost ₹, net ₹ | **Exact.** Every row is a real sale a server confirmed. No inference, no interval. Twenty add-ons is twenty add-ons |
+| **Rates** — binomial, modest N | Scan rate, completion rate, add-on conversion | **Reportable.** ~200 tented tables pooled gives roughly ±6pp at 95%. Enough to say "a quarter of tables play" and defend it |
+| **Deltas** — two-proportion, large N | Attach-rate delta, ticket delta | **Not from one weekend.** Detecting 5pp on a ~20% base needs on the order of 1,000 tables *per arm*; a weekend across six venues has ~200. Only a very large effect would clear the noise |
+
+**So the MLP proves three things and claims nothing else:**
+
+1. **Guests play** — scan and completion rates, quoted with their margin of error.
+2. **It sells food** — the tier-1 ledger, counted rather than estimated.
+3. **The kitchen keeps control** — vetoes exercised, load flipped, the kill switch available and
+   nothing forced past the chef.
+
+The delta is still computed and still shown, **carrying its confidence interval and the words "not
+yet conclusive" until that interval excludes zero.** It accumulates weekend over weekend. Publishing
+it early — to a buyer, a deck, or ourselves — spends the credibility that honest measurement is the
+entire differentiator for.
+
+**This is why the pilot is 4–6 venues rather than one.** Pooling is the only route to even the rate
+numbers in a single weekend, and it pre-empts the first objection any buyer raises: that the one
+venue was unusual. Per-venue numbers are shown to that venue's owner as directional; the pooled
+number is the one with an interval on it.
+
+**Pooling never crosses the tenancy boundary.** No operator sees another venue's data. The pooled
+view is ours, and it is a script (`scripts/pilot-report.mts`) rather than a screen — a cross-venue
+surface is an authorisation boundary we have no reason to build and every reason not to.
+
+---
+
 ## 9. Metrics and gates
 
-**North star: attach-rate delta**, in percentage points, from the merchant's own POS.
+**North star: attach-rate delta**, in percentage points, from the merchant's own POS — read
+alongside §9a on when it is safe to believe.
 
 **Reported two ways, and the difference matters.** §11 defines the delta as *engaged vs. control*.
 Tables that choose to scan self-select — more receptive, more social, less rushed — so that number
@@ -266,18 +364,25 @@ src/
     (operator)/signin/     # magic link request + consume
     (operator)/onboarding/ # resumable venue setup: details, tables, menu, staff, QR
     (operator)/dash/       # owner: the one number
-    (operator)/dash/menu/  # the venue's own menu
+    (operator)/dash/menu/  # the venue's own menu, incl. photo/PDF/CSV upload
     (operator)/dash/prizes/ # depth caps, prep minutes, gates — all VenueConfig
     (operator)/tents/      # printable per-table tents + the venue QR
     api/
-  core/
+  core/                    # pure. no I/O, no clock, no randomness, no AI
     prize-engine/          # pure, deterministic, unit-tested
-    mechanics/             # #5 #2 rules — pure logic, no I/O. Single-player only
+    mechanics/             # game rules — pure logic. Single-player only
     measurement/           # arm assignment, ITT + engaged delta, gate evaluation
-    pos/                   # port + Manual | CsvImport | Mock | vendor stubs
     consent/               # DPDP consent, phone hashing, venue siloing
+  lib/
+    pos/                   # port + Manual | CsvImport | Mock | vendor stubs
+    ai/                    # port + cheap-model | Mock. Never imported by core/
   brand.ts                 # the name lives here and nowhere else
+scripts/
+  pilot-report.mts         # pooled cross-venue numbers. Ours, not an operator surface
 ```
+
+**`pos/` and `ai/` sit in `lib/`, not `core/`, because both do I/O and `core/` is pure.** §6's
+`core/pos` path is superseded by this tree.
 
 **Realtime is polling, not websockets.** Venue wifi is unreliable and serverless does not hold
 sockets. The #5 countdown is driven by a **server-issued end timestamp**, so client clock skew and
@@ -323,6 +428,12 @@ than a graveyard entry, so it is reversible — but it is out of V1 and out of b
 | Decision | Status |
 |---|---|
 | Validation gate (T0–T2) | **Settled: lifted.** We ship a staged MLP and validate from live pilot data. The cost is that every Appendix B number is an unmeasured estimate — which is exactly why §10's config rule is load-bearing rather than tidy |
+| Pilot size | **Settled: 4–6 venues, one weekend, both nights.** One venue cannot produce a defensible number at any confidence (§9a). Pooling is the only route to the rate metrics inside a single weekend |
+| What the pilot claims | **Settled: counts and rates, not deltas.** The tier-1 ledger and the engagement rates are the sale. Attach-rate delta ships with a confidence interval and an explicit "not yet conclusive" until the interval excludes zero (§9a) |
+| Launch date | **Settled: pushed one week** by owner decision, to buy menu upload and the venue count |
+| AI | **Settled: reads and drafts, never decides.** A `lib/ai` port with a Mock, import-banned from `core/`, four narrow uses, four hard prohibitions (§6a). Setup extraction is the demo and the recurring narration is the hook; pricing undecided |
+| Food cost source | **Settled: never extracted by a model.** One operator-supplied percentage per category, cost computed from it, margin tier derived. A hallucinated food cost is a wrong contribution figure presented to an owner as fact (§6a) |
+| Cross-venue pooled view | **Settled: a script, not a screen.** `scripts/pilot-report.mts`. A cross-venue surface would be an authorisation boundary with no product reason to exist |
 | Multiplayer | **Settled: cut.** #7 and #12 out; single-player only. See *V1 scope* and *Never built* |
 | Tenancy | **Settled: multi-tenant, self-serve.** Restaurants sign themselves up from the landing page; onboarding is no longer an internal `/admin` surface. The cost is that venue scoping becomes a data-leak boundary (§7) and the control arm becomes a thing a venue can decline (§9) — both are named rather than mitigated away |
 | Operator auth | **Settled: email magic link** via Resend. No passwords to store, reset or leak. In development the link is written to the console, so onboarding is testable with no API key and no network |

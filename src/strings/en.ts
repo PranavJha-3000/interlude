@@ -180,6 +180,28 @@ export const en = {
       invalid: 'Give the item a name, a price, and what it costs you.',
       costOverPrice: 'Food cost is higher than the price. Check the numbers.',
       remove: 'Remove',
+      upload: {
+        heading: 'Or upload it',
+        body: 'A photo of the menu, a PDF, or a CSV. You check every line before anything is saved.',
+        fileLabel: 'Menu file',
+        submit: 'Read my menu',
+        csvHint: 'CSV columns: name, category, price — and optionally cost. Prices in rupees.',
+        failed: 'That file could not be read. Try another photo, a CSV, or add items by hand.',
+        draftHeading: 'Check what we read',
+        draftBody:
+          'Untick anything wrong, fix names and prices in place. Nothing is saved until you confirm.',
+        draftFrom: (source: string, count: number) =>
+          `${count} ${count === 1 ? 'item' : 'items'} read from your ${source}.`,
+        includeLabel: 'Keep',
+        costPctHeading: 'Roughly, what do ingredients cost you?',
+        costPctBody:
+          'One percentage per category is enough — it sets the margin fence the prize engine respects. You can refine per item later in the dashboard.',
+        costPctLabel: (category: string) => `${category} — cost as % of price`,
+        confirm: 'Save these items',
+        discard: 'Discard draft',
+        nothingSelected: 'Keep at least one row, or discard the draft.',
+        missingCostPct: 'Give every category a rough cost percentage.',
+      },
     },
 
     staff: {

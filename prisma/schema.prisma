@@ -49,6 +49,7 @@ model Venue {
   games        VenueGame[]
   posTableMap  PosTableMap[]
   history      HistoricalService[]
+  menuDraft    MenuImportDraft?
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -437,6 +438,26 @@ model PosTableMap {
 
   @@unique([venueId, posRef])
   @@index([tableId])
+}
+
+/// A menu upload the operator has not confirmed yet (PLATFORM.md §6a).
+///
+/// The whole point of this row existing is that **nothing reaches `MenuItem`
+/// until the operator hits confirm** — an extraction the model got wrong is a
+/// draft they edit or discard, never data. One per venue: a new upload
+/// replaces the old draft, and confirming or discarding deletes it.
+model MenuImportDraft {
+  id        String   @id @default(cuid())
+  venueId   String   @unique
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  /// 'csv' | 'photo' | 'pdf' — shown on the grid so the operator knows which
+  /// path produced it. Never branches logic.
+  source    String
+  /// MenuDraftItem[] as JSON. Rupees, not paise — conversion happens once, at
+  /// confirm, through the same path typed input takes.
+  items     Json
+  warnings  Json
+  createdAt DateTime @default(now())
 }
 
 /// First-party feedback, delivered to the owner (§7.2).

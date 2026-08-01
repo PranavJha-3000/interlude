@@ -164,6 +164,70 @@ test('a food cost above the price is refused as the typo it almost always is', a
   expect(await db.menuItem.count({ where: { name: 'Upside down dish', venue: { name } } })).toBe(0)
 })
 
+test('a CSV upload lands in a draft grid, and only confirm writes items', async ({ page }) => {
+  await signUpWithPassword(page, PASSWORD, 'onboarding-e2e-csv')
+  const name = await uniqueVenueName('CSV Upload')
+  await fillDetails(page, name)
+  await page.getByLabel('Number of tables').fill('4')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.locator('main')).toContainText('Add your menu')
+
+  const csv = 'name,category,price\nButter Chicken,mains,520\nGarlic Naan,breads,90\n'
+  await page.getByLabel('Menu file').setInputFiles({
+    name: 'menu.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  })
+  await page.getByRole('button', { name: 'Read my menu' }).click()
+
+  // A draft, not data: nothing written yet.
+  await expect(page.locator('main')).toContainText('Check what we read')
+  await expect(page.locator('main')).toContainText('2 items read from your csv')
+  expect(await db.menuItem.count({ where: { venue: { name } } })).toBe(0)
+
+  // Untick the naan, give each category a rough cost, confirm.
+  await page.locator('input[name="rowInclude"][value="1"]').uncheck()
+  await page.getByLabel('mains — cost as % of price').fill('40')
+  await page.getByLabel('breads — cost as % of price').fill('25')
+  await page.getByRole('button', { name: 'Save these items' }).click()
+
+  await expect(page.locator('main')).toContainText('1 item so far')
+  const item = await db.menuItem.findFirstOrThrow({
+    where: { venue: { name } },
+    select: { name: true, pricePaise: true, foodCostPaise: true, marginTier: true },
+  })
+  expect(item.name).toBe('Butter Chicken')
+  expect(item.pricePaise).toBe(52000)
+  expect(item.foodCostPaise).toBe(20800) // 40% of the price, computed — never extracted
+  expect(item.marginTier).toBe('MID')
+})
+
+test('a photo upload uses the extractor draft, and discarding writes nothing', async ({ page }) => {
+  await signUpWithPassword(page, PASSWORD, 'onboarding-e2e-photo')
+  const name = await uniqueVenueName('Photo Upload')
+  await fillDetails(page, name)
+  await page.getByLabel('Number of tables').fill('4')
+  await page.getByRole('button', { name: 'Continue' }).click()
+
+  // The suite runs with AI_TRANSPORT=mock, so this exercises the whole
+  // photo path against the deterministic fixture.
+  await page.getByLabel('Menu file').setInputFiles({
+    name: 'menu.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('not-a-real-jpeg-but-the-mock-does-not-look'),
+  })
+  await page.getByRole('button', { name: 'Read my menu' }).click()
+
+  await expect(page.locator('main')).toContainText('Check what we read')
+  await expect(page.locator('main')).toContainText('Paneer Tikka')
+
+  await page.getByRole('button', { name: 'Discard draft' }).click()
+
+  // Abandoning the draft wrote nothing — the §6a promise.
+  await expect(page.locator('main')).toContainText('Nothing added yet')
+  expect(await db.menuItem.count({ where: { venue: { name } } })).toBe(0)
+})
+
 test('a second venue cannot take a name that is already set up', async ({ page }) => {
   const name = await uniqueVenueName('Contested')
 

@@ -99,9 +99,12 @@ const eslintConfig = defineConfig([
                 'node:*',
                 '@/lib/db',
                 '@/lib/db*',
+                '@/lib/ai',
+                '@/lib/ai/*',
+                '@anthropic-ai/*',
               ],
               message:
-                'core/prize-engine and core/mechanics take everything as arguments — no I/O, no database, no framework (PLATFORM.md §5).',
+                'core/prize-engine and core/mechanics take everything as arguments — no I/O, no database, no framework, no AI (PLATFORM.md §5, §6a). An LLM is nondeterministic, and a model call here would break the no-pure-chance proof that keeps the product legal.',
             },
           ],
         },
@@ -144,6 +147,9 @@ const eslintConfig = defineConfig([
                 '@/lib/db*',
                 'next',
                 'next/*',
+                '@/lib/ai',
+                '@/lib/ai/*',
+                '@anthropic-ai/*',
               ],
               message:
                 'The review module is given no prize, award, life or game state (§7.2). It cannot gate on what it cannot read, and that is the enforcement — not a convention. Incentivised or sentiment-gated reviews put the restaurant’s Business Profile at risk, so the harm lands on the customer.',

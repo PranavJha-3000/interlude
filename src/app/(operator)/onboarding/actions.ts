@@ -13,6 +13,13 @@ import {
   setTableCount,
 } from '@/lib/onboarding'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
+import {
+  confirmMenuDraft,
+  costPctFromForm,
+  discardMenuDraft,
+  rowsFromForm,
+  uploadMenuFile,
+} from '@/lib/menu-draft'
 import type { OnboardingStepName } from '@/lib/venue-setup'
 
 /**
@@ -108,6 +115,41 @@ function marginTierFor(priceRupees: number, costRupees: number): 'HIGH' | 'MID' 
   if (margin >= 0.7) return 'HIGH'
   if (margin >= 0.45) return 'MID'
   return 'LOW'
+}
+
+export async function uploadMenu(formData: FormData): Promise<void> {
+  const venue = await requireOnboardingVenue()
+
+  const file = formData.get('menuFile')
+  if (!(file instanceof File)) redirect('/onboarding?error=upload_failed')
+
+  const result = await uploadMenuFile(venue.id, file)
+  if (!result.ok) redirect('/onboarding?error=upload_failed')
+
+  revalidatePath('/onboarding')
+  redirect('/onboarding')
+}
+
+export async function confirmUploadedMenu(formData: FormData): Promise<void> {
+  const venue = await requireOnboardingVenue()
+
+  const result = await confirmMenuDraft(venue.id, rowsFromForm(formData), costPctFromForm(formData))
+  if (!result.ok) {
+    redirect(
+      `/onboarding?error=${result.reason === 'MISSING_COST_PCT' ? 'missing_cost_pct' : 'nothing_selected'}`
+    )
+  }
+
+  revalidatePath('/onboarding')
+  redirect('/onboarding')
+}
+
+export async function discardUploadedMenu(): Promise<void> {
+  const venue = await requireOnboardingVenue()
+  await discardMenuDraft(venue.id)
+
+  revalidatePath('/onboarding')
+  redirect('/onboarding')
 }
 
 export async function removeItem(formData: FormData): Promise<void> {

@@ -4,16 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-**The guest loop is built; the operator front door is not.** The build sequence in [TODO.md](TODO.md)
-is a linear list of phases, not the old three waves and not the older M0–M6. Phase 0 is a truth pass
-recording what already works — the guest flow, `/floor`, `/pass`, tier-1 `/dash`, per-table QR and
-printable tents, the prize engine, and the Playwright happy path. Phases 1–8 build what is missing:
-operator identity, venue creation, the venue QR, a landing page, self-serve onboarding, menu
-management, prize admin, and a venue-scoped dashboard. Everything after that is under **Later**.
+**Guest, staff and operator surfaces all run end to end.** 393 unit tests and 33 E2E tests pass.
+[TODO.md](TODO.md) is now a short build list, not the old phase sequence and not the older waves;
+its **Done** section is the truth pass. What remains, in order: menu upload, `/dash/menu`,
+`/dash/prizes`, the pooled pilot report, bill import for real, the review screen, retiring the two
+old games, and the Vercel deploy.
 
-**Every phase carries a "How to test" block, and that is not decoration.** A phase is done when the
-commands in its block pass — not when the code looks finished. If you add work to a phase, add the
-test that proves it.
+**Every item carries a "Test" block, and that is not decoration.** An item is done when those
+commands pass — not when the code looks finished. If you add work, add the test that proves it.
+
+**The launch moved out by one week, and the pilot is now 4–6 venues on one weekend, not one venue.**
+This is a statistical decision, not an ambition: one venue's weekend cannot produce a defensible
+attach-rate delta, so the MLP sells on counts (the tier-1 ledger, exact) and rates (scan and
+completion, ±6pp pooled), and the delta ships with a confidence interval and an explicit "not yet
+conclusive" label until the interval excludes zero. PLATFORM.md §9a is the contract. Do not put the
+delta in front of a buyer before it earns it.
 
 These documents are the source of truth and should be read before writing anything:
 
@@ -46,6 +51,22 @@ anyone helping them. Two consequences that are easy to get wrong:
   computed for it. Arm assignment stays mandatory and control tables still cannot open a session —
   that invariant does not bend for onboarding convenience. Letting a venue opt out of the control arm
   is a config decision, not a default.
+
+## AI
+
+**AI reads and drafts. A person confirms. It never decides.** It lives in `src/lib/ai/` behind an
+adapter with a `Mock`, and is **import-banned from `core/`** — an LLM is nondeterministic, and
+`core/prize-engine` and `core/mechanics` are where the no-pure-chance guarantee is proved. A model
+call in that path destroys the proof that keeps the product legal.
+
+Four uses, all narrow and all cheap: menu extraction from a photo or PDF at setup, weekly report
+narration, review drafting the guest approves, and item descriptions. Four hard prohibitions:
+never choose a prize, a pair or an outcome; never write a food cost; never read a rating; never sit
+on the guest's critical path where wifi can block a screen. PLATFORM.md §6a.
+
+Menu extraction is transcription — names, categories, prices, portion options. Food cost is **not**
+extracted: the operator gives one rough percentage per category and cost is computed, because a
+hallucinated food cost becomes a wrong contribution number shown to an owner as fact.
 
 ## Planned stack
 
