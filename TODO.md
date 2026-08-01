@@ -62,7 +62,23 @@ says.
 
 ## Done
 
-Guest, staff and owner surfaces all run end to end. 393 unit tests, 33 E2E tests, green.
+Guest, staff and owner surfaces all run end to end. Build items 1–7 below shipped on 1 Aug 2026;
+only **8. Ship it** remains, because it needs the Vercel account. 397 unit tests green.
+
+- **Menu upload** — photo/PDF/CSV → draft grid → confirm. The AI port (`lib/ai`) with a Claude
+  adapter and a deterministic Mock; CSV never touches a model, food cost never extracted.
+- **`/dash/menu`** — every engine field editable, contribution computed, deactivate-never-delete,
+  re-upload through the same path.
+- **`/dash/prizes`** — every `VenueConfig` number behind a form, vetoes clearable, tonight's pool
+  read-only from the same `decidePrizePool` call the pass makes.
+- **`scripts/pilot-report.mts`** — pooled counts/rates with 95% intervals; the delta prints
+  NOT YET CONCLUSIVE until its interval excludes zero.
+- **Bill import** — `/dash/import`: idempotent ticket writes, unjoinable bills kept and mappable
+  retroactively, historical baseline upserts.
+- **Review at the bill** — `/t/[qrToken]/review`: funnel timestamps only, words never stored,
+  ESLint boundary keeps game state out, schema test asserts no rating column.
+- **One game** — climb and mystery plate retired; data migration backfills every venue with
+  Beat the Kitchen rows and rules; retired rows kept for history.
 
 - **Guest** — venue QR → table picker → consent → Beat the Kitchen → win or lose → add-on → done.
   Countdown driven by a server timestamp, so a suspended tab cannot desync it.
@@ -82,6 +98,12 @@ Guest, staff and owner surfaces all run end to end. 393 unit tests, 33 E2E tests
 ---
 
 ## Build
+
+> Items 1–7 are built — see **Done** above, kept here for their test blocks.
+> Item 8 needs the owner: a Vercel account and the environment variables.
+> Still genuinely open inside these items: running the bill parser against a
+> **real** venue export (needs the file), and the voice path on the review
+> screen (typed works; speech is under Later).
 
 ### 1. Menu upload — the onboarding unlock
 
