@@ -237,13 +237,33 @@ export async function getMenuForEngine(venueId: string) {
   }
 }
 
-/** Value already conceded this service, so the depth cap is a running total. */
+/**
+ * Value already conceded this service, so the depth cap is a running total.
+ *
+ * **The `tableRun` branch is the one that matters, and it was missing.** This
+ * counted awards only through `play.guestSession.serviceId`, which was right
+ * when the climb was the game and every award hung off a `Play`. Since the
+ * table became the unit, `awardFor` writes `tableRunId` and leaves `playId`
+ * null — and a Prisma to-one relation filter does not match a row whose foreign
+ * key is null. So the sum was always zero.
+ *
+ * What that broke is subtler than the cap not working. `decidePrizePool`
+ * computes `perServicePaise - concededSoFarPaise`, so with the total stuck at
+ * zero the cap still bound *per award*, as a fixed ceiling — it simply never
+ * **depleted**. A venue with a ₹5,000 service cap could concede ₹5,000 on every
+ * award, all evening, while `/pass` and `/dash/prizes` both displayed "₹0
+ * conceded so far" and looked like they were working.
+ *
+ * The climb-era branch is kept rather than replaced: those awards are real rows
+ * that really conceded value, and dropping them would understate a service that
+ * spans the migration.
+ */
 export async function getConcededSoFarPaise(serviceId: string): Promise<number> {
   const result = await db.award.aggregate({
     _sum: { valuePaise: true },
     where: {
       status: { in: ['PENDING', 'CONFIRMED'] },
-      play: { guestSession: { serviceId } },
+      OR: [{ tableRun: { serviceId } }, { play: { guestSession: { serviceId } } }],
     },
   })
   return result._sum.valuePaise ?? 0

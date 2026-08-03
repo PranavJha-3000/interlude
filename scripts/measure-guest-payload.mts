@@ -38,3 +38,26 @@ async function measure(path: string) {
 const floor = await measure('/signin')
 const guest = await measure(`/t/${table.qrToken}`)
 console.log(`\n  ours: ${((guest - floor) / 1024).toFixed(1)} KB over the floor (budget 15 KB)`)
+
+/**
+ * The V1.5 guest routes, which must each measure **at the floor**.
+ *
+ * Every one is a server component and a plain `<form>`, so the expected delta is
+ * exactly zero. Anything above the floor means a client component crept in — and
+ * the 15KB that is ours is already spent on the game and the poller, so there is
+ * nothing to spend here.
+ */
+console.log('\nV1.5 routes — each must be at the floor:')
+for (const path of [
+  `/t/${table.qrToken}/phone`,
+  `/t/${table.qrToken}/phone/erase`,
+  `/t/${table.qrToken}/feedback`,
+  `/t/${table.qrToken}/review`,
+]) {
+  const bytes = await measure(path)
+  const overFloor = (bytes - floor) / 1024
+  if (overFloor > 0.1) {
+    console.error(`  ✗ ${path} is ${overFloor.toFixed(1)} KB over the floor — a client component crept in.`)
+    process.exitCode = 1
+  }
+}

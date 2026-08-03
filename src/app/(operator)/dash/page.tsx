@@ -278,6 +278,39 @@ export default async function DashPage() {
           />
         </div>
       </details>
+
+      {/* ── The review funnel (§7.2) ─────────────────────────────────────
+          Counts only, and no rating — none is ever stored, which is what makes
+          gating a public review on sentiment structurally impossible.
+          No accent: money owns the accent on this screen, and a funnel is not
+          money. */}
+      <details className="mt-6">
+        <summary className="cursor-pointer text-sm text-muted">
+          {en.dash.reviewFunnel.heading}
+        </summary>
+        <p className="mt-3 text-sm text-muted">{en.dash.reviewFunnel.body}</p>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <Stat label={en.dash.reviewFunnel.shown} value={String(data.review.shown)} />
+          <Stat label={en.dash.reviewFunnel.opened} value={String(data.review.opened)} />
+          <Stat label={en.dash.reviewFunnel.handedOff} value={String(data.review.handedOff)} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Stat
+            label={en.dash.reviewFunnel.openRate}
+            value={data.review.openRatePct === null ? en.common.none : `${data.review.openRatePct}%`}
+          />
+          <Stat
+            label={en.dash.reviewFunnel.handOffRate}
+            value={
+              data.review.handOffRatePct === null
+                ? en.common.none
+                : `${data.review.handOffRatePct}%`
+            }
+          />
+        </div>
+        {/* The honest limit, said on the screen rather than only in a doc. */}
+        <p className="mt-3 text-xs text-muted">{en.dash.reviewFunnel.caveat}</p>
+      </details>
     </Shell>
   )
 }

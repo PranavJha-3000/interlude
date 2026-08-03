@@ -1,5 +1,7 @@
 export { decidePrizePool } from './decide-prize-pool'
 export { DEFAULT_RANKING_WEIGHTS, defaultPrizeRules } from './default-rules'
+export { chooseLoyaltyReward, loyaltyRewardDue } from './loyalty'
+export type { LoyaltyRewardInput, LoyaltyRewardResult } from './loyalty'
 export { MECHANICS } from './mechanics'
 export type {
   AwardKind,

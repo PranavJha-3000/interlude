@@ -226,6 +226,41 @@ export async function updateWeights(formData: FormData): Promise<void> {
   done()
 }
 
+/**
+ * The loyalty fences (§10). Every number a venue's own, none a constant.
+ *
+ * `loyaltyEnabled` is a checkbox rather than a number because it is a decision
+ * rather than a tuning: a stamp card changes who comes back, which is exactly
+ * the variable an arm split measures. A venue running a measurement weekend has
+ * to turn it on deliberately.
+ */
+export async function updateLoyalty(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  const loyaltyVisitsRequired = intIn(formData, 'loyaltyVisitsRequired', 0, 100)
+  const loyaltyIdentityExpiryDays = intIn(formData, 'loyaltyIdentityExpiryDays', 1, 3650)
+  const maxValuePaise = parseRupeesToPaise(String(formData.get('loyaltyRewardMaxRupees') ?? ''))
+
+  if (
+    loyaltyVisitsRequired === null ||
+    loyaltyIdentityExpiryDays === null ||
+    maxValuePaise === null
+  ) {
+    fail()
+  }
+
+  await db.venueConfig.update({
+    where: { venueId: operator.venueId },
+    data: {
+      loyaltyEnabled: formData.get('loyaltyEnabled') === 'on',
+      loyaltyVisitsRequired,
+      loyaltyIdentityExpiryDays,
+      loyaltyRewardMaxValuePaise: maxValuePaise,
+    },
+  })
+  done()
+}
+
 export async function clearVetoFromDash(formData: FormData): Promise<void> {
   const operator = await requireOperator()
 

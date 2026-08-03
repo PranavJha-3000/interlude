@@ -4,6 +4,7 @@ import { en } from '@/strings/en'
 import { readGuestSessionId } from '@/lib/session'
 import { resolveScan } from '@/lib/service'
 import { shouldShowReviewPrompt } from '@/core/review/prompt'
+import { markReviewOpened, markReviewShown } from '@/lib/review-funnel'
 import { Body, Heading, Screen } from '../ui'
 import { recordReviewHandOff } from './actions'
 
@@ -50,16 +51,11 @@ export default async function ReviewPage({ params }: { params: Promise<{ qrToken
     redirect(`/t/${qrToken}`)
   }
 
-  // Shown, counted once per table run. Funnel counts, nothing else.
-  const existing = await db.reviewPrompt.findFirst({
-    where: { tableRunId: device.tableRunId },
-    select: { id: true },
-  })
-  if (!existing) {
-    await db.reviewPrompt.create({
-      data: { tableRunId: device.tableRunId, serviceId: scan.serviceId },
-    })
-  }
+  // Funnel counts, nothing else. `markReviewShown` is idempotent, so a guest
+  // who reaches this screen by direct URL without ever seeing the entry link
+  // gets both stamped in one request — which is the honest record.
+  await markReviewShown(device.tableRunId, scan.serviceId)
+  await markReviewOpened(device.tableRunId)
 
   const venue = await db.venue.findUniqueOrThrow({
     where: { id: scan.venueId },

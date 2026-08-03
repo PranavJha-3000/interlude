@@ -63,7 +63,7 @@ says.
 ## Done
 
 Guest, staff and owner surfaces all run end to end. Build items 1–7 below shipped on 1 Aug 2026;
-only **8. Ship it** remains, because it needs the Vercel account. 397 unit tests green.
+only **8. Ship it** remains, because it needs the Vercel account. 482 unit tests and 79 E2E green.
 
 - **Menu upload** — photo/PDF/CSV → draft grid → confirm. The AI port (`lib/ai`) with a Claude
   adapter and a deterministic Mock; CSV never touches a model, food cost never extracted.
@@ -79,6 +79,41 @@ only **8. Ship it** remains, because it needs the Vercel account. 397 unit tests
   ESLint boundary keeps game state out, schema test asserts no rating column.
 - **One game** — climb and mystery plate retired; data migration backfills every venue with
   Beat the Kitchen rows and rules; retired rows kept for history.
+- **`/dash/settings`** — the Google Place ID the review hand-off needs. It was read by the review
+  screen and written by nothing: no onboarding step, no form, not even the seed, so on a real
+  deployment it was permanently null and the hand-off button never rendered. The funnel would have
+  reported 100% shown and 0% handed off as if that were a fact about guests. Not a wizard step —
+  a Place ID has to be looked up, and the wizard is where setup gets abandoned.
+- **The environment fails at the build, not in front of a guest** — `src/lib/deploy-env.ts` names
+  every problem at once; `scripts/check-env.mts` runs first in the Vercel build command so a bad
+  environment leaves the previous deployment serving; `src/instrumentation.ts` re-checks at start.
+- **The pilot's membership is stated** — `pilot-report.mts` takes `--venues=a,b`. It used to pool
+  every venue in the database, so a smoke-test venue you played a round on entered the pilot's
+  scan rate and contribution. It now always prints what it pooled.
+- **Loyalty, private feedback, and the review funnel (V1.5)** — a per-venue stamp card built on
+  `GuestIdentity`, which had a table and zero lines of code. A guest may leave a phone number after
+  their go; it is normalised, HMAC'd with the venue's own salt and discarded, so the same number is
+  two unjoinable identities at two venues. The Nth visit is rewarded through the **same**
+  `decidePrizePool` call the game makes, so hero items, chef vetoes and both depth caps apply for
+  free. Private feedback (`VenueFeedback`, also dormant) earns the other life. The Google prompt is
+  untouched: no reward, no gate, still 100% of tables. `/dash` finally shows the review funnel it
+  has been recording since the prompt shipped.
+- **Two dead ends the spent screen advertised are now real** — `PHONE_SUBMITTED` and
+  `FEEDBACK_SUBMITTED` were offered to guests as inert text with no route behind them, and
+  `grantLife` was only ever called with `ADDON_CONFIRMED`.
+- **The review screen's ESLint boundary had never matched a file** — `files: ['…/t/[qrToken]/review/**']`
+  reads `[qrToken]` as a glob character class, so it matched one character from {q,r,T,o,k,e,n} and
+  never the literal directory. The block existed, its message said "enforced here, not by
+  discipline", and nothing was enforced. Now a `*` segment, with `boundary.test.ts` linting a probe
+  through the ESLint API so it cannot silently come back.
+- **The service prize budget actually depletes** — `getConcededSoFarPaise` counted awards only
+  through `play.guestSession`, but since the table became the unit every award writes `tableRunId`
+  and leaves `playId` null, and a Prisma to-one filter drops a null FK. The sum was always ₹0. The
+  cap still bound *per award* as a fixed ceiling, so it looked like it worked — it simply never
+  ran down, and a venue with a ₹5,000 service cap could concede ₹5,000 on every award all evening
+  while `/pass` and `/dash/prizes` displayed "₹0 conceded so far". `e2e/depth-cap.spec.ts` builds
+  awards the way the live code does; the one other test that built an `Award` set both `playId`
+  and `tableRunId`, a row shape the real code never produces, which is why nothing caught it.
 
 - **Guest** — venue QR → table picker → consent → Beat the Kitchen → win or lose → add-on → done.
   Countdown driven by a server timestamp, so a suspended tab cannot desync it.
@@ -211,17 +246,29 @@ operator's data.
 
 ### 8. Ship it
 
+**The full runbook is [docs/DEPLOY.md](docs/DEPLOY.md).** This is the summary.
+
 **Build**
 - Create the Vercel project. `vercel.json` and the cron are already committed.
-- Build command: `prisma generate && prisma migrate deploy && next build`.
+- Build command: `npm run check:env && prisma generate && prisma migrate deploy && next build`.
 - Set `DATABASE_URL` (pooled), `DIRECT_URL` (unpooled), `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`,
-  `RESEND_API_KEY`, `EMAIL_FROM`, `ANTHROPIC_API_KEY`. All fail loudly at boot if missing.
+  `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `ANTHROPIC_API_KEY`.
+- **They fail at the build, not in front of a guest.** `src/lib/deploy-env.ts` names every problem
+  at once and `scripts/check-env.mts` runs it first in the build command, so a bad environment
+  fails the build while the previous deployment keeps serving. `src/instrumentation.ts` re-runs it
+  at server start, because a variable edited in the dashboard never re-runs a build command.
+  `CRON_SECRET` is in that list for a reason: without it the Monday route answers 404 and the
+  report silently never arrives.
 - Functions pinned to `sin1` — the database is in Singapore.
 - The Monday cron is UTC. `30 3 * * 1` is 09:00 IST. A venue outside IST needs its own handling.
 
 **Test**
-- Deploy, seed, open `/t/<token>` on a real phone, not an emulator.
+- Deploy, open `/t/<token>` on a real phone, not an emulator.
 - Print a tent sheet and scan it off paper.
+- `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron/weekly-report` before Monday, not on it.
+- **Do not seed the pilot database, and do not play a round on a throwaway venue.**
+  `scripts/pilot-report.mts` pools every venue it finds; a smoke-test venue with real play data
+  enters the pilot numbers. DEPLOY.md §7.
 
 ---
 
@@ -264,6 +311,11 @@ hook. Pricing is not decided.
 - Operator runbook and a paper fallback for when something breaks at 9pm Saturday.
 - Hindi. Strings are already externalised, so it is a translation job.
 - Design system: IBM Plex Mono for every figure on guest and staff surfaces too, not just operator.
+- `Venue.phoneSalt` rotation has no code path. Rotating one would orphan that venue's identities
+  with nothing to clean them up. Known gap, not a surprise (SECURITY.md §6).
+- `normaliseIndianPhone` is Indian mobiles only, by name. Generalising later means re-normalising
+  every stored hash, which is impossible — so the first venue outside India needs this decided
+  before it onboards, not after.
 - `PosAdapter` sits in `lib/pos`, PLATFORM.md §6 says `core/pos`. It does I/O so `lib` is right —
   amend the doc.
 

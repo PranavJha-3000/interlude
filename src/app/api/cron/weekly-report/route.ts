@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { pruneExpiredIdentities } from '@/lib/loyalty'
 import { sendEmail, isEmailConfigured } from '@/lib/email'
 import { getDashboardData } from '@/lib/dashboard'
 import { buildWeeklyReport, type ReportedService } from '@/core/measurement/weekly-report'
@@ -49,9 +50,15 @@ export async function GET(request: Request) {
   })
 
   let sent = 0
+  let pruned = 0
   const skipped: string[] = []
 
   for (const venue of venues) {
+    // DPDP storage limitation, swept weekly. Deliberately before the report and
+    // outside the email guard: a venue with no operator to mail still must not
+    // keep a guest's hash past its own expiry.
+    pruned += await pruneExpiredIdentities(venue.id, Date.now())
+
     const recipients = venue.operators.map((o) => o.email).filter(Boolean)
     if (recipients.length === 0) {
       skipped.push(`${venue.name}: no operator to send to`)
@@ -95,5 +102,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return Response.json({ venues: venues.length, sent, skipped })
+  return Response.json({ venues: venues.length, sent, pruned, skipped })
 }

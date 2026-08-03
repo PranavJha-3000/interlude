@@ -7,6 +7,7 @@ import {
   type RateEstimate,
 } from '../src/core/measurement/pilot-report'
 import { formatPaise } from '../src/lib/money'
+import { parsePilotReportArgs } from '../src/lib/pilot-report-args'
 
 /**
  * The pooled pilot report (PLATFORM.md §9a) — a script, not a screen.
@@ -16,7 +17,14 @@ import { formatPaise } from '../src/lib/money'
  * reason to exist. No operator ever sees another operator's rows; we see the
  * pool because the pilot is ours to run.
  *
- * Usage: `npx tsx scripts/pilot-report.mts [days]` — default the last 7.
+ * Usage: `npx tsx scripts/pilot-report.mts [days] [--venues=slug-a,slug-b]`
+ *   days    — default the last 7.
+ *   --venues — the pilot's membership, stated. Without it the script pools
+ *     every venue in the database, which quietly assumes the database contains
+ *     nothing but the pilot. It will not: a venue used to smoke-test a
+ *     deployment, with a service opened and a round played, lands in the
+ *     pooled scan rate and the pooled contribution. Either way the script
+ *     prints which venues it pooled, so the number is never anonymous.
  *
  * What it claims and what it refuses to (§9a):
  * - Counts (add-ons, ₹) are exact.
@@ -31,7 +39,7 @@ const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 })
 
-const days = Number(process.argv[2] ?? '7')
+const { days, venueSlugs } = parsePilotReportArgs(process.argv.slice(2))
 const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
 /** Categories a bill line must hit to count as an attach. */
@@ -164,13 +172,51 @@ function pct(estimate: RateEstimate): string {
   return `${mid}%  (95% CI ${low}–${high}%, n=${estimate.denominator})`
 }
 
-const venues = await db.venue.findMany({ select: { id: true, slug: true, name: true } })
+const venues = await db.venue.findMany({
+  where: venueSlugs ? { slug: { in: venueSlugs } } : undefined,
+  select: { id: true, slug: true, name: true, config: { select: { loyaltyEnabled: true } } },
+})
+
+// A named venue that is not there is a typo, and a typo silently shrinks the
+// pool. Say so rather than reporting on a smaller pilot than was asked for.
+if (venueSlugs) {
+  const found = new Set(venues.map((v) => v.slug))
+  const unknown = venueSlugs.filter((s) => !found.has(s))
+  if (unknown.length > 0) {
+    console.error(`\nNo venue with slug: ${unknown.join(', ')} — check the spelling.`)
+    await db.$disconnect()
+    process.exit(1)
+  }
+}
+
 const counts = await Promise.all(venues.map(countsFor))
 const active = counts.filter((c) => c.runsStarted > 0 || c.tablesTented > 0)
 const report = pilotReport(active)
 
 const line = '─'.repeat(64)
 console.log(`\nPILOT REPORT — last ${days} day${days === 1 ? '' : 's'}, ${active.length} venue${active.length === 1 ? '' : 's'}`)
+// What went into the pool, always. A pooled rate whose membership is not
+// stated is a number nobody can check, including us.
+console.log(
+  venueSlugs
+    ? `Pooling the named venues: ${active.map((c) => c.slug).join(', ') || '(none with activity)'}`
+    : `Pooling EVERY venue in the database — pass --venues=a,b to name the pilot.`
+)
+
+// A stamp card changes who comes back, which is exactly the variable the arm
+// split is measuring: a guest stamped on a LIVE Friday is likelier to return,
+// and if they return on a CONTROL Saturday they arrive carrying intent formed by
+// the treatment and spend it on the control arm's bill. The delta absorbs that
+// as noise pushing toward zero, and nobody reading the number can see it. So the
+// report says which venues had it on, every time, rather than leaving it to
+// whoever remembers.
+const loyaltyOn = venues.filter((v) => v.config?.loyaltyEnabled).map((v) => v.slug)
+const loyaltyOnActive = loyaltyOn.filter((slug) => active.some((c) => c.slug === slug))
+console.log(
+  loyaltyOnActive.length === 0
+    ? 'Loyalty: off at every pooled venue.'
+    : `Loyalty: ON at ${loyaltyOnActive.join(', ')} — the attach delta below is NOT clean for these.`
+)
 console.log(line)
 
 for (const v of [...report.venues, report.pooled]) {
@@ -189,7 +235,13 @@ for (const v of [...report.venues, report.pooled]) {
 
 console.log(`\n${line}`)
 const d = report.attachDelta
-if (d.deltaPp === null) {
+if (loyaltyOnActive.length > 0) {
+  console.log(
+    'ATTACH-RATE DELTA: withheld — loyalty was running at a pooled venue, so returning-guest\n' +
+      'behaviour crosses the arms and the delta cannot be attributed to the tents alone.\n' +
+      'Re-run with --venues naming only venues that had loyalty off.'
+  )
+} else if (d.deltaPp === null) {
   console.log('ATTACH-RATE DELTA: unavailable — needs bill exports for both arms.')
 } else {
   const label = d.conclusive ? 'CONCLUSIVE' : 'NOT YET CONCLUSIVE'

@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-**Guest, staff and operator surfaces all run end to end.** 393 unit tests and 33 E2E tests pass.
+**Guest, staff and operator surfaces all run end to end.** 482 unit tests and 79 E2E tests pass.
 [TODO.md](TODO.md) is now a short build list, not the old phase sequence and not the older waves;
-its **Done** section is the truth pass. What remains, in order: menu upload, `/dash/menu`,
-`/dash/prizes`, the pooled pilot report, bill import for real, the review screen, retiring the two
-old games, and the Vercel deploy.
+its **Done** section is the truth pass. Build items 1–7 have shipped; **only item 8, the Vercel
+deploy, remains**, and it is blocked on an account rather than on code — the runbook is
+[docs/DEPLOY.md](docs/DEPLOY.md). Still genuinely open inside the shipped items: running the bill
+parser against a **real** venue export, and the voice path on the review screen (typed works).
 
 **Every item carries a "Test" block, and that is not decoration.** An item is done when those
 commands pass — not when the code looks finished. If you add work, add the test that proves it.
@@ -80,6 +81,14 @@ These come from PLATFORM.md §5–§7 and §12. They are the reason the product 
 
 **No pure chance, anywhere.** `Math.random` and `crypto.getRandomValues` are banned by ESLint inside `core/prize-engine` and `core/mechanics`. Outcomes must be a pure function of skill input. The mystery plate is modelled as a fixed-price product the guest wins the *right to buy* — never a draw, never a wheel. This is a gambling-law line, not a design taste.
 
+**Loyalty is per venue, and cross-venue identity stays impossible.** A guest may leave a phone
+number *after* their go — never before, never as an account wall. It is normalised
+(`core/mechanics/phone.ts`), HMAC'd with `Venue.phoneSalt` and discarded; only the hash is stored.
+The same number is two unrelated identities at two venues, by construction. The Nth-visit reward
+goes through the same `decidePrizePool` call the game uses, so every fence applies without being
+re-implemented. Erasure is a guest surface only — there is deliberately no operator-side phone
+lookup, because a one-way hash plus a search box is a re-identification oracle.
+
 **Review capture is structurally separated from rewards.** The review module is given no prize or award state — enforced as a module boundary, not by discipline. It stores funnel counts only (shown, drafted, handed off) and never a rating, because storing sentiment would create the ability to gate on it. The prompt fires for 100% of sessions regardless of play, win, or sentiment.
 
 **Every prize-engine decision carries a `reason` string,** and the whole pool is snapshotted per service to a `PrizePool` row. That audit trail is the product promise to the operator ("we optimise inside your fences"), so it is load-bearing, not logging.
@@ -114,6 +123,8 @@ Four archetypes, four different design contracts. Building the wrong one into a 
 | `/pass` | Chef | One control (kitchen load) and one list (vetoes). Glanceable mid-service, wet hands |
 | `/dash` | Owner | Leads with one number; everything else collapsible |
 | `/dash/menu`, `/dash/prizes` | Owner | The venue's own menu and its own fences. Every field writes `VenueConfig` or `MenuItem` — nothing here becomes a constant |
+| `/dash/feedback` | Owner | What guests said privately. Words and an optional rating — the deliberate mirror of the review screen, which stores neither |
+| `/dash/settings` | Owner | Venue fields that are neither menu nor fences. Today: the Google Place ID the review hand-off needs. Deliberately not a wizard step — a Place ID has to be looked up, and the wizard is where setup gets abandoned |
 | `/tents` | Owner | Printable per-table tents and the venue QR. A print stylesheet, not a generated PDF |
 
 Auth splits cleanly and must stay split: **guest** has none, **staff** hold a venue PIN (`/floor`,

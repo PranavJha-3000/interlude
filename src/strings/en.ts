@@ -299,6 +299,51 @@ export const en = {
       },
       standing: (rung: number) => `Rung ${rung} is still yours to claim.`,
     },
+    phone: {
+      heading: 'Leave a number',
+      body: 'It earns this table another go, and this restaurant will know you when you come back.',
+      // DPDP purpose limitation: say what is stored, and what is not, before
+      // anything is stored. The guest is reading this to decide.
+      privacy:
+        'We store a scrambled version of your number, not the number itself — this restaurant only. No messages, no marketing, and no other restaurant can ever see it.',
+      label: 'Your mobile number',
+      placeholder: '98765 43210',
+      submit: 'Leave it',
+      skip: 'No thanks',
+      erase: 'Remove a number I left before',
+      done: 'Thank you — that is another go for the table.',
+      stampedOnly: 'Thank you. That is counted.',
+      rewardHeading: 'And you have earned something',
+      reward: (item: string) => `${item}, on the house — for coming back. Show this code:`,
+      errWrongLength: 'An Indian mobile number is ten digits. Check that one again.',
+      errNotAMobile: 'That looks like a landline. We need a mobile.',
+      errNotNumeric: 'That has letters in it — just the digits, please.',
+      errNotIndian: 'We can only take an Indian mobile number.',
+    },
+    /** Back to the table's own screen, from any of the side routes. */
+    back: 'Back to the game',
+    feedback: {
+      heading: 'How was tonight?',
+      // Deliberately different words from the Google prompt, and a deliberately
+      // different promise. This one goes to the restaurant and nowhere else.
+      body: 'This goes straight to the restaurant — not to Google, not anywhere public. Say what you actually thought.',
+      label: 'Your words',
+      placeholder: 'What was good, what wasn’t…',
+      ratingLabel: 'Out of five, if you like',
+      submit: 'Send it to the restaurant',
+      done: 'Thank you — the restaurant will see that.',
+      doneLife: 'Thank you. That is another go for the table, too.',
+      empty: 'Write something first.',
+    },
+    erase: {
+      heading: 'Remove your number',
+      body: 'Type the number you left and it goes, along with the visits counted against it.',
+      label: 'The number to remove',
+      submit: 'Remove it',
+      // Deliberately identical whether or not anything was found. Two different
+      // answers would make this screen a way to ask "does this person eat here".
+      done: 'Done. If that number was here, it and its visits are gone.',
+    },
     consent: {
       heading: `${BRAND.name} ${BRAND.tagline}`,
       body: 'A game while your food cooks, and it lasts as long as the food does. No account, no app, no email.',
@@ -641,6 +686,57 @@ export const en = {
     menuNav: 'Menu',
     prizesNav: 'Prizes',
     importNav: 'Bills',
+    settingsNav: 'Settings',
+    feedbackNav: 'Feedback',
+    reviewFunnel: {
+      heading: 'Google review prompt',
+      body: 'Every table that reaches the end of its visit is offered this — whether they played, won, lost, or never scanned at all. There is no reward for it and no way to switch it off for an unhappy table.',
+      shown: 'Offered',
+      opened: 'Opened',
+      handedOff: 'Sent to Google',
+      openRate: 'Opened',
+      handOffRate: 'Sent on',
+      // The limit is stated rather than implied. Counting hand-offs as reviews
+      // would be the flattering lie, and the one a buyer would catch.
+      caveat:
+        'We can’t see whether they posted — nobody can, without reading reviews, and we don’t. This is how many guests we sent, not how many reviews you got.',
+    },
+    feedback: {
+      heading: 'What guests told you',
+      // The distinction is the product, so it is said on the screen rather than
+      // only in a doc: this is private, and it is not the Google prompt.
+      body: 'Sent straight to you, not to Google. Nobody else sees it, and nothing here decides whether a guest was asked to leave a public review.',
+      empty: 'Nothing yet tonight.',
+      table: (label: string) => `Table ${label}`,
+      noTable: 'No table',
+      rating: (n: number) => `${n} out of 5`,
+      noRating: 'No rating given',
+      count: (n: number) => (n === 1 ? '1 note' : `${n} notes`),
+    },
+    settings: {
+      heading: 'Venue settings',
+      body: 'The details that aren’t your menu and aren’t your fences.',
+      saved: 'Saved.',
+      save: 'Save',
+      review: {
+        heading: 'Google reviews',
+        body: 'At the end of every visit we offer the guest a screen to write a review in their own words, and hand them off to your Google page. Without this, that hand-off has nowhere to go and the screen tells them to say it in person instead.',
+        label: 'Your Google Place ID',
+        placeholder: 'ChIJ…',
+        help: 'Find it with Google’s Place ID Finder — search your restaurant’s name and copy the ID it shows. You can also paste a link that already has the ID in it.',
+        finderLink: 'Open the Place ID Finder',
+        finderUrl:
+          'https://developers.google.com/maps/documentation/places/web-service/place-id',
+        linked: 'Linked. The review screen hands guests off to your page.',
+        notLinked: 'Not linked yet. Guests still see the review screen; it just can’t send them anywhere.',
+        clearHint: 'Clear the field and save to unlink.',
+        preview: 'Where guests are sent',
+        errShortLink:
+          'That looks like a Google short link, which doesn’t contain a Place ID. The “ask for reviews” link from your Business Profile won’t work here — use the Place ID Finder below to get the ID itself.',
+        errNotPlaceId:
+          'That isn’t a Place ID. It should be one unbroken string of letters, digits, dashes and underscores.',
+      },
+    },
     import: {
       heading: 'Bill import',
       body: 'Your end-of-day export is the measured truth. The moment it lands, the dashboard headline stops being an estimate.',
@@ -727,6 +823,22 @@ export const en = {
         start: 'Peak starts',
         end: 'Peak ends',
         help: 'Rules can differ inside the window — the engine reads it, you define it.',
+      },
+      loyalty: {
+        heading: 'Returning guests',
+        body: 'A guest can leave a phone number after their go. It earns the table another go, and after enough visits it earns them something off your menu — chosen by the same engine and held behind the same fences as a game prize. We store a scrambled version of the number, for your restaurant only.',
+        enabled: 'Run a stamp card',
+        enabledHelp:
+          'Off by default. It changes who comes back, so a venue measuring an arm split should turn it on deliberately rather than find it running.',
+        visitsRequired: 'Visits that earn a reward',
+        visitsRequiredHelp:
+          'Counted from the last reward, not from their first visit — so changing this never hands out a round of prizes to your regulars.',
+        rewardMaxRupees: 'Most one reward may give away (₹)',
+        rewardMaxRupeesHelp:
+          'On top of your per-item and per-service caps, never instead of them.',
+        expiryDays: 'Forget a guest after (days)',
+        expiryDaysHelp:
+          'A number nobody has used in this long is deleted on the Monday sweep. There is no reason to keep it.',
       },
       gates: {
         heading: 'Pilot gates',

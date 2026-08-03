@@ -86,6 +86,27 @@ Consequences that are features, not bugs:
   acceptable — recognition is a nicety, and the alternative is a joinable
   cross-venue identity graph, which is on the never-build list.
 
+**As of V1.5 this is live rather than dormant.** `src/lib/phone-identity.ts` is the
+only thing that hashes, it is `server-only`, and it refuses an empty salt rather
+than hashing without one — an unsalted hash of a ten-digit number is reversible
+by brute force in seconds, since the whole keyspace is 10^10. Numbers are
+normalised first (`core/mechanics/phone.ts`) because two spellings of one number
+would otherwise become two guests, permanently and undetectably.
+
+Three limits worth stating rather than discovering:
+
+- **There is no operator-side phone lookup, deliberately.** A one-way hash plus a
+  search box is a re-identification oracle, and it would answer the exact question
+  this section claims the data cannot. Erasure is a guest surface only, and it
+  responds identically whether or not the number was found.
+- **Erasure is best-effort against backups.** Deleting the row removes it from the
+  live database. It does not reach a Postgres point-in-time snapshot. The ESLint
+  block on the phone routes bans `console` outright for the same reason — a raw
+  number in a serverless log is the one copy erasure cannot reach.
+- **Salt rotation has no code path.** Rotating one would orphan that venue's
+  identities with nothing to clean them up. Out of scope for V1.5; see TODO.md
+  *Later*.
+
 ## 7. Magic-link tokens — a credential, treated like one
 
 The owner's sign-in link is a bearer credential that travels through email, which

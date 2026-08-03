@@ -60,6 +60,35 @@ const NO_PUBLIC_SECRETS = [
   },
 ]
 
+/**
+ * Everything the review module and the review screen are forbidden to see.
+ *
+ * One list rather than four copies, because the copies drifted: the screen block
+ * already banned `@/lib/table-run` and `@/lib/prize-config` and the module block
+ * did not.
+ *
+ * V1.5 adds loyalty, first-party feedback and per-venue identity. Each is a new
+ * thing to know about a guest, and therefore a new way to gate a Google review
+ * on one — a returning guest, a low private rating, a table that just won a free
+ * dessert. **The list has to grow with the product or the boundary quietly stops
+ * covering it.**
+ */
+const REVIEW_FORBIDDEN_IMPORTS = [
+  '@/core/prize-engine',
+  '@/core/prize-engine/*',
+  '@/core/game',
+  '@/core/game/*',
+  '@/core/mechanics',
+  '@/core/mechanics/*',
+  '@/lib/table-run',
+  '@/lib/prize-config',
+  // V1.5 — loyalty, identity and first-party feedback.
+  '@/lib/prize-award',
+  '@/lib/loyalty',
+  '@/lib/phone-identity',
+  '@/lib/feedback',
+]
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -135,12 +164,7 @@ const eslintConfig = defineConfig([
           patterns: [
             {
               group: [
-                '@/core/prize-engine',
-                '@/core/prize-engine/*',
-                '@/core/game',
-                '@/core/game/*',
-                '@/core/mechanics',
-                '@/core/mechanics/*',
+                ...REVIEW_FORBIDDEN_IMPORTS,
                 '@/generated/prisma',
                 '@prisma/*',
                 '@/lib/db',
@@ -152,7 +176,7 @@ const eslintConfig = defineConfig([
                 '@anthropic-ai/*',
               ],
               message:
-                'The review module is given no prize, award, life or game state (§7.2). It cannot gate on what it cannot read, and that is the enforcement — not a convention. Incentivised or sentiment-gated reviews put the restaurant’s Business Profile at risk, so the harm lands on the customer.',
+                'The review module is given no prize, award, life, loyalty or identity state (§7.2). It cannot gate on what it cannot read, and that is the enforcement — not a convention. Incentivised or sentiment-gated reviews put the restaurant’s Business Profile at risk, so the harm lands on the customer.',
             },
           ],
         },
@@ -165,30 +189,100 @@ const eslintConfig = defineConfig([
    * the database ban — it writes funnel rows, which is its job. What it may
    * never do is read a win, a prize, a rung or a mechanic, because a screen
    * that can read them can be taught to branch on them (§7.2).
+   *
+   * ⚠️ **The path segment is `*`, not `[qrToken]`, and that is load-bearing.**
+   * This glob read `src/app/(guest)/t/[qrToken]/review/**` until V1.5, and it
+   * had never matched a single file: square brackets are a character class, so
+   * `[qrToken]` matches one character from {q,r,T,o,k,e,n} rather than the
+   * literal directory a Next.js dynamic route is named. The block existed, the
+   * message said "enforced here, not by discipline", and nothing was enforced.
+   * `boundary.test.ts` now lints a probe through the ESLint API so this cannot
+   * silently come back.
    */
   {
     name: 'interlude/review-screen-isolation',
-    files: ['src/app/(guest)/t/[qrToken]/review/**/*.{ts,tsx}'],
+    files: ['src/app/(guest)/t/*/review/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           patterns: [
             {
-              group: [
-                '@/core/prize-engine',
-                '@/core/prize-engine/*',
-                '@/core/game',
-                '@/core/game/*',
-                '@/core/mechanics',
-                '@/core/mechanics/*',
-                '@/lib/table-run',
-                '@/lib/prize-config',
-              ],
+              group: REVIEW_FORBIDDEN_IMPORTS,
               message:
-                'The review screen is given no prize, award, life or game state (§7.2). It renders identically for a table that never played, lost, or won — enforced here, not by discipline.',
+                'The review screen is given no prize, award, life, loyalty or identity state (§7.2). It renders identically for a table that never played, lost, or won — enforced here, not by discipline.',
             },
           ],
+        },
+      ],
+    },
+  },
+
+  /**
+   * The review funnel writer.
+   *
+   * `shownAt` is written by the guest page and `openedAt` by the review screen,
+   * so a second module now writes review rows. It gets the same blindness: a
+   * helper that can read a win can be given an `if (won)` around the write, and
+   * from then on the funnel silently measures winners instead of tables.
+   */
+  {
+    name: 'interlude/review-funnel-isolation',
+    files: ['src/lib/review-funnel.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: REVIEW_FORBIDDEN_IMPORTS,
+              message:
+                'The review funnel writer is given no prize, award, life, loyalty or identity state (§7.2). It records that a prompt was shown and opened, for every table — and it must not be able to record it for only some.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  /**
+   * The boundary runs both ways.
+   *
+   * Private feedback may carry a rating and may grant a life. The Google prompt
+   * may do neither, and `core/review/prompt.ts` says so explicitly: they must
+   * not share a surface. If the feedback screen could read the review funnel,
+   * "they already rated us 2, skip the Google prompt" is one `if` away — which
+   * is sentiment gating arriving through the back door.
+   */
+  {
+    name: 'interlude/feedback-screen-isolation',
+    files: [
+      'src/app/(guest)/t/*/feedback/**/*.{ts,tsx}',
+      'src/app/(guest)/t/*/phone/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/core/review', '@/core/review/*', '@/lib/review-funnel'],
+              message:
+                'First-party feedback and phone capture must not read, or share a surface with, the Google review prompt (§7.2). They are separate routes on purpose, and neither may branch on the other.',
+            },
+          ],
+        },
+      ],
+      // Flat config replaces a rule's options rather than merging them, so
+      // NO_PUBLIC_SECRETS is re-spread here or it would be silently dropped for
+      // the two routes that actually handle a phone number.
+      'no-restricted-syntax': [
+        'error',
+        ...NO_PUBLIC_SECRETS,
+        {
+          selector: "MemberExpression[object.name='console']",
+          message:
+            'Never log on the phone-capture path. A raw number in a serverless function log is the raw number stored — and a log is the one place erasure cannot reach (SECURITY.md §6).',
         },
       ],
     },

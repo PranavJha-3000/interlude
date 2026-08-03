@@ -19,37 +19,38 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model Venue {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  timezone  String   @default("Asia/Kolkata")
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  name           String
+  timezone       String         @default("Asia/Kolkata")
   /// Per-venue HMAC salt. Makes a cross-venue phone join impossible by
   /// construction (DPDP, PLATFORM.md §7). Never leaves the server.
-  phoneSalt String
+  phoneSalt      String
   /// The venue QR — one code to print for the counter or the menu. It resolves
   /// to a table picker, which hands off to the per-table `Table.qrToken`,
   /// because arm assignment is per table (PLATFORM.md §3).
-  qrToken   String   @unique
+  qrToken        String         @unique
   /// Google Place ID for the review deep link.
-  googlePlaceId String?
+  googlePlaceId  String?
   /// Onboarding is resumable — nobody sets up a venue in one sitting.
   onboardingStep OnboardingStep @default(DETAILS)
-  createdAt DateTime @default(now())
+  createdAt      DateTime       @default(now())
 
-  config       VenueConfig?
-  tables       Table[]
-  menuItems    MenuItem[]
-  services     Service[]
-  staff        StaffUser[]
-  operators    OperatorUser[]
-  quizPacks    QuizPack[]
-  vetoes       ChefVeto[]
-  guestIdents  GuestIdentity[]
-  prizeRules   PrizeRule[]
-  games        VenueGame[]
-  posTableMap  PosTableMap[]
-  history      HistoricalService[]
-  menuDraft    MenuImportDraft?
+  config      VenueConfig?
+  tables      Table[]
+  menuItems   MenuItem[]
+  services    Service[]
+  staff       StaffUser[]
+  operators   OperatorUser[]
+  quizPacks   QuizPack[]
+  vetoes      ChefVeto[]
+  guestIdents GuestIdentity[]
+  guestVisits GuestVisit[]
+  prizeRules  PrizeRule[]
+  games       VenueGame[]
+  posTableMap PosTableMap[]
+  history     HistoricalService[]
+  menuDraft   MenuImportDraft?
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -75,9 +76,9 @@ model VenueConfig {
   /// Deprecated with the trivia quiz the climb replaced. Kept as columns rather
   /// than dropped: a venue that already tuned them loses nothing, and dropping
   /// a column is the one migration that cannot be rolled back cleanly.
-  quizLengthSec      Int @default(75)
-  quizQuestionCount  Int @default(8)
-  winThresholdPct    Int @default(70)
+  quizLengthSec     Int @default(75)
+  quizQuestionCount Int @default(8)
+  winThresholdPct   Int @default(70)
 
   // ── Beat the Kitchen (§4) ────────────────────────────────────────────────
   // Every one of these is an estimate. None is measured. When the pilot
@@ -88,16 +89,16 @@ model VenueConfig {
   /// multiple. There is real money on a wrong answer, and a guest who loses a
   /// dessert on what looks like a coin flip will argue with a server — so every
   /// answer has to be defensible out loud, without hesitation.
-  pairGapRatio       Float @default(2.0)
+  pairGapRatio       Float   @default(2.0)
   /// Trailing window, in days, for the sales counts that ranking comes from.
-  velocityWindowDays Int   @default(30)
+  velocityWindowDays Int     @default(30)
   /// Rungs on the ladder, and so the most prizes one run can put in play.
-  ladderRungs        Int   @default(6)
+  ladderRungs        Int     @default(6)
   /// Runs a table gets before it has to earn more. One per device.
-  startingLives      Int   @default(2)
+  startingLives      Int     @default(2)
   /// How far a wrong answer drops the table while pushing on (§4.3). There is
   /// no protected floor and no consolation prize.
-  gamblePenaltyRungs Int   @default(1)
+  gamblePenaltyRungs Int     @default(1)
   /// Each extra-life action, independently disableable (§4.4).
   lifeForAddOn       Boolean @default(true)
   lifeForPhone       Boolean @default(true)
@@ -106,7 +107,7 @@ model VenueConfig {
   questionSeconds    Int?
   /// If the floor never fires an order, run untimed rather than not at all. The
   /// game must not depend on staff memory (§10 degradation).
-  untimedAfterSec    Int   @default(600)
+  untimedAfterSec    Int     @default(600)
   /// The zero-kitchen fallback: something the bar pours or the counter hands
   /// over. A pool of nothing must never reach a guest screen (§5).
   fallbackMenuItemId String?
@@ -126,22 +127,44 @@ model VenueConfig {
   rankingWeights Json @default("{\"notSelling\":40,\"slowMover\":25,\"fastMoverPenalty\":-20,\"stale\":15,\"lowPrepBonus\":10,\"highPrepPenalty\":-10,\"slowMoverMaxUnits\":3,\"fastMoverMinUnits\":20,\"staleMinDays\":2}")
 
   // Prize depth fences
-  depthCapPerItemPct     Int @default(100)
+  depthCapPerItemPct      Int @default(100)
   depthCapPerServicePaise Int @default(500000)
-  mysteryPlatePricePaise Int @default(9900)
+  mysteryPlatePricePaise  Int @default(9900)
 
   // Peak window, minutes from midnight, venue local time
   peakStartMinute Int @default(1140)
   peakEndMinute   Int @default(1380)
 
   // §11 gates — evaluated in wave 2, configurable from day one
-  attachDeltaGatePp       Float @default(5)
-  ticketDeltaKillPct      Float @default(4)
-  ticketDeltaProceedPct   Float @default(6)
-  scanRateKillPct         Float @default(15)
-  scanRateGoodPct         Float @default(25)
-  completionRateGatePct   Float @default(60)
-  reviewVelocityGateX     Float @default(2)
+  attachDeltaGatePp     Float @default(5)
+  ticketDeltaKillPct    Float @default(4)
+  ticketDeltaProceedPct Float @default(6)
+  scanRateKillPct       Float @default(15)
+  scanRateGoodPct       Float @default(25)
+  completionRateGatePct Float @default(60)
+  reviewVelocityGateX   Float @default(2)
+
+  // ── Loyalty (§10 — every number an estimate, editable in /dash/prizes) ────
+  /// **Off by default, and not out of shyness.** A stamp card changes who comes
+  /// back, which is exactly the variable an arm split is measuring — so a venue
+  /// running a measurement weekend has to decide to turn it on rather than have
+  /// it appear. See TODO.md and docs/DEPLOY.md §7.
+  loyaltyEnabled             Boolean @default(false)
+  /// Visits since the last rewarded visit that earn the next reward.
+  loyaltyVisitsRequired      Int     @default(5)
+  /// Ceiling on what one loyalty reward may concede. Composes with, and never
+  /// replaces, `depthCapPerItemPct` and `depthCapPerServicePaise`.
+  loyaltyRewardMaxValuePaise Int     @default(25000)
+  /// An identity untouched this long is pruned by the Monday cron. DPDP storage
+  /// limitation: there is no purpose in holding the hash of a number nobody has
+  /// used in a year, and holding it is the only harm available.
+  loyaltyIdentityExpiryDays  Int     @default(365)
+
+  // ── Review funnel ────────────────────────────────────────────────────────
+  /// The venue's own count of Google reviews in a typical week before we
+  /// arrived. Operator-entered on /dash/settings, because we do not read Google
+  /// and are not going to. Null means velocity is not computed at all.
+  reviewsPerWeekBaseline Int?
 
   updatedAt DateTime @updatedAt
 }
@@ -163,13 +186,13 @@ model VenueGame {
 }
 
 model Table {
-  id       String  @id @default(cuid())
-  venueId  String
-  venue    Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  label    String
-  qrToken  String  @unique
-  seats    Int     @default(4)
-  active   Boolean @default(true)
+  id      String  @id @default(cuid())
+  venueId String
+  venue   Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  label   String
+  qrToken String  @unique
+  seats   Int     @default(4)
+  active  Boolean @default(true)
 
   armAssignments TableArmAssignment[]
   guestSessions  GuestSession[]
@@ -202,22 +225,22 @@ model StaffUser {
 /// sending email needs a verified domain that the pilot does not have yet, and
 /// it is expected to become the secondary door again once one does.
 model OperatorUser {
-  id        String   @id @default(cuid())
+  id           String       @id @default(cuid())
   /// Null until they finish the first onboarding step. Signing up creates the
   /// person; creating the venue comes after, and may be abandoned halfway.
-  venueId   String?
-  venue     Venue?   @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  email     String   @unique
-  name      String?
-  role      OperatorRole @default(OWNER)
+  venueId      String?
+  venue        Venue?       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  email        String       @unique
+  name         String?
+  role         OperatorRole @default(OWNER)
   /// `scrypt:<salt>:<hash>`, the same shape `pin.ts` stores. Null for an
   /// operator created by a magic link, who has never chosen one — so this
   /// being null means "cannot use the password door", never "any password
   /// will do". `operator-password-auth.ts` treats it exactly like a wrong
   /// password, down to still paying the scrypt cost.
   passwordHash String?
-  createdAt DateTime @default(now())
-  lastLoginAt DateTime?
+  createdAt    DateTime     @default(now())
+  lastLoginAt  DateTime?
 
   magicLinks MagicLinkToken[]
 
@@ -242,15 +265,15 @@ model OperatorLoginAttempt {
 /// A sign-in link is a bearer credential travelling through email, which is not
 /// a secure channel. Hashed at rest, single-use, short-lived — SECURITY.md §7.
 model MagicLinkToken {
-  id             String   @id @default(cuid())
-  operatorUserId String
-  operatorUser   OperatorUser @relation(fields: [operatorUserId], references: [id], onDelete: Cascade)
+  id              String       @id @default(cuid())
+  operatorUserId  String
+  operatorUser    OperatorUser @relation(fields: [operatorUserId], references: [id], onDelete: Cascade)
   /// SHA-256 of the token. The token itself is never stored, so a database
   /// dump yields no working sign-in links.
-  tokenHash      String   @unique
-  expiresAt      DateTime
-  consumedAt     DateTime?
-  createdAt      DateTime @default(now())
+  tokenHash       String       @unique
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime     @default(now())
   /// Rate limiting reads this — a request endpoint that sends unlimited mail
   /// is a free mail cannon pointed at whoever's address is guessed.
   requestedFromIp String?
@@ -264,20 +287,20 @@ model MagicLinkToken {
 // ---------------------------------------------------------------------------
 
 model Service {
-  id        String    @id @default(cuid())
-  venueId   String
-  venue     Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  name      String
+  id          String    @id @default(cuid())
+  venueId     String
+  venue       Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name        String
   /// The service's own date, so a baseline can compare Saturday to Saturday
   /// without deriving a weekday from a timestamp in the wrong timezone.
-  serviceDate DateTime @default(now()) @db.Date
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
+  serviceDate DateTime  @default(now()) @db.Date
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
 
   /// Denormalised from the latest `ServiceArmAssignment` for cheap reads. The
   /// assignment rows remain the evidence; this is a cache of them, and
   /// `armForService()` is the only thing allowed to write it.
-  arm       ServiceArm @default(LIVE)
+  arm ServiceArm @default(LIVE)
 
   /// The chef's "this is embarrassing me" button (§7.4). Distinct from RED:
   /// RED is a kitchen state that shapes the pool, this stops offers and awards
@@ -285,17 +308,18 @@ model Service {
   killedAt   DateTime?
   killedById String?
 
-  armAssignments  TableArmAssignment[]
-  serviceArms     ServiceArmAssignment[]
-  guestSessions   GuestSession[]
-  kitchenLoads    KitchenLoad[]
-  prizePools      PrizePool[]
-  orderFires      OrderFire[]
-  tickets         Ticket[]
-  tableRuns       TableRun[]
-  events          Event[]
-  reviewPrompts   ReviewPrompt[]
-  venueFeedback   VenueFeedback[]
+  armAssignments TableArmAssignment[]
+  serviceArms    ServiceArmAssignment[]
+  guestSessions  GuestSession[]
+  kitchenLoads   KitchenLoad[]
+  prizePools     PrizePool[]
+  orderFires     OrderFire[]
+  tickets        Ticket[]
+  tableRuns      TableRun[]
+  events         Event[]
+  reviewPrompts  ReviewPrompt[]
+  venueFeedback  VenueFeedback[]
+  guestVisits    GuestVisit[]
 
   @@index([venueId, startedAt])
   @@index([venueId, serviceDate])
@@ -314,17 +338,17 @@ model Service {
 /// its own reason, and the arm in force is the latest row by `recordedAt`. If
 /// this could be edited, so could the result of the pilot.
 model ServiceArmAssignment {
-  id        String     @id @default(cuid())
-  serviceId String
-  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  arm       ServiceArm
+  id           String     @id @default(cuid())
+  serviceId    String
+  service      Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  arm          ServiceArm
   /// Why this service is on this arm — "counterbalance: week 2 Saturday live".
-  reason    String
+  reason       String
   /// Set only on a correction, naming the row being superseded. The original
   /// stays exactly as written.
   supersedesId String?
-  recordedAt DateTime  @default(now())
-  recordedBy String?
+  recordedAt   DateTime   @default(now())
+  recordedBy   String?
 
   @@index([serviceId, recordedAt])
 }
@@ -340,35 +364,36 @@ model ServiceArmAssignment {
 /// The streak lives here rather than on the device because the next person to
 /// pick up the game inherits it. That inheritance is the mechanic.
 model TableRun {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   tableId   String
-  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  table     Table   @relation(fields: [tableId], references: [id], onDelete: Cascade)
   serviceId String
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   /// Consecutive correct answers standing right now.
-  streak      Int      @default(0)
+  streak         Int      @default(0)
   /// Highest rung the table currently holds. Prizes are taken from here.
-  currentRung Int      @default(0)
+  currentRung    Int      @default(0)
   /// Runs still available. Starts at the configured allowance and is spent one
   /// per device; the extra-life actions add to it.
-  livesRemaining Int   @default(0)
+  livesRemaining Int      @default(0)
   /// Pairs already shown to this table, as "loId:hiId" keys. Table-level, not
   /// device-level — the second guest must not be re-asked the first guest's
   /// questions.
-  pairsShown  String[] @default([])
+  pairsShown     String[] @default([])
 
-  partySize   Int?
-  openedAt    DateTime  @default(now())
-  lastSeenAt  DateTime  @default(now())
-  endedAt     DateTime?
+  partySize  Int?
+  openedAt   DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  endedAt    DateTime?
 
-  devices  DeviceSession[]
-  events   Event[]
-  awards   Award[]
-  addOns   AddOnRequest[]
-  feedback VenueFeedback[]
+  devices       DeviceSession[]
+  events        Event[]
+  awards        Award[]
+  addOns        AddOnRequest[]
+  feedback      VenueFeedback[]
   reviewPrompts ReviewPrompt[]
+  guestVisits   GuestVisit[]
 
   @@unique([serviceId, tableId])
   @@index([serviceId, openedAt])
@@ -403,21 +428,21 @@ model DeviceSession {
 /// service are denormalised onto each row: a metric that needs a join to know
 /// which arm it belongs to will eventually be computed against the wrong one.
 model Event {
-  id        String     @id @default(cuid())
-  type      EventType
-  serviceId String
-  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  arm       ServiceArm
-  tableRunId String?
-  tableRun   TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  type            EventType
+  serviceId       String
+  service         Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  arm             ServiceArm
+  tableRunId      String?
+  tableRun        TableRun?      @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
   deviceSessionId String?
   deviceSession   DeviceSession? @relation(fields: [deviceSessionId], references: [id], onDelete: SetNull)
 
   /// Event-specific detail: the pair shown and its gap ratio, which life-earning
   /// action fired, why a run ended. Kept as Json so a new event type does not
   /// need a migration to carry its own context.
-  detail    Json     @default("{}")
-  at        DateTime @default(now())
+  detail Json     @default("{}")
+  at     DateTime @default(now())
 
   @@index([serviceId, at])
   @@index([type, at])
@@ -428,14 +453,14 @@ model Event {
 /// bill import cannot join, and an import that cannot join produces no
 /// measurement at all (§6.1).
 model PosTableMap {
-  id        String  @id @default(cuid())
-  venueId   String
-  venue     Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  tableId   String
-  table     Table   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId String
+  table   Table  @relation(fields: [tableId], references: [id], onDelete: Cascade)
   /// As it appears in the export. Free text because every POS spells it
   /// differently — "T12", "12", "Table 12".
-  posRef    String
+  posRef  String
 
   @@unique([venueId, posRef])
   @@index([tableId])
@@ -468,15 +493,15 @@ model MenuImportDraft {
 /// neither. Merging them would create exactly the ability to gate a public
 /// review on sentiment that §7.2 exists to make impossible.
 model VenueFeedback {
-  id         String   @id @default(cuid())
-  serviceId  String
-  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  tableRunId String?
-  tableRun   TableRun? @relation(fields: [tableRunId], references: [id], onDelete: SetNull)
-  body       String
+  id          String    @id @default(cuid())
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tableRunId  String?
+  tableRun    TableRun? @relation(fields: [tableRunId], references: [id], onDelete: SetNull)
+  body        String
   /// Optional, and never read by anything that decides a prize or a review.
-  rating     Int?
-  submittedAt DateTime @default(now())
+  rating      Int?
+  submittedAt DateTime  @default(now())
 
   @@index([serviceId, submittedAt])
 }
@@ -485,17 +510,17 @@ model VenueFeedback {
 /// row, never a computed guess, and never rewritten — a mid-service swap
 /// closes the current row with `effectiveTo` and opens a new one.
 model TableArmAssignment {
-  id          String    @id @default(cuid())
-  serviceId   String
-  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  tableId     String
-  table       Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  arm         Arm
-  effectiveFrom DateTime @default(now())
+  id            String    @id @default(cuid())
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tableId       String
+  table         Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  arm           Arm
+  effectiveFrom DateTime  @default(now())
   effectiveTo   DateTime?
   /// Why this table is on this arm — "alternating seed, odd label" etc.
-  reason      String
-  createdAt   DateTime  @default(now())
+  reason        String
+  createdAt     DateTime  @default(now())
 
   guestSessions GuestSession[]
 
@@ -508,41 +533,41 @@ model TableArmAssignment {
 // ---------------------------------------------------------------------------
 
 model MenuItem {
-  id             String     @id @default(cuid())
-  venueId        String
-  venue          Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  name           String
-  category       String
-  pricePaise     Int
-  foodCostPaise  Int
-  marginTier     MarginTier
-  prepBurden     PrepBurden @default(LOW)
+  id                  String     @id @default(cuid())
+  venueId             String
+  venue               Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name                String
+  category            String
+  pricePaise          Int
+  foodCostPaise       Int
+  marginTier          MarginTier
+  prepBurden          PrepBurden @default(LOW)
   /// If true, awarding this costs the kitchen work — suppressed when load is RED.
-  requiresKitchenWork Boolean @default(true)
+  requiresKitchenWork Boolean    @default(true)
   /// Hero items are never discounted (PLATFORM.md §12).
-  isHero         Boolean    @default(false)
-  active         Boolean    @default(true)
+  isHero              Boolean    @default(false)
+  active              Boolean    @default(true)
   /// Units sold in the trailing window. **Imported, never guessed** (§4.2) —
   /// this is what decides which of two dishes "more people order here", and a
   /// guessed answer is one a server cannot defend to a guest who just lost a
   /// dessert on it.
-  trailingSales  Int        @default(0)
+  trailingSales       Int        @default(0)
   /// Set when the count came from a real sales export rather than a seed. The
   /// guest-facing question copy changes when it did not: a chef's ranking is
   /// presented as the chef's opinion, never as data.
-  salesImportedAt DateTime?
+  salesImportedAt     DateTime?
   /// The chef's own ordering, used only where item-level history is missing.
   /// Lower sorts as more popular.
-  chefRank       Int?
-  lastSoldAt     DateTime?
+  chefRank            Int?
+  lastSoldAt          DateTime?
 
   /// Which section fires it. Shown on the pass beside the fire time.
-  station        String?
+  station     String?
   /// Minutes on the pass for this specific item.
-  prepMinutes    Int?
+  prepMinutes Int?
   /// A missing photo is a typographic card of the same size and weight, never
   /// a broken image and never a placeholder icon (§10 degradation).
-  photoUrl       String?
+  photoUrl    String?
 
   vetoes        ChefVeto[]
   awards        Award[]
@@ -564,9 +589,9 @@ model MenuItem {
 /// reach a hero item, override a chef veto, or bust a depth cap — those fences
 /// sit above the rule lookup and are tested.
 model PrizeRule {
-  id       String @id @default(cuid())
-  venueId  String
-  venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   /// Ascending. Specific rules sort before venue-wide defaults.
   priority Int    @default(100)
@@ -581,7 +606,7 @@ model PrizeRule {
   marginTier MarginTier?
   category   String?
   menuItemId String?
-  window     RuleWindow @default(ANY)
+  window     RuleWindow  @default(ANY)
 
   // --- What it awards ---
   kind            AwardKind
@@ -613,12 +638,12 @@ model ChefVeto {
 }
 
 model KitchenLoad {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   venueId   String
   serviceId String?
-  service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  service   Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   level     LoadLevel
-  setAt     DateTime  @default(now())
+  setAt     DateTime   @default(now())
   setById   String?
   setBy     StaffUser? @relation(fields: [setById], references: [id], onDelete: SetNull)
 
@@ -629,16 +654,16 @@ model KitchenLoad {
 /// exclusions with their `reason` strings. This is the operator's audit trail
 /// and the product promise in §14.3 — it is load-bearing, not logging.
 model PrizePool {
-  id             String    @id @default(cuid())
-  serviceId      String
-  service        Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  mechanic       Mechanic
-  kitchenLoad    LoadLevel
-  snapshotAt     DateTime  @default(now())
+  id          String    @id @default(cuid())
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  mechanic    Mechanic
+  kitchenLoad LoadLevel
+  snapshotAt  DateTime  @default(now())
   /// { itemId, mechanic, depth, reason }[]
-  entries        Json
+  entries     Json
   /// { itemId, reason }[]
-  excluded       Json
+  excluded    Json
 
   awards Award[]
 
@@ -650,20 +675,20 @@ model PrizePool {
 // ---------------------------------------------------------------------------
 
 model GuestSession {
-  id        String   @id @default(cuid())
-  tableId   String
-  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  serviceId String
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id              String              @id @default(cuid())
+  tableId         String
+  table           Table               @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  serviceId       String
+  service         Service             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   /// Which arm the table was on at scan time. Denormalised deliberately so a
   /// later swap cannot retroactively change what this session counted as.
   armAssignmentId String?
   armAssignment   TableArmAssignment? @relation(fields: [armAssignmentId], references: [id], onDelete: SetNull)
-  armAtScan Arm
+  armAtScan       Arm
 
   /// Nothing above this line is written before consent is given.
-  consentAt DateTime
-  startedAt DateTime @default(now())
+  consentAt  DateTime
+  startedAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
   plays         Play[]
@@ -688,11 +713,11 @@ model Play {
   endsAt      DateTime
   completedAt DateTime?
 
-  score       Int       @default(0)
-  maxScore    Int
-  outcome     Outcome?
+  score    Int      @default(0)
+  maxScore Int
+  outcome  Outcome?
   /// Ordered question ids + the answer index given, for replay and dispute.
-  answers     Json      @default("[]")
+  answers  Json     @default("[]")
 
   award Award?
 
@@ -700,30 +725,30 @@ model Play {
 }
 
 model Award {
-  id          String   @id @default(cuid())
+  id           String    @id @default(cuid())
   /// The run that won it. Nullable because the older per-play awards predate
   /// the table being the unit of play.
-  tableRunId  String?
-  tableRun    TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  tableRunId   String?
+  tableRun     TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
   /// Which rung of the ladder this was taken at.
-  rung        Int?
+  rung         Int?
   /// Single-use, bound to table and service (§7.4). Short enough to read aloud
   /// across a noisy room, because that is how it will actually be used.
-  code        String?  @unique
-  redeemedAt  DateTime?
+  code         String?   @unique
+  redeemedAt   DateTime?
   redeemedById String?
 
   /// Nullable since the table became the unit of play. `Play` belonged to the
   /// climb, where one device played one round; a Beat the Kitchen award hangs
   /// off the `TableRun` above instead. Kept so climb-era awards still read.
-  playId      String?  @unique
-  play        Play?    @relation(fields: [playId], references: [id], onDelete: Cascade)
+  playId      String?    @unique
+  play        Play?      @relation(fields: [playId], references: [id], onDelete: Cascade)
   menuItemId  String
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem    MenuItem   @relation(fields: [menuItemId], references: [id])
   prizePoolId String?
   prizePool   PrizePool? @relation(fields: [prizePoolId], references: [id], onDelete: SetNull)
 
-  kind        AwardKind
+  kind            AwardKind
   /// Set when kind is PERCENT_OFF, so the redemption screen can say "40% off"
   /// rather than making the server work it out from two rupee figures.
   percentOff      Int?
@@ -734,18 +759,35 @@ model Award {
   ruleId          String?
   /// Value conceded to the guest, and what it actually costs the kitchen.
   /// Both snapshotted so a later menu edit cannot rewrite history.
-  valuePaise    Int
-  foodCostPaise Int
+  valuePaise      Int
+  foodCostPaise   Int
   /// Why the engine chose this item. Never null — PLATFORM.md §5.
-  reason      String
+  reason          String
 
-  status      AwardStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-  confirmedAt DateTime?
+  /// What earned this. Required rather than inferred, because `/dash`'s ledger
+  /// renders `Rung ${award.rung ?? run.currentRung}` — so a loyalty award, which
+  /// has no rung, would silently be reported as a game result that never
+  /// happened. The default backfills every existing row correctly.
+  origin     AwardOrigin @default(GAME)
+  /// Set when this award was the one a returning guest's stamp paid for.
+  guestVisit GuestVisit?
+
+  status        AwardStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  confirmedAt   DateTime?
   confirmedById String?
-  confirmedBy   StaffUser? @relation(fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedBy   StaffUser?  @relation(fields: [confirmedById], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
+}
+
+/// How an award was earned. The ledger branches on this rather than on whether
+/// `rung` happens to be null.
+enum AwardOrigin {
+  /// Won on the ladder.
+  GAME
+  /// Earned by coming back. Not a rung, and never reported as one.
+  LOYALTY
 }
 
 model AddOnRequest {
@@ -771,26 +813,26 @@ model AddOnRequest {
 }
 
 model OrderFire {
-  id        String     @id @default(cuid())
-  tableId   String
-  table     Table      @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  serviceId String
-  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  firedAt   DateTime   @default(now())
+  id         String     @id @default(cuid())
+  tableId    String
+  table      Table      @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  firedAt    DateTime   @default(now())
   /// Server-computed from the venue's configured prep minutes.
   estReadyAt DateTime
   /// Menu categories this fire covered, as the floor reported them. Empty means
   /// the server fired without naming courses and the estimate used
   /// `defaultPrepMinutes`. Recorded because the estimate is a guess we will want
   /// to check against a real service once bill exports land in wave 2.
-  courses   String[]   @default([])
+  courses    String[]   @default([])
   /// Captured in the same tap that fires the order (§3). Spend per table is
   /// dominated by how many people are sitting at it, so without this the spend
   /// comparison is noise — which is why it is mandatory rather than nice to
   /// have. Nullable only so a legacy row does not lie about having one.
-  partySize Int?
-  firedById String?
-  firedBy   StaffUser? @relation(fields: [firedById], references: [id], onDelete: SetNull)
+  partySize  Int?
+  firedById  String?
+  firedBy    StaffUser? @relation(fields: [firedById], references: [id], onDelete: SetNull)
 
   @@index([serviceId, firedAt])
   @@index([tableId, firedAt])
@@ -812,15 +854,15 @@ model QuizPack {
 }
 
 model QuizQuestion {
-  id         String @id @default(cuid())
-  packId     String
-  pack       QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
-  prompt     String
+  id          String   @id @default(cuid())
+  packId      String
+  pack        QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  prompt      String
   /// string[] — rendered in order.
-  options    Json
+  options     Json
   answerIndex Int
-  difficulty Int    @default(1)
-  orderHint  Int    @default(0)
+  difficulty  Int      @default(1)
+  orderHint   Int      @default(0)
 
   @@index([packId, orderHint])
 }
@@ -866,19 +908,19 @@ model Ticket {
 /// This is the **primary** comparison. The counterbalanced live services are
 /// secondary, and scanners-versus-non-scanners is diagnostic only.
 model HistoricalService {
-  id          String   @id @default(cuid())
-  venueId     String
-  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  serviceDate DateTime @db.Date
+  id                 String   @id @default(cuid())
+  venueId            String
+  venue              Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  serviceDate        DateTime @db.Date
   /// 0 = Sunday, matching `Date.getUTCDay`. Stored rather than derived so a
   /// timezone change cannot silently re-bucket a night.
-  weekday     Int
-  covers      Int
-  tableCount  Int
-  totalPaise  Int
+  weekday            Int
+  covers             Int
+  tableCount         Int
+  totalPaise         Int
   /// Bills carrying at least one dessert or beverage line, for attach rate.
-  attachedTableCount Int @default(0)
-  importedAt  DateTime @default(now())
+  attachedTableCount Int      @default(0)
+  importedAt         DateTime @default(now())
 
   @@unique([venueId, serviceDate])
   @@index([venueId, weekday])
@@ -898,16 +940,20 @@ model HistoricalService {
 /// First-party sentiment lives in `VenueFeedback`, which is a different table
 /// reached by a different module on a different screen.
 model ReviewPrompt {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   serviceId      String?
-  service        Service?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service        Service?      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   /// Climb-era rows hang off a GuestSession; the table is the unit now, so new
   /// rows hang off the TableRun instead. One of the two is always set.
   guestSessionId String?
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
-  tableRunId     String?
-  tableRun       TableRun?    @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
-  shownAt        DateTime     @default(now())
+  /// Unique so `shownAt` and `openedAt` can be written by two different screens
+  /// as idempotent upserts — the guest page stamps "shown" when the entry link
+  /// renders, the review screen stamps "opened". Nullable, and Postgres does not
+  /// conflict nulls, so the climb-era `guestSessionId` rows are unaffected.
+  tableRunId     String?       @unique
+  tableRun       TableRun?     @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  shownAt        DateTime      @default(now())
   openedAt       DateTime?
   draftedAt      DateTime?
   handedOffAt    DateTime?
@@ -916,17 +962,65 @@ model ReviewPrompt {
 }
 
 /// Phone stored only as an HMAC with the venue's own salt. No cross-venue join
-/// is possible in V1 by construction. Wave 3.
+/// is possible in V1 by construction (DPDP, SECURITY.md §6).
 model GuestIdentity {
-  id         String   @id @default(cuid())
-  venueId    String
-  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  phoneHmac  String
-  visitCount Int      @default(1)
-  firstSeenAt DateTime @default(now())
-  lastSeenAt  DateTime @default(now())
+  id          String       @id @default(cuid())
+  venueId     String
+  venue       Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  phoneHmac   String
+  /// A cache of `count(visits)`, written in the same transaction — exactly the
+  /// way `Service.arm` caches the arm assignment. **The rows are the evidence.**
+  /// Nothing decides a reward from this column; it exists so a screen can show
+  /// a number without a count query.
+  visitCount  Int          @default(1)
+  firstSeenAt DateTime     @default(now())
+  lastSeenAt  DateTime     @default(now())
+  visits      GuestVisit[]
 
   @@unique([venueId, phoneHmac])
+  /// The expiry sweep reads this.
+  @@index([venueId, lastSeenAt])
+}
+
+/// One stamp on the card, and the loyalty ledger.
+///
+/// `GuestIdentity.visitCount` alone cannot carry this. A single mutable integer
+/// cannot be **idempotent** (there is no key to conflict on, and a
+/// select-then-update guard is a race under polling), cannot be **audited**
+/// ("why did table 7 get a free kulfi?" has no answer), and cannot be **erased**
+/// row by row for a DPDP request.
+///
+/// **Keyed on the service, not the table run.** A `TableRun` is unique per
+/// (service, table), so a guest who moved tables — or simply walked to an empty
+/// one and typed their number again — would earn two stamps for one night. The
+/// service is the night, and the night is the visit.
+model GuestVisit {
+  id              String        @id @default(cuid())
+  guestIdentityId String
+  guestIdentity   GuestIdentity @relation(fields: [guestIdentityId], references: [id], onDelete: Cascade)
+  /// Denormalised so a per-venue read needs no join, the same reason `Event`
+  /// carries `arm` and `serviceId`.
+  venueId         String
+  venue           Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  serviceId       String
+  service         Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  /// The run the phone was on when the number was left. Nullable so an
+  /// out-of-band stamp cannot lie about having one.
+  tableRunId      String?
+  tableRun        TableRun?     @relation(fields: [tableRunId], references: [id], onDelete: SetNull)
+  /// The ordinal at the moment it was written, snapshotted. Recomputing it later
+  /// against a config edited since would answer a different question.
+  visitNumber     Int
+  /// Set only when this stamp is the one that crossed the threshold. Most
+  /// visits reward nothing, and that is the normal case.
+  awardId         String?       @unique
+  award           Award?        @relation(fields: [awardId], references: [id], onDelete: SetNull)
+  recordedAt      DateTime      @default(now())
+
+  /// The idempotency, at the database rather than in a guard. Two phones typing
+  /// the same number at one table is one visit.
+  @@unique([guestIdentityId, serviceId])
+  @@index([venueId, recordedAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -969,6 +1063,13 @@ enum EventType {
   REVIEW_SHOWN
   REVIEW_OPENED
   REVIEW_HANDED_OFF
+  /// A returning guest left their number and earned a stamp. Carries the visit
+  /// number and never the number itself.
+  LOYALTY_STAMPED
+  /// A stamp crossed the threshold and an award was written.
+  LOYALTY_REWARDED
+  /// A guest asked for their identity to be deleted. Carries a count, nothing else.
+  PHONE_ERASED
 }
 
 /// Why a run ended.

@@ -2,26 +2,14 @@
 
 import { db } from '@/lib/db'
 import { readGuestSessionId, setGuestSessionCookie } from '@/lib/session'
-import {
-  getActiveVetoes,
-  getConcededSoFarPaise,
-  getKitchenLoad,
-  getMenuForEngine,
-  getPrizeRules,
-  getVenueConfig,
-  resolveScan,
-  serviceClockMinute,
-} from '@/lib/service'
-import { decidePrizePool } from '@/core/prize-engine'
-import { parseRankingWeights } from '@/lib/prize-config'
-import { hashString } from '@/core/mechanics/hash'
+import { getVenueConfig, resolveScan } from '@/lib/service'
+import { decideAndWriteAward } from '@/lib/prize-award'
 import { recordEvent } from '@/lib/events'
 import {
   earnedLifeActions,
   getMenuForGame,
   markPairShown,
   openOrResumeTableRun,
-  newRedemptionCode,
   runStateOf,
   saveRunState,
   toLadderConfig,
@@ -348,119 +336,14 @@ export async function claimPrize(qrToken: string): Promise<{ ok: boolean; code?:
 
   if (scan.killed) return { ok: true }
 
-  const award = await awardFor(
-    scan.venueId,
-    scan.serviceId,
-    device.tableRunId,
-    state.currentRung,
-    now
-  )
+  const award = await decideAndWriteAward({
+    venueId: scan.venueId,
+    serviceId: scan.serviceId,
+    tableRunId: device.tableRunId,
+    nowMs: now,
+    purpose: { kind: 'GAME', rung: state.currentRung },
+  })
   return award ? { ok: true, code: award.code ?? undefined } : { ok: true }
-}
-
-/**
- * Run the engine and write the award.
- *
- * The whole pool is snapshotted to `PrizePool` alongside it, entries *and*
- * exclusions with their reasons. That snapshot is what the owner reads back the
- * next morning, and it is the product — so it is written even when the pool is
- * empty, because "the engine refused everything, here is why" is exactly the
- * night an operator most wants explained.
- */
-async function awardFor(
-  venueId: string,
-  serviceId: string,
-  tableRunId: string,
-  rung: number,
-  nowMs: number
-) {
-  const [venue, config, menuData, prizeRules, load, vetoes, conceded] = await Promise.all([
-    db.venue.findUniqueOrThrow({ where: { id: venueId }, select: { timezone: true } }),
-    getVenueConfig(venueId),
-    getMenuForEngine(venueId),
-    getPrizeRules(venueId),
-    getKitchenLoad(venueId),
-    getActiveVetoes(venueId),
-    getConcededSoFarPaise(serviceId),
-  ])
-
-  const pool = decidePrizePool({
-    menu: menuData.engineMenu,
-    velocity: menuData.velocity,
-    kitchenLoad: load,
-    chefVetoes: vetoes,
-    depthCaps: {
-      perItemPct: config.depthCapPerItemPct,
-      perServicePaise: config.depthCapPerServicePaise,
-    },
-    mechanic: 'BEAT_THE_KITCHEN',
-    outcome: 'WIN',
-    prizeRules,
-    rankingWeights: parseRankingWeights(config.rankingWeights),
-    concededSoFarPaise: conceded,
-    serviceClockMinute: serviceClockMinute(nowMs, venue.timezone),
-    peakStartMinute: config.peakStartMinute,
-    peakEndMinute: config.peakEndMinute,
-  })
-
-  const nameOf = new Map(menuData.rows.map((m) => [m.id, m.name]))
-  await db.prizePool.create({
-    data: {
-      serviceId,
-      mechanic: 'BEAT_THE_KITCHEN',
-      kitchenLoad: load,
-      entries: pool.entries.map((e) => ({ ...e, itemName: nameOf.get(e.itemId) ?? e.itemId })),
-      excluded: pool.excluded.map((e) => ({ ...e, itemName: nameOf.get(e.itemId) ?? e.itemId })),
-    },
-  })
-
-  const top = pool.entries[0] ?? (await fallbackEntry(config, menuData.rows))
-  if (!top) return null
-
-  return db.award.create({
-    data: {
-      tableRunId,
-      rung,
-      menuItemId: top.itemId,
-      kind: top.kind,
-      percentOff: top.percentOff ?? null,
-      fixedPricePaise: top.fixedPricePaise ?? null,
-      ruleId: top.ruleId ?? null,
-      valuePaise: top.valuePaise,
-      foodCostPaise: top.costPaise,
-      reason: top.reason,
-      code: newRedemptionCode((max) =>
-        Math.floor(hashString(`${tableRunId}:${rung}:${max}`) % max)
-      ),
-    },
-  })
-}
-
-/**
- * The zero-kitchen fallback (§5).
- *
- * Configured per venue — something the bar pours or the counter hands over. A
- * pool of nothing must never reach a guest screen, and the alternative to this
- * is a table that earned a prize and is told there isn't one.
- */
-async function fallbackEntry(
-  config: { fallbackMenuItemId: string | null },
-  menu: Array<{ id: string; pricePaise: number; foodCostPaise: number }>
-) {
-  if (!config.fallbackMenuItemId) return null
-  const item = menu.find((m) => m.id === config.fallbackMenuItemId)
-  if (!item) return null
-
-  return {
-    itemId: item.id,
-    kind: 'FREE' as const,
-    percentOff: undefined,
-    fixedPricePaise: undefined,
-    ruleId: null,
-    valuePaise: item.pricePaise,
-    costPaise: item.foodCostPaise,
-    reason: 'Fallback item — the pool was empty, and a guest is never told there is nothing.',
-  }
 }
 
 /** What the spent-device screen still has to offer (§4.5). */

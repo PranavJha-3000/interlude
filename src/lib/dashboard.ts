@@ -12,6 +12,8 @@ import {
   type Tier,
 } from '@/core/measurement/ledger'
 import { computeMetrics, computeSpend, type Metrics } from '@/core/measurement/metrics'
+import { summariseReviewFunnel, type ReviewFunnelRates } from '@/core/review/prompt'
+import { reviewFunnelFor } from '@/lib/review-funnel'
 
 /**
  * Everything `/dash` and the Monday email render (§9.4).
@@ -34,6 +36,12 @@ export interface DashboardData {
   negativeReason: string | null
   /** POS-backed spend, present only once an export has landed. */
   pos: { billCount: number; spendPerCoverPaise: number | null; attachRatePct: number | null }
+  /**
+   * The review funnel (§7.2) — counts only, and there is no rating to report
+   * because none is ever stored. Collected since the review screen shipped and
+   * shown to nobody until now.
+   */
+  review: ReviewFunnelRates
   /** The engine's own audit trail for the night — what cleared, what did not. */
   pool: {
     cleared: Array<{ item: string; why: string }>
@@ -44,6 +52,11 @@ export interface DashboardData {
 export async function getDashboardData(venueId: string, serviceId: string): Promise<DashboardData> {
   const service = await db.service.findUniqueOrThrow({ where: { id: serviceId } })
   const endMs = service.endedAt?.getTime() ?? Date.now()
+
+  // Its first application caller. `summariseReviewFunnel` has been exported and
+  // tested since the review screen shipped and called from nowhere, so the
+  // funnel was recorded every night and read by nobody.
+  const review = summariseReviewFunnel(await reviewFunnelFor(serviceId))
 
   const [runs, awards, addOns, events, tickets, loads, pool] = await Promise.all([
     db.tableRun.findMany({
@@ -163,6 +176,7 @@ export async function getDashboardData(venueId: string, serviceId: string): Prom
     ledger,
     totals,
     negativeReason: negative?.reason ?? null,
+    review,
     pos: {
       billCount: tickets.length,
       spendPerCoverPaise: spend.spendPerCoverPaise,

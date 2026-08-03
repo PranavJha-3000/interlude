@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
+import { markReviewShown } from '@/lib/review-funnel'
 import { readGuestSessionId } from '@/lib/session'
 import { getLatestOrderFire, getVenueConfig, resolveScan } from '@/lib/service'
 import { runStateOf, toLadderConfig } from '@/lib/table-run'
@@ -12,6 +13,18 @@ import { Body, Card, Heading, PrimaryButton, Screen } from './ui'
 import { StartRun } from './StartRun'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Where each earning action goes.
+ *
+ * `ADDON_CONFIRMED` has no link on purpose: the life lands when a server
+ * confirms the add-on, never when a guest taps something (§4.4). Rewarding the
+ * tap instead of the order would reward the wrong behaviour.
+ */
+const LIFE_ACTION_HREF: Partial<Record<string, (qrToken: string) => string>> = {
+  PHONE_SUBMITTED: (qrToken) => `/t/${qrToken}/phone`,
+  FEEDBACK_SUBMITTED: (qrToken) => `/t/${qrToken}/feedback`,
+}
 
 /**
  * The way to the review prompt (§7.2), shown on the screens a visit ends on.
@@ -140,6 +153,12 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
     const earned = await earnedLifeActions(run.id)
     const offered = offeredLifeActions(earned, ladder)
 
+    // The top of the review funnel. Stamped where the link *renders*, not where
+    // it is clicked — before this, `shownAt` was written when a guest opened
+    // /review, so the funnel had no denominator and every row had already
+    // converted. Idempotent, which matters because this screen polls.
+    await markReviewShown(run.id, scan.serviceId)
+
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.spent.heading}</Heading>
@@ -152,12 +171,28 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
         {offered.length > 0 && (
           <div className="mt-6">
             <p className="text-sm text-muted">{en.guest.spent.earnHeading}</p>
+            {/* Two of these three used to be inert text. `PHONE_SUBMITTED` and
+                `FEEDBACK_SUBMITTED` were offered to guests with no route behind
+                them — the screen said "leave a phone number" and there was
+                nowhere to leave it. They are links now, not buttons: UI-SPEC
+                allows one primary action per guest screen and the game owns it. */}
             <ul className="mt-3 grid gap-2">
-              {offered.map((action) => (
-                <li key={action} className="rounded-xl border border-line bg-warm p-4 text-base">
-                  {en.guest.spent.actions[action]}
-                </li>
-              ))}
+              {offered.map((action) => {
+                const label = en.guest.spent.actions[action]
+                const href = LIFE_ACTION_HREF[action]?.(qrToken)
+
+                return (
+                  <li key={action} className="rounded-xl border border-line bg-warm p-4 text-base">
+                    {href ? (
+                      <a href={href} className="underline">
+                        {label}
+                      </a>
+                    ) : (
+                      label
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         )}
@@ -173,6 +208,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   // ── Out of lives, and this device has not played ─────────────────────────
   if (!canStartRun(state)) {
+    await markReviewShown(run.id, scan.serviceId)
     return (
       <Screen venueName={scan.venueName}>
         <Heading>{en.guest.spent.heading}</Heading>

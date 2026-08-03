@@ -20,6 +20,7 @@ import {
   clearVetoFromDash,
   updateFences,
   updateGates,
+  updateLoyalty,
   updatePeak,
   updatePrep,
   updateRoundShape,
@@ -307,6 +308,45 @@ export default async function PrizesPage({
                 className={INPUT}
               />
             </div>
+          </div>
+          <button type="submit" className={SAVE}>
+            {en.dash.prizes.save}
+          </button>
+        </form>
+      </section>
+
+      {/* ── Returning guests ────────────────────────────────────────── */}
+      <section className={SECTION}>
+        <h2 className="text-lg font-semibold">{en.dash.prizes.loyalty.heading}</h2>
+        <p className="mt-1 text-sm text-muted">{en.dash.prizes.loyalty.body}</p>
+        <form action={updateLoyalty} className="mt-4">
+          <Toggle
+            name="loyaltyEnabled"
+            label={en.dash.prizes.loyalty.enabled}
+            defaultChecked={config.loyaltyEnabled}
+          />
+          <p className="mt-1 text-xs text-muted">{en.dash.prizes.loyalty.enabledHelp}</p>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field
+              name="loyaltyVisitsRequired"
+              label={en.dash.prizes.loyalty.visitsRequired}
+              help={en.dash.prizes.loyalty.visitsRequiredHelp}
+              defaultValue={config.loyaltyVisitsRequired}
+            />
+            <Field
+              name="loyaltyRewardMaxRupees"
+              label={en.dash.prizes.loyalty.rewardMaxRupees}
+              help={en.dash.prizes.loyalty.rewardMaxRupeesHelp}
+              defaultValue={paiseToRupeeInput(config.loyaltyRewardMaxValuePaise)}
+              step="0.01"
+            />
+            <Field
+              name="loyaltyIdentityExpiryDays"
+              label={en.dash.prizes.loyalty.expiryDays}
+              help={en.dash.prizes.loyalty.expiryDaysHelp}
+              defaultValue={config.loyaltyIdentityExpiryDays}
+            />
           </div>
           <button type="submit" className={SAVE}>
             {en.dash.prizes.save}
