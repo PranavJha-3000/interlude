@@ -9,7 +9,7 @@ import { canStartRun, canTakePrize, offeredLifeActions } from '@/core/game/run'
 import { earnedLifeActions } from '@/lib/table-run'
 import { giveConsentAndOpen } from './game-actions'
 import { Poller } from './Poller'
-import { Body, Card, Heading, PrimaryButton, Screen } from './ui'
+import { Body, Heading, PrimaryButton, Screen } from './ui'
 import { StartRun } from './StartRun'
 
 export const dynamic = 'force-dynamic'
@@ -114,6 +114,100 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   const run = device.tableRun
   const state = runStateOf(run)
+
+  // ── Device spent (§4.5) ──────────────────────────────────────────────────
+  // The most frequently seen failure state on night one, and it must read as an
+  // instruction with a bit of theatre rather than as a wall. It names the
+  // table's standing, says what happens next, and offers the ways back in. A
+  // flat rejection is where people put the phone down.
+  //
+  // Checked before the fire: a spent device waiting for the kitchen must not
+  // see a screen promising a game this phone cannot play. The ways back in
+  // matter more before the food than after it.
+  if (device.spentAt || !canStartRun(state)) {
+    const earned = await earnedLifeActions(run.id)
+    const offered = offeredLifeActions(earned, ladder)
+
+    // The top of the review funnel. Stamped where the link *renders*, not where
+    // it is clicked — before this, `shownAt` was written when a guest opened
+    // /review, so the funnel had no denominator and every row had already
+    // converted. Idempotent, which matters because this screen polls.
+    await markReviewShown(run.id, scan.serviceId)
+
+    return (
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
+        {/* A life earned elsewhere — a server confirming an add-on, a friend
+            leaving feedback on their own phone — must appear here without
+            anyone thinking to reload. Same interval as the waiting screen. */}
+        <Poller everyMs={5000} />
+        <Heading>{en.guest.spent.heading}</Heading>
+        <Body>{device.spentAt ? en.guest.spent.body : en.guest.spent.tableBody}</Body>
+
+        {/* The standing is the asset being handed over, so it gets the one
+            instrument moment on this screen: the mono, at size. A table that
+            never climbed has no standing worth parading — zeros read as a
+            shrug, not theatre, so the block renders only when it says
+            something. */}
+        {(run.currentRung > 0 || run.streak > 0) && (
+          <div className="mt-8">
+            <p className="text-xs tracking-widest text-muted uppercase">
+              {en.guest.spent.standingLabel}
+            </p>
+            <p className="mt-1 font-mono text-2xl font-medium tabular-nums">
+              {en.guest.game.rung(run.currentRung, config.ladderRungs)} ·{' '}
+              {en.guest.game.streak(run.streak)}
+            </p>
+            {canTakePrize(state) && (
+              <p className="mt-1 text-base text-muted">
+                {en.guest.spent.standing(run.currentRung)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {offered.length > 0 && (
+          <div className="mt-auto pt-10">
+            <p className="text-xs tracking-widest text-muted uppercase">
+              {en.guest.spent.earnHeading}
+            </p>
+            {/* Two of these three used to be inert text. `PHONE_SUBMITTED` and
+                `FEEDBACK_SUBMITTED` were offered to guests with no route behind
+                them — the screen said "leave a phone number" and there was
+                nowhere to leave it. The whole row is the link now, not a word
+                inside it: this is tapped one-handed at a dim table. The add-on
+                row stays a plain sentence — its go lands when a server
+                confirms the order, so there is nothing here to tap. */}
+            <ul className="mt-3 grid gap-2">
+              {offered.map((action) => {
+                const label = en.guest.spent.actions[action]
+                const href = LIFE_ACTION_HREF[action]?.(qrToken)
+
+                return (
+                  <li key={action}>
+                    {href ? (
+                      <a
+                        href={href}
+                        className="transition-state flex min-h-14 items-center rounded-xl border border-line bg-ground-cotton px-4 text-base active:border-ink"
+                      >
+                        {label}
+                      </a>
+                    ) : (
+                      <p className="flex min-h-14 items-center px-4 text-base text-ink-warm">
+                        {label}
+                      </p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+
+        <ReviewLink qrToken={qrToken} />
+      </Screen>
+    )
+  }
+
   const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
 
   // ── Before the fire ──────────────────────────────────────────────────────
@@ -142,80 +236,6 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
         </Screen>
       )
     }
-  }
-
-  // ── Device spent (§4.5) ──────────────────────────────────────────────────
-  // The most frequently seen failure state on night one, and it must read as an
-  // instruction with a bit of theatre rather than as a wall. It names the
-  // table's standing, says what happens next, and offers the ways back in. A
-  // flat rejection is where people put the phone down.
-  if (device.spentAt) {
-    const earned = await earnedLifeActions(run.id)
-    const offered = offeredLifeActions(earned, ladder)
-
-    // The top of the review funnel. Stamped where the link *renders*, not where
-    // it is clicked — before this, `shownAt` was written when a guest opened
-    // /review, so the funnel had no denominator and every row had already
-    // converted. Idempotent, which matters because this screen polls.
-    await markReviewShown(run.id, scan.serviceId)
-
-    return (
-      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
-        <Heading>{en.guest.spent.heading}</Heading>
-        <Body>{en.guest.spent.body(run.streak, run.currentRung, config.ladderRungs)}</Body>
-
-        <Card>
-          <p className="text-base font-medium">{en.guest.spent.handOver}</p>
-        </Card>
-
-        {offered.length > 0 && (
-          <div className="mt-6">
-            <p className="text-sm text-muted">{en.guest.spent.earnHeading}</p>
-            {/* Two of these three used to be inert text. `PHONE_SUBMITTED` and
-                `FEEDBACK_SUBMITTED` were offered to guests with no route behind
-                them — the screen said "leave a phone number" and there was
-                nowhere to leave it. They are links now, not buttons: UI-SPEC
-                allows one primary action per guest screen and the game owns it. */}
-            <ul className="mt-3 grid gap-2">
-              {offered.map((action) => {
-                const label = en.guest.spent.actions[action]
-                const href = LIFE_ACTION_HREF[action]?.(qrToken)
-
-                return (
-                  <li key={action} className="rounded-xl border border-line bg-ground-cotton p-4 text-base">
-                    {href ? (
-                      <a href={href} className="underline">
-                        {label}
-                      </a>
-                    ) : (
-                      label
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
-
-        {canTakePrize(state) && (
-          <p className="mt-6 text-base">{en.guest.spent.standing(run.currentRung)}</p>
-        )}
-
-        <ReviewLink qrToken={qrToken} />
-      </Screen>
-    )
-  }
-
-  // ── Out of lives, and this device has not played ─────────────────────────
-  if (!canStartRun(state)) {
-    await markReviewShown(run.id, scan.serviceId)
-    return (
-      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
-        <Heading>{en.guest.spent.heading}</Heading>
-        <Body>{en.guest.spent.body(run.streak, run.currentRung, config.ladderRungs)}</Body>
-        <ReviewLink qrToken={qrToken} />
-      </Screen>
-    )
   }
 
   // ── The round ────────────────────────────────────────────────────────────

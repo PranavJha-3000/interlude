@@ -282,14 +282,18 @@ export const en = {
      * one. It must read as an instruction with a bit of theatre, never as a
      * wall: the game-show register the venue's guests already know. A flat
      * rejection is where people put the phone down.
+     *
+     * Two bodies because two truths: a spent phone can be handed over and the
+     * run carries on; a table out of goes cannot be rescued by another phone,
+     * only by earning a go — telling that table to pass the phone would be
+     * false advice.
      */
     spent: {
       heading: 'Lifelines used.',
-      body: (streak: number, rung: number, of: number) =>
-        `This phone has had its go. Your table is on rung ${rung} of ${of}, best streak ${streak}.`,
-      handOver:
-        'Hand the phone to someone else at the table — they carry on from your rung, not from zero.',
-      earnHeading: 'Or earn another go:',
+      body: 'This phone has had its go. Hand it to someone else at the table — they carry on from your rung, not from zero.',
+      tableBody: 'This table has used its goes for now.',
+      standingLabel: 'Your table',
+      earnHeading: 'Earn another go',
       actions: {
         // The strongest one, and it is the exact behaviour the product exists
         // to cause. The life lands on staff confirmation, never on the request.
