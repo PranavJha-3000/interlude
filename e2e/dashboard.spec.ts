@@ -86,6 +86,34 @@ test('the refusal log is present and reads louder than the acceptance', async ({
 
   await expect(page.getByRole('heading', { name: /refused/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: /cleared/i })).toBeVisible()
+
+  // The inversion, pinned as layout rather than taste: the refusal log is the
+  // hero, so it precedes the ledger in the reading order, and the refused
+  // column owns the wide span while cleared sits compact.
+  const layout = await page.evaluate(() => {
+    const refusals = document.querySelector('#refusals')
+    if (!refusals) return { hasRefusals: false as const }
+    const ledgerHeading = [...document.querySelectorAll('h2')].find((h) =>
+      h.textContent?.includes('table by table')
+    )
+    const refusedCol = refusals.querySelector('.sm\\:col-span-2')
+    return {
+      hasRefusals: true as const,
+      refusalsBeforeLedger: ledgerHeading
+        ? Boolean(
+            refusals.compareDocumentPosition(ledgerHeading) & Node.DOCUMENT_POSITION_FOLLOWING
+          )
+        : true,
+      refusedOwnsTheWideColumn: Boolean(
+        refusedCol?.querySelector('h2')?.textContent?.match(/refused/i)
+      ),
+    }
+  })
+  expect(layout.hasRefusals).toBe(true)
+  if (layout.hasRefusals) {
+    expect(layout.refusalsBeforeLedger, 'hero, not appendix').toBe(true)
+    expect(layout.refusedOwnsTheWideColumn, 'the wide span belongs to the refusals').toBe(true)
+  }
 })
 
 test('a negative night is explained rather than hidden', async ({ page }) => {
