@@ -1,4 +1,4 @@
-import { hashString } from '@/core/mechanics/hash'
+import { hashToRange } from '@/core/mechanics/hash'
 
 /**
  * Beat the Kitchen — which two dishes to show (§4.2).
@@ -156,12 +156,14 @@ export function dealPair(
   const fresh = pool.filter((p) => !seen.has(pairKey(p.higherId, p.lowerId)))
   if (fresh.length === 0) return null
 
-  const pick = fresh[hashString(seed) % fresh.length]!
+  const pick = fresh[hashToRange(seed, fresh.length)]!
 
   // Which side the answer falls on is its own decision, or the correct dish
   // would sit under the same thumb every time and the game would be solvable
-  // without reading it.
-  const answerOnLeft = hashString(`${seed}:side`) % 2 === 0
+  // without reading it. `hashToRange`, not `% 2`: FNV-1a's lowest bit is the
+  // byte parity of the seed, which for `${runId}:${index}:side` alternates
+  // with the index — the answer would swap sides on a schedule.
+  const answerOnLeft = hashToRange(`${seed}:side`, 2) === 0
 
   return {
     higherId: pick.higherId,

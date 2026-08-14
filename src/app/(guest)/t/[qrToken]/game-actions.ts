@@ -2,8 +2,9 @@
 
 import { db } from '@/lib/db'
 import { readGuestSessionId, setGuestSessionCookie } from '@/lib/session'
-import { getVenueConfig, resolveScan } from '@/lib/service'
-import { decideAndWriteAward } from '@/lib/prize-award'
+import { getVenueConfig, resolveScan, roundEndsAtMs } from '@/lib/service'
+import { guestPaysPaise } from '@/lib/money'
+import { decideAndWriteAward, previewTopPrize } from '@/lib/prize-award'
 import { recordEvent } from '@/lib/events'
 import {
   earnedLifeActions,
@@ -15,7 +16,14 @@ import {
   toLadderConfig,
 } from '@/lib/table-run'
 import { dealPair, isCorrect, pairKey, pairSeedFor, type Pair } from '@/core/game/pairing'
-import { applyAnswer, canStartRun, canTakePrize, startRun, takePrize } from '@/core/game/run'
+import {
+  applyAnswer,
+  canStartRun,
+  canTakePrize,
+  endRun,
+  startRun,
+  takePrize,
+} from '@/core/game/run'
 
 /**
  * Beat the Kitchen, played through server actions (§4).
@@ -44,6 +52,20 @@ export interface AnswerOutcome {
   nextPair?: PairView | null
   endedReason?: string | null
   canTake?: boolean
+  /**
+   * What the rung screen may name, when this answer reached a rung. The same
+   * pure engine call the claim will make, read-only; null when the pool is
+   * empty or the kill switch is on — the screen then banks the rung without
+   * promising an item it cannot deliver.
+   */
+  rungPrize?: RungPrizeView | null
+}
+
+export interface RungPrizeView {
+  itemName: string
+  /** What the guest would pay, already computed. Zero means on the house. */
+  paysPaise: number
+  pricePaise: number
 }
 
 /** A pair as the phone is allowed to see it — the answer is not in here. */
@@ -109,6 +131,7 @@ export async function giveConsentAndOpen(qrToken: string): Promise<void> {
 
 /** Spend a life and begin. Refused when the table has none left (§4.3). */
 export async function beginRun(qrToken: string): Promise<AnswerOutcome> {
+  const now = Date.now()
   const scan = await resolveScan(qrToken)
   if (scan.kind !== 'OK') return { ok: false }
 
@@ -125,6 +148,14 @@ export async function beginRun(qrToken: string): Promise<AnswerOutcome> {
   const state = runStateOf(device.tableRun)
 
   if (!canStartRun(state)) return { ok: false }
+
+  // The food is the clock, and the kitchen is done — a life must not be spent
+  // on a round that is already over. The page renders the arrived screen; this
+  // guard covers the tap that races it.
+  const endsAt = await roundEndsAtMs(scan, config)
+  if (endsAt !== null && now > endsAt) {
+    return { ok: false, endedReason: 'FOOD_ARRIVED' }
+  }
 
   const started = startRun(state)
   await saveRunState(device.tableRunId, started)
@@ -202,6 +233,36 @@ export async function answerPair(
 
   const config = await getVenueConfig(scan.venueId)
   const ladder = toLadderConfig(config)
+
+  const context = {
+    serviceId: scan.serviceId,
+    arm: scan.arm,
+    tableRunId: device.tableRunId,
+    deviceSessionId: device.id,
+  }
+
+  // The clock is enforced here, not on the phone (§4.6). An answer that lands
+  // after the food is due is not judged — the run ends the way it was always
+  // designed to end, with the banked rung intact and the streak released.
+  const endsAt = await roundEndsAtMs(scan, config)
+  if (endsAt !== null && now > endsAt) {
+    const ended = endRun(runStateOf(device.tableRun), 'FOOD_ARRIVED')
+    await saveRunState(device.tableRunId, ended.state)
+    await recordEvent('RUN_END', context, { reason: 'FOOD_ARRIVED' })
+    await db.deviceSession.update({ where: { id: device.id }, data: { spentAt: new Date(now) } })
+    await recordEvent('DEVICE_SPENT', context)
+
+    return {
+      ok: true,
+      streak: ended.state.streak,
+      currentRung: ended.state.currentRung,
+      livesRemaining: ended.state.livesRemaining,
+      nextPair: null,
+      endedReason: 'FOOD_ARRIVED',
+      canTake: canTakePrize(ended.state),
+    }
+  }
+
   const menu = await getMenuForGame(scan.venueId)
 
   // Re-deal the pair this index refers to, from the same inputs that produced
@@ -220,13 +281,6 @@ export async function answerPair(
   const result = applyAnswer(runStateOf(device.tableRun), correct, ladder)
   await saveRunState(device.tableRunId, result.state)
 
-  const context = {
-    serviceId: scan.serviceId,
-    arm: scan.arm,
-    tableRunId: device.tableRunId,
-    deviceSessionId: device.id,
-  }
-
   await recordEvent('ANSWER', context, {
     correct,
     chosenId,
@@ -235,6 +289,25 @@ export async function answerPair(
   })
   if (result.rungReached) {
     await recordEvent('RUNG_REACHED', context, { rung: result.rungReached })
+  }
+
+  // The rung screen names its prize from the same engine the claim will run.
+  // Killed means no award will be written, so nothing is promised.
+  let rungPrize: RungPrizeView | null = null
+  if (result.rungReached && !scan.killed) {
+    const preview = await previewTopPrize(scan.venueId, scan.serviceId, now)
+    if (preview) {
+      rungPrize = {
+        itemName: preview.itemName,
+        paysPaise: guestPaysPaise(
+          preview.kind,
+          preview.pricePaise,
+          preview.percentOff ?? undefined,
+          preview.fixedPricePaise ?? undefined
+        ),
+        pricePaise: preview.pricePaise,
+      }
+    }
   }
 
   if (result.endedReason) {
@@ -255,6 +328,7 @@ export async function answerPair(
       nextPair: null,
       endedReason: result.endedReason,
       canTake: canTakePrize(result.state),
+      rungPrize,
     }
   }
 
@@ -284,6 +358,7 @@ export async function answerPair(
     nextPair: next?.view ?? null,
     endedReason: next ? null : 'ABANDONED',
     canTake: canTakePrize(result.state),
+    rungPrize,
   }
 }
 

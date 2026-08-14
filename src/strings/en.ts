@@ -254,16 +254,56 @@ export const en = {
       streak: (n: number) => `Streak ${n}`,
       rung: (n: number, of: number) => `Rung ${n}/${of}`,
       untimed: 'No timer',
-      takeIt: (rung: number) => `Take rung ${rung} and stop`,
-      wonHeading: 'You beat the kitchen.',
-      wonBody: (rung: number, of: number) =>
-        `You stopped at rung ${rung} of ${of}. Show this to your server.`,
+      fired: (time: string) => `Kitchen fired your order at ${time}`,
       lostHeading: 'The kitchen won this one.',
-      // No consolation, no discount, no second chance offered here (§9.1).
+      // No consolation, no discount, no second chance offered here (§9.1). A
+      // rung already banked is not consolation — it was earned before the miss.
       lostBody: 'That one went the other way.',
+      lostCost: (n: number) => (n === 1 ? 'The push cost a rung.' : `The push cost ${n} rungs.`),
       enjoy: 'Your food is on its way. Enjoy your meal.',
       claim: 'Claim it',
       outOfPairs: 'That is every question we can ask you tonight.',
+    },
+
+    /**
+     * The rung gate — the one staged moment in the product (REVAMP-BRIEF.md
+     * Part 5). The choice is stated with its downside and without softening.
+     */
+    rung: {
+      heading: (n: number) => `Rung ${n}.`,
+      banked: (n: number) => `Rung ${n} is banked.`,
+      take: 'Take it',
+      push: (next: number) => `Push for rung ${next}`,
+      pushDownside: (penalty: number) =>
+        penalty === 1 ? 'A wrong answer costs a rung.' : `A wrong answer costs ${penalty} rungs.`,
+    },
+
+    /**
+     * The food landing is the designed ending, not a failure (§4.6). The run
+     * is bounded by the kitchen; when the kitchen finishes first, the table
+     * keeps whatever it banked and is told so plainly.
+     */
+    arrived: {
+      heading: 'Your food is here.',
+      body: 'The game runs while the kitchen cooks, and the kitchen is done. Enjoy your meal.',
+      bodyHeld: 'The kitchen is done — and your rung is still banked. Take it before you eat.',
+    },
+
+    /**
+     * The won screen (§9.1) — read from the award row, so it survives a
+     * reload and a dead battery. The server confirms against the code; the
+     * guest just shows the screen.
+     */
+    won: {
+      heading: 'You beat the kitchen.',
+      instruction: 'Show this screen to your server.',
+      timeToSpare: (time: string) => `Claimed with ${time} still on the clock.`,
+      tonightOnly: 'Valid tonight only.',
+      awaiting: 'Waiting for your server…',
+      confirmed: 'Confirmed. Enjoy.',
+      free: 'On the house',
+      percentOff: (percent: number) => `${percent}% off`,
+      yourPrice: 'Your price',
     },
 
     start: {
@@ -275,6 +315,8 @@ export const en = {
         `Your table is on rung ${rung} of ${of}. Carry on from there, or stop and take it.`,
       lives: (n: number) => (n === 1 ? '1 go left at this table' : `${n} goes left at this table`),
       begin: 'Start',
+      // Claiming an inherited rung must not cost a life — starting does.
+      takeInstead: (rung: number) => `Take rung ${rung} instead`,
     },
 
     /**
@@ -316,9 +358,7 @@ export const en = {
       skip: 'No thanks',
       erase: 'Remove a number I left before',
       done: 'Thank you — that is another go for the table.',
-      stampedOnly: 'Thank you. That is counted.',
       rewardHeading: 'And you have earned something',
-      reward: (item: string) => `${item}, on the house — for coming back. Show this code:`,
       errWrongLength: 'An Indian mobile number is ten digits. Check that one again.',
       errNotAMobile: 'That looks like a landline. We need a mobile.',
       errNotNumeric: 'That has letters in it — just the digits, please.',
@@ -355,7 +395,6 @@ export const en = {
       privacy:
         'We record which table played and what you won, so your server can bring it. Nothing else, and nothing yet.',
       accept: 'Start',
-      declineNote: 'Not interested? Just close this — nothing has been recorded.',
     },
     /**
      * Before the fire (§9.1). The clock starts when the kitchen starts the
@@ -368,38 +407,6 @@ export const en = {
       heading: 'Your food hasn’t hit the fire yet.',
       body: 'A clock starts the moment the kitchen starts your order. Beat it and you win something off this menu. Keep this page open — it wakes up on its own.',
       notYet: 'Nothing to do yet',
-      subheadWithMinutes: (minutes: number) =>
-        `About ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} out.`,
-      subheadNoTimer: 'Play until your food lands.',
-      start: 'Start',
-      notFiredYet: "Your order hasn't gone into the kitchen yet. Hang tight — this'll wake up.",
-    },
-    round: {
-      foodArriving: 'Food incoming!',
-    },
-    // The climb. Nothing here may imply a draw, a wheel or luck: every rung is
-    // won by getting the order right, and the answers are printed on the menu
-    // on the table (PLATFORM.md §7).
-    climb: {
-      rungCounter: (rung: number, total: number) => `Rung ${rung} of ${total}`,
-      // The countdown is the food, not an arbitrary limit — say so, because it
-      // is the reason a slow kitchen is a longer climb rather than a worse wait.
-      foodIn: (seconds: number) => {
-        const m = Math.floor(seconds / 60)
-        const sec = seconds % 60
-        return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `${sec}s`
-      },
-      pairPrompt: 'Which one costs more?',
-      ladderPrompt: 'Cheapest to dearest.',
-      menuHint: 'The prices are on your menu. That is not cheating.',
-      lockIn: 'Lock it in',
-      cleared: 'Cleared.',
-      clearedNote: 'Next rung is worth more.',
-      missed: 'Not that one.',
-      // A missed hand must not read as the end of the run, because it is not.
-      missedNote: 'Same rung, new hand. You still have time.',
-      moveUp: (itemName: string) => `Move ${itemName} earlier`,
-      moveDown: (itemName: string) => `Move ${itemName} later`,
     },
     // Which table are you at? Shown after a venue QR scan, before consent.
     // Nothing is recorded on this screen — it is a list of links.
@@ -409,51 +416,6 @@ export const en = {
       tableLabel: (label: string) => `Table ${label}`,
       noTables: 'Nothing set up here yet. Enjoy your meal.',
     },
-    // Which stake, not which game — the climb is the same either
-    // way. Nothing here may imply a draw or a wheel: the mystery plate is a
-    // fixed-price dish the guest wins the *right to buy* (PLATFORM.md §7).
-    gamePicker: {
-      heading: 'Pick your stake',
-      body: 'Same climb either way. Different thing riding on it.',
-      kitchenRound: 'Beat the kitchen',
-      kitchenRoundBlurb:
-        'Climb as far as you can before your food lands. The higher you get, the better the dish.',
-      mysteryPlate: 'Tonight’s chef’s plate',
-      // Deliberately does not repeat the other button's heading. Two adjacent
-      // buttons whose accessible names each contain the other's are ambiguous
-      // on screen and to a screen reader — and the E2E locators had to be
-      // contorted around it.
-      mysteryPlateBlurb: (price: string) =>
-        `Win the chef’s pick for ${price} if you take the round.`,
-    },
-    outcome: {
-      wonHeading: 'You beat the kitchen',
-      wonInstruction: 'Show this screen to your server.',
-      lostHeading: 'The kitchen won this one',
-      lostInstruction: 'Show this screen to your server.',
-      // What the guest actually gets. The depth is whichever rule the venue
-      // wrote, so the copy takes it as an argument rather than assuming a half.
-      // Never a dead end: a loss still ends in real value.
-      wonFree: (itemName: string) => `Your ${itemName} is on the house.`,
-      wonPercent: (itemName: string, percent: number) => `${percent}% off your ${itemName}.`,
-      wonFixed: (itemName: string, price: string) => `${itemName}, yours for ${price}.`,
-      lostFree: (itemName: string) => `Close though — have a ${itemName} on us anyway.`,
-      lostPercent: (itemName: string, percent: number) =>
-        `Close though — here's ${percent}% off a ${itemName} anyway.`,
-      lostFixed: (itemName: string, price: string) =>
-        `Close though — you can still have a ${itemName} for ${price}.`,
-      nothingOffered: 'Nothing to give away right now, but thanks for playing.',
-      scoreLine: (score: number, total: number) => `You reached rung ${score} of ${total}`,
-      awaitingConfirm: 'Waiting for your server to confirm…',
-      confirmed: 'Confirmed. Enjoy.',
-    },
-    addOn: {
-      heading: 'Add something to the order?',
-      subhead: 'One tap and it goes straight to your server.',
-      send: 'Send to my server',
-      sent: 'Sent to your server.',
-      skip: 'No thanks',
-    },
     review: {
       heading: 'How was it?',
       body: 'Say it in your own words — good, bad, or complicated. It goes to Google in your name, not through us.',
@@ -461,9 +423,9 @@ export const en = {
       draftPlaceholder: 'What you ate, how it felt, whether you’d come back…',
       copyHint: 'Copy your words first — Google opens in a new page and you paste them there.',
       handOff: 'Open Google reviews',
+      decline: 'No thanks',
       noPlaceId: 'This venue hasn’t linked its Google profile yet — tell them in person instead.',
       entry: 'On your way out — tell people how it went',
-      thanks: 'Thank you. Your words, your name, your call.',
     },
     closed: {
       heading: 'Nothing running right now',

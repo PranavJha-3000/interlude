@@ -3,14 +3,34 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { markReviewShown } from '@/lib/review-funnel'
 import { readGuestSessionId } from '@/lib/session'
-import { getLatestOrderFire, getVenueConfig, resolveScan } from '@/lib/service'
+import {
+  getEnabledGames,
+  getLatestOrderFire,
+  getVenueConfig,
+  resolveScan,
+  roundEndsAtMs,
+} from '@/lib/service'
+import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { runStateOf, toLadderConfig } from '@/lib/table-run'
 import { canStartRun, canTakePrize, offeredLifeActions } from '@/core/game/run'
 import { earnedLifeActions } from '@/lib/table-run'
-import { giveConsentAndOpen } from './game-actions'
+import { claimPrize, giveConsentAndOpen } from './game-actions'
 import { Poller } from './Poller'
-import { Body, Heading, PrimaryButton, Screen } from './ui'
+import { Body, Card, guestViewport, Heading, PrimaryButton, Screen } from './ui'
 import { StartRun } from './StartRun'
+
+// A local export, deliberately not `export { … as viewport } from './ui'`: on
+// Next 16 a re-export in a page module silently breaks the registration of the
+// page's inline server actions (POSTs 404 with "Failed to find Server
+// Action"). Found by bisection 2026-08-14, same family as the group-layout
+// viewport quirk documented in ../layout.tsx.
+export const viewport = guestViewport
+
+/** m:ss out of milliseconds, for the one won-screen clock figure. */
+function mmss(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -78,6 +98,19 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
     )
   }
 
+  // Every game switched off is a venue decision the guest must read as a
+  // closed venue — /dash/games promises exactly that, and until now the guest
+  // route never checked. Same words, same screen, no table number, no tell.
+  const games = await getEnabledGames(scan.venueId)
+  if (games.length === 0) {
+    return (
+      <Screen venueName={scan.venueName}>
+        <Heading>{en.guest.closed.heading}</Heading>
+        <Body>{en.guest.closed.body}</Body>
+      </Screen>
+    )
+  }
+
   const config = await getVenueConfig(scan.venueId)
   const ladder = toLadderConfig(config)
 
@@ -125,6 +158,85 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   // see a screen promising a game this phone cannot play. The ways back in
   // matter more before the food than after it.
   if (device.spentAt || !canStartRun(state)) {
+    // ── Won (§9.1) ─────────────────────────────────────────────────────────
+    // Read from the award row, never from client memory: the claim used to
+    // land the guest on the lifelines screen with the prize nowhere on it —
+    // the code and the "show your server" instruction existed only in the
+    // pre-reload client state. The award is the table's, so a dead battery
+    // means any spent device at the table can still show it.
+    const award = await db.award.findFirst({
+      where: { tableRunId: run.id, origin: 'GAME', status: { in: ['PENDING', 'CONFIRMED'] } },
+      orderBy: { createdAt: 'desc' },
+      include: { menuItem: { select: { name: true, pricePaise: true } } },
+    })
+
+    if (award) {
+      const pays = guestPaysPaise(
+        award.kind,
+        award.menuItem.pricePaise,
+        award.percentOff ?? undefined,
+        award.fixedPricePaise ?? undefined
+      )
+      const pending = award.status === 'PENDING'
+      const endsAt = await roundEndsAtMs(scan, config)
+      const clockToSpare = endsAt !== null ? endsAt - award.createdAt.getTime() : 0
+
+      return (
+        <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
+          {/* 3s while a server is walking over — PLATFORM.md §11's redemption
+              interval, which had no screen to live on until now. */}
+          {pending && <Poller everyMs={3000} />}
+
+          {/* The win heading is the guest's one sanctioned display-face use —
+              the free Georgia fallback, zero bytes (UI-SPEC §4). */}
+          <h1 className="font-display text-3xl leading-tight text-balance">
+            {en.guest.won.heading}
+          </h1>
+          {clockToSpare > 0 && (
+            <p className="mt-2 font-mono text-sm text-muted tabular-nums">
+              {en.guest.won.timeToSpare(mmss(clockToSpare))}
+            </p>
+          )}
+
+          <div className="mt-8">
+            <p className="text-2xl leading-tight font-semibold">{award.menuItem.name}</p>
+            {/* Accent use one of four: the won price beside the struck menu
+                price. The only accent a guest will ever see. Mono is for
+                figures — "On the house" is words and keeps the body face. */}
+            <p className="mt-2 flex items-baseline gap-3">
+              {award.kind === 'FREE' ? (
+                <span className="text-3xl font-semibold text-accent">{en.guest.won.free}</span>
+              ) : (
+                <span className="font-mono text-3xl font-medium text-accent tabular-nums">
+                  {formatPaise(pays)}
+                </span>
+              )}
+              <span className="font-mono text-lg text-muted tabular-nums line-through">
+                {formatPaise(award.menuItem.pricePaise)}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-muted">{en.guest.won.tonightOnly}</p>
+          </div>
+
+          <div className="mt-auto pt-10">
+            <Card>
+              <p className="text-center text-base font-medium">{en.guest.won.instruction}</p>
+              <p className="mt-2 text-center font-mono text-4xl tracking-widest tabular-nums">
+                {award.code}
+              </p>
+            </Card>
+            <p
+              className={`mt-3 text-center text-sm ${pending ? 'text-muted' : 'font-medium text-ink'}`}
+            >
+              {pending ? en.guest.won.awaiting : en.guest.won.confirmed}
+            </p>
+          </div>
+
+          <ReviewLink qrToken={qrToken} />
+        </Screen>
+      )
+    }
+
     const earned = await earnedLifeActions(run.id)
     const offered = offeredLifeActions(earned, ladder)
 
@@ -244,13 +356,45 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   // counted duration, and both are ordinary in a restaurant (§4.6).
   const endsAtMs = fire ? fire.estReadyAt.getTime() - config.countdownBufferSec * 1000 : null
 
+  // ── Food's here (§4.6) ───────────────────────────────────────────────────
+  // The designed ending, not a failure: the kitchen finished first. The rung
+  // stays banked and claimable; the round itself is over, and the server
+  // actions refuse an answer past this moment for the same reason this screen
+  // renders instead of the game — the countdown must not lie.
+  if (endsAtMs !== null && endsAtMs <= now) {
+    await markReviewShown(run.id, scan.serviceId)
+    const held = canTakePrize(state)
+
+    return (
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
+        <Heading>{en.guest.arrived.heading}</Heading>
+        <Body>{held ? en.guest.arrived.bodyHeld : en.guest.arrived.body}</Body>
+        {held && (
+          <div className="mt-auto pt-8">
+            <form
+              action={async () => {
+                'use server'
+                await claimPrize(qrToken)
+              }}
+            >
+              <PrimaryButton>{en.guest.game.claim}</PrimaryButton>
+            </form>
+          </div>
+        )}
+        <ReviewLink qrToken={qrToken} />
+      </Screen>
+    )
+  }
+
   return (
     <StartRun
       qrToken={qrToken}
       venueName={scan.venueName}
       tableLabel={scan.tableLabel}
       endsAtMs={endsAtMs}
+      firedAtMs={fire ? fire.firedAt.getTime() : null}
       rungs={config.ladderRungs}
+      penaltyRungs={config.gamblePenaltyRungs}
       streak={run.streak}
       currentRung={run.currentRung}
       livesRemaining={run.livesRemaining}

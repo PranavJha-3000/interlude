@@ -5,7 +5,10 @@ import { readGuestSessionId } from '@/lib/session'
 import { resolveScan } from '@/lib/service'
 import { shouldShowReviewPrompt } from '@/core/review/prompt'
 import { markReviewOpened, markReviewShown } from '@/lib/review-funnel'
-import { Body, Heading, Screen } from '../ui'
+import { Body, guestViewport, Heading, Screen } from '../ui'
+
+// Local const, never a re-export — see the note in ../page.tsx.
+export const viewport = guestViewport
 import { recordReviewHandOff } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -85,13 +88,21 @@ export default async function ReviewPage({ params }: { params: Promise<{ qrToken
           {venue.googlePlaceId ? (
             <button
               type="submit"
-              className="min-h-14 w-full rounded-xl bg-ink text-lg font-semibold text-paper"
+              className="min-h-14 w-full rounded-xl bg-ink text-lg font-semibold text-paper active:bg-accent"
             >
               {en.guest.review.handOff}
             </button>
           ) : (
             <p className="text-center text-base text-muted">{en.guest.review.noPlaceId}</p>
           )}
+          {/* The second of exactly two buttons (REVAMP-BRIEF.md Part 6): a
+              plain way out, attached to nothing, promising nothing. */}
+          <a
+            href={`/t/${qrToken}`}
+            className="transition-state mt-3 flex min-h-14 w-full items-center justify-center rounded-xl border-2 border-line text-lg font-medium active:border-ink"
+          >
+            {en.guest.review.decline}
+          </a>
         </div>
       </form>
     </Screen>

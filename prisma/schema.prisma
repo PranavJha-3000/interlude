@@ -791,12 +791,16 @@ enum AwardOrigin {
 }
 
 model AddOnRequest {
-  id             String       @id @default(cuid())
-  tableRunId     String?
-  tableRun       TableRun?    @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
-  cancelledAt    DateTime?
-  guestSessionId String
-  guestSession   GuestSession @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  tableRunId  String?
+  tableRun    TableRun? @relation(fields: [tableRunId], references: [id], onDelete: Cascade)
+  cancelledAt DateTime?
+  /// Optional since the table became the unit of play: a Beat the Kitchen
+  /// add-on ticket hangs off the TableRun; `GuestSession` rows belong to the
+  /// climb era and the current flow never creates one. The server records the
+  /// ticket on /floor — the guest asks out loud, which is the point (§4.4).
+  guestSessionId String?
+  guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
   menuItemId     String
   menuItem       MenuItem     @relation(fields: [menuItemId], references: [id])
   qty            Int          @default(1)

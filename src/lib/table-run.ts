@@ -148,19 +148,6 @@ export async function earnedLifeActions(tableRunId: string) {
     )
 }
 
-/**
- * A redemption code (§7.4).
- *
- * Bound to table and service by construction — it is generated from neither, so
- * the binding is the row it sits on, but it is short enough to read aloud
- * across a noisy room, which is how it will actually be used. Ambiguous
- * characters are left out: nobody should have to decide whether that was a
- * zero or an O while holding three plates.
- */
-const CODE_ALPHABET = 'ACDEFGHJKLMNPQRTUVWXY34679'
-
-export function newRedemptionCode(random: (max: number) => number): string {
-  let code = ''
-  for (let i = 0; i < 5; i++) code += CODE_ALPHABET[random(CODE_ALPHABET.length)]
-  return code
-}
+// Pure, so it lives with the mechanics — re-exported here because this module
+// is where its callers historically found it.
+export { newRedemptionCode } from '@/core/mechanics/redemption-code'

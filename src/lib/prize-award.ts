@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { hashString } from '@/core/mechanics/hash'
+import { hashToRange } from '@/core/mechanics/hash'
 import { chooseLoyaltyReward, decidePrizePool } from '@/core/prize-engine'
 import type { PrizePoolResult } from '@/core/prize-engine'
 import { parseRankingWeights } from '@/lib/prize-config'
@@ -49,9 +49,7 @@ export interface DecideAndWriteAwardArgs {
  * engine refused everything, and here is why" is exactly the night an operator
  * most wants explained.
  */
-export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
-  const { venueId, serviceId, tableRunId, nowMs, purpose } = args
-
+async function runEngine(venueId: string, serviceId: string, nowMs: number) {
   const [venue, config, menuData, prizeRules, load, vetoes, conceded] = await Promise.all([
     db.venue.findUniqueOrThrow({ where: { id: venueId }, select: { timezone: true } }),
     getVenueConfig(venueId),
@@ -81,6 +79,39 @@ export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
     peakEndMinute: config.peakEndMinute,
   })
 
+  return { pool, config, menuData, load }
+}
+
+/**
+ * What the rung screen may promise (§9.1's rung-reached moment).
+ *
+ * The same pure engine call the claim will make, read-only — no snapshot, no
+ * award. The preview and the decision are seconds apart, so they almost always
+ * agree; when they don't (a cap crossed, the kill switch), the claim's answer
+ * is the truth and the preview promised "tonight only", not a contract.
+ */
+export async function previewTopPrize(venueId: string, serviceId: string, nowMs: number) {
+  const { pool, menuData } = await runEngine(venueId, serviceId, nowMs)
+  const top = pool.entries[0]
+  if (!top) return null
+
+  const item = menuData.rows.find((m) => m.id === top.itemId)
+  if (!item) return null
+
+  return {
+    itemName: item.name,
+    pricePaise: item.pricePaise,
+    kind: top.kind,
+    percentOff: top.percentOff ?? null,
+    fixedPricePaise: top.fixedPricePaise ?? null,
+  }
+}
+
+export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
+  const { venueId, serviceId, tableRunId, nowMs, purpose } = args
+
+  const { pool, config, menuData, load } = await runEngine(venueId, serviceId, nowMs)
+
   const nameOf = new Map(menuData.rows.map((m) => [m.id, m.name]))
   const snapshot = await db.prizePool.create({
     data: {
@@ -95,26 +126,40 @@ export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
   const decided = decide(pool, purpose, config, menuData.rows)
   if (!decided) return null
 
-  return db.award.create({
-    data: {
-      tableRunId,
-      rung: purpose.kind === 'GAME' ? purpose.rung : null,
-      origin: purpose.kind === 'GAME' ? 'GAME' : 'LOYALTY',
-      menuItemId: decided.itemId,
-      kind: decided.kind,
-      percentOff: decided.percentOff ?? null,
-      fixedPricePaise: decided.fixedPricePaise ?? null,
-      ruleId: decided.ruleId ?? null,
-      valuePaise: decided.valuePaise,
-      foodCostPaise: decided.costPaise,
-      reason: decided.reason,
-      // Linking the snapshot that decided it. This was created and discarded
-      // before the extraction, leaving the audit trail one join short of
-      // "which pool decided this award".
-      prizePoolId: snapshot.id,
-      code: newRedemptionCode((max) => Math.floor(hashString(seedFor(tableRunId, purpose)) % max)),
-    },
-  })
+  // Deterministic per (seed, attempt, position); the attempt counter only
+  // advances on a genuine unique-collision, so the audit trail stays
+  // reproducible: the same run and rung always yield the same first-choice
+  // code, and a retried one is visibly a retry in the derivation.
+  for (let attempt = 0; ; attempt++) {
+    const code = newRedemptionCode((max, position) =>
+      hashToRange(`${seedFor(tableRunId, purpose)}:${attempt}:${position}`, max)
+    )
+    try {
+      return await db.award.create({
+        data: {
+          tableRunId,
+          rung: purpose.kind === 'GAME' ? purpose.rung : null,
+          origin: purpose.kind === 'GAME' ? 'GAME' : 'LOYALTY',
+          menuItemId: decided.itemId,
+          kind: decided.kind,
+          percentOff: decided.percentOff ?? null,
+          fixedPricePaise: decided.fixedPricePaise ?? null,
+          ruleId: decided.ruleId ?? null,
+          valuePaise: decided.valuePaise,
+          foodCostPaise: decided.costPaise,
+          reason: decided.reason,
+          // Linking the snapshot that decided it. This was created and discarded
+          // before the extraction, leaving the audit trail one join short of
+          // "which pool decided this award".
+          prizePoolId: snapshot.id,
+          code,
+        },
+      })
+    } catch (e) {
+      const uniqueCollision = (e as { code?: string }).code === 'P2002'
+      if (!uniqueCollision || attempt >= 4) throw e
+    }
+  }
 }
 
 /**

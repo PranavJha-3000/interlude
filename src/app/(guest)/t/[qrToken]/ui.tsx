@@ -1,4 +1,18 @@
+import type { Viewport } from 'next'
 import { BRAND } from '@/brand'
+
+/**
+ * Every guest page re-exports this as `viewport`, because a route-group layout
+ * cannot (a `viewport` export there 404s the group on Next 16 — see
+ * `(guest)/layout.tsx`). The hex is `--color-ground-clay`; a meta tag cannot
+ * read a CSS variable, so this is one of the three documented raw-hex sites.
+ */
+export const guestViewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#efe4d4',
+}
 
 /**
  * Shared shell for every guest screen. Server-rendered, no client JS.
