@@ -50,6 +50,7 @@ export default async function TentsPage() {
   const tents = await Promise.all(
     ordered.map(async (t) => ({
       label: t.label,
+      token: t.qrToken,
       url: `${base}/t/${t.qrToken}`,
       // Rendered server-side as inline SVG: no image request, no client JS,
       // and it stays crisp at whatever size it is printed.
@@ -87,6 +88,10 @@ export default async function TentsPage() {
         {tents.map((t) => (
           <article
             key={t.label}
+            // Which token this tent's QR encodes. The printed URL line is
+            // gone (nobody types a 10px URL), so this is where the tenancy
+            // test — and a debugging human — can still read the binding.
+            data-token={t.token}
             className="tent flex break-inside-avoid flex-col overflow-hidden border border-line bg-white text-center print:border-black"
           >
             {/* The back face — printed upside-down so the folded tent reads

@@ -69,23 +69,25 @@ test('an operator signed into one venue sees none of the other', async ({ page }
   // in as an operator at all (src/app/(operator)/tents/page.tsx).
   await page.goto('/tents')
 
-  const tentsText = await page.locator('body').innerText()
+  // The token moved out of the printed text (nobody types a 10px URL) and
+  // into each tent's `data-token`, so the probe reads the HTML rather than
+  // the innerText. Same property, same teeth.
+  const tentsHtml = await page.content()
 
   // Presence before absence. Every check below is `not.toContain`, so a
   // redirect, a 404 or a render error would satisfy all of them at once and
   // report an isolation this test never performed. Pilot's own treatment table
-  // is on this sheet — its token is printed under the QR — so this pins the
-  // sheet as genuinely rendered and genuinely Pilot's before anything is
-  // asserted to be missing from it.
-  expect(tentsText, "venue A's own tent sheet did not render").toContain(a.treatmentToken)
+  // is on this sheet, so this pins the sheet as genuinely rendered and
+  // genuinely Pilot's before anything is asserted to be missing from it.
+  expect(tentsHtml, "venue A's own tent sheet did not render").toContain(a.treatmentToken)
 
-  expect(tentsText).not.toContain(copper.qrToken)
+  expect(tentsHtml).not.toContain(copper.qrToken)
   for (const t of copperTables) {
     const stillCopper = await db.table.findFirst({
       where: { venueId: copper.id, label: t.label },
       select: { qrToken: true },
     })
-    expect(tentsText, `venue B's table token leaked onto venue A's tent sheet`).not.toContain(
+    expect(tentsHtml, `venue B's table token leaked onto venue A's tent sheet`).not.toContain(
       stillCopper!.qrToken
     )
   }
