@@ -183,6 +183,11 @@ Format: what — where — why — did the screen get worse?)*
   unregisters the page's server actions (POSTs 404 "Failed to find Server Action"). Both found
   by bisection; both now carry comments at the site that would tempt a refactor.
 
+**Process note (2026-08-14):** never run `open-service.mts` or any db-touching dev script while
+the E2E suite is mid-run — both hit the same DATABASE_URL, and ending the suite's open service
+mid-test produces failures that look like application bugs (one such false failure cost a
+debugging cycle tonight). Same failure class as DEPLOY.md §7's smoke-test-venue warning.
+
 **Candidates identified during recon, to be judged at their surface:**
 - Orphaned strings from the retired climb/mystery-plate era: `en.guest.climb.*`,
   `en.guest.gamePicker.*`, `en.guest.outcome.*`, `en.guest.round.*`, most of the unused
