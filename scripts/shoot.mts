@@ -158,6 +158,18 @@ if (flow === 'arrived') {
   await page.reload({ waitUntil: 'networkidle' })
 }
 
+// Staff surfaces: sign in with the seeded venue PIN, then land wherever the
+// role lands (kitchen → /pass, server → /floor) and finally open `route`.
+if (flow === 'kitchen' || flow === 'server') {
+  const pin = flow === 'kitchen' ? '5678' : '1234'
+  await page.goto(new URL('/floor/pilot', base).toString(), { waitUntil: 'networkidle' })
+  await page.getByLabel('Your PIN').fill(pin)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  // The role decides the landing: kitchen → /pass, server → /floor.
+  await page.waitForURL(flow === 'kitchen' ? '**/pass' : '**/floor', { timeout: 15000 })
+  await page.goto(new URL(route, base).toString(), { waitUntil: 'networkidle' })
+}
+
 if (flow === 'round' || flow === 'rung' || flow === 'won' || flow === 'lost') {
   try {
     await consentIfAsked(page)
