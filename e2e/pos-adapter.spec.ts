@@ -52,7 +52,7 @@ test('firing with one tap uses the venue default and records no courses', async 
 
   const tile = tileFor(page, treatmentLabel)
   await tile.getByRole('button', { name: 'Fire order' }).click()
-  await expect(page.getByText(/Fired \d{2}:\d{2}/).first()).toBeVisible()
+  await expect(page.getByText(/Fired \d{1,2}:\d{2}/).first()).toBeVisible()
 
   const fire = await fireFor(serviceId, treatmentTableId)
   expect(fire).not.toBeNull()
@@ -80,7 +80,7 @@ test('naming courses sizes the run to the first plate that lands, not the last',
   await tile.getByText('Starters', { exact: true }).click()
   await tile.getByText('Mains', { exact: true }).click()
   await tile.getByRole('button', { name: 'Fire order' }).click()
-  await expect(page.getByText(/Fired \d{2}:\d{2}/).first()).toBeVisible()
+  await expect(page.getByText(/Fired \d{1,2}:\d{2}/).first()).toBeVisible()
 
   const fire = await fireFor(serviceId, treatmentTableId)
   expect(fire).not.toBeNull()
@@ -103,7 +103,7 @@ test('a fired table offers no way to fire again', async ({ page }) => {
 
   const tile = tileFor(page, treatmentLabel)
   await tile.getByRole('button', { name: 'Fire order' }).click()
-  await expect(page.getByText(/Fired \d{2}:\d{2}/).first()).toBeVisible()
+  await expect(page.getByText(/Fired \d{1,2}:\d{2}/).first()).toBeVisible()
 
   await expect(tile.getByRole('button', { name: 'Fire order' })).toHaveCount(0)
   await expect(tile.getByText('Courses')).toHaveCount(0)

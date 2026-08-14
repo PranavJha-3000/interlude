@@ -444,6 +444,24 @@ export const en = {
       needsVenueLink: 'Open your venue’s own floor link to sign in. Your manager has it.',
       venueHeading: (venueName: string) => `Sign in — ${venueName}`,
     },
+    /**
+     * The one list (REVAMP-BRIEF.md Part 6): what is waiting, oldest first.
+     * A server holding three plates reads the top row and acts.
+     */
+    now: {
+      heading: 'Now',
+      empty: 'Nothing waiting.',
+      fireAction: 'Fire order',
+      fireDetail: 'Guests are waiting on the clock.',
+      confirmAction: 'Confirm',
+      ackAction: 'Ack',
+    },
+    service: {
+      none: 'No service running.',
+      start: 'Start service',
+      swap: 'Swap tented / control',
+      end: 'End service',
+    },
     tables: {
       heading: 'Tables',
       empty: 'No tables seated yet.',
@@ -459,29 +477,22 @@ export const en = {
       coursesToggle: 'Courses',
       coursesHint: 'Optional — sharpens the timing',
       course: (category: string) => category.charAt(0).toUpperCase() + category.slice(1),
-      statusSeated: 'Seated',
-      statusFired: 'Order fired',
-      statusPlaying: 'Playing',
-      statusAddOn: 'Add-on requested',
-      statusRedeem: 'Awaiting redemption',
     },
     addOns: {
       heading: 'Add-ons',
+      hint: 'The guest asks out loud. Write it down here — the ticket and their extra go land together.',
+      addTo: (tableLabel: string) => `Add to table ${tableLabel}`,
       line: (tableLabel: string, qty: number, itemName: string) =>
         `${tableLabel} — ${qty}× ${itemName}`,
       ack: 'Ack',
     },
     redemptions: {
-      heading: 'Redemptions',
-      lineFree: (tableLabel: string, itemName: string) => `${tableLabel} claims: ${itemName}, free`,
+      lineFree: (itemName: string) => `${itemName}, free`,
       // The percentage comes off the award row, so the server reads the number
       // the guest was actually shown rather than one we assumed.
-      linePercent: (tableLabel: string, itemName: string, percent: number) =>
-        `${tableLabel} claims: ${itemName}, ${percent}% off`,
-      lineFixed: (tableLabel: string, itemName: string, price: string) =>
-        `${tableLabel} claims: ${itemName} at ${price}`,
+      linePercent: (itemName: string, percent: number) => `${itemName}, ${percent}% off`,
+      lineFixed: (itemName: string, price: string) => `${itemName} at ${price}`,
       confirm: 'Confirm',
-      confirmed: 'Done',
     },
   },
 

@@ -205,6 +205,30 @@ debugging cycle tonight). Same failure class as DEPLOY.md §7's smoke-test-venue
 - The load switch's help text moved inside each button — state and meaning in one glance —
   and every white/black opacity utility on the surface became a staff token.
 
+**Surface 4 — the floor (2026-08-14, committed):**
+
+- **The accent left the floor.** Redemption rows were filled `bg-accent` — the drift UI-SPEC §10
+  recorded — and are now ink-on-iron task rows; urgency is carried by position (oldest on top,
+  wearing the list's only border) and the mono age, not by brand colour. The accent ledger is
+  back to exactly four uses.
+- **One list.** Redemptions, legacy add-on acks and fire-needed tables merged into a single
+  age-sorted "Now" list — table, action, detail, age — replacing three stacked sections. The
+  status lines on table tiles (`Seated` / `Order fired` / `Playing`) went with them: a status
+  that demands no action is a metric wearing a costume.
+- **The tables grid shrank to its one job**: tables nobody has scanned and nobody has fired,
+  each carrying the fire flow (party size in the same tap, courses collapsed). Scanned tables
+  appear in Now; fired tables appear under Add-ons.
+- **Add-on tickets are real.** `recordAddOn` on the floor: the guest asks out loud, the server
+  writes it down, the row is born ACKED, the table's extra go lands in the same tap, and tier
+  1's extra-spend column can finally hold data. A table that never scanned gets a run opened
+  for it — the sale is real regardless.
+- The load switch appears read-only in the header region — same shape and meaning as the pass,
+  no floor-specific colour — with the kill state noted beneath when on.
+- Selection states (party chips, course chips) moved from load-amber to ink: saturation is
+  information, and the kitchen's colours are not selection decoration. The four hardcoded
+  strings ('No service running.', 'Start service', 'Swap tented / control', 'End service')
+  moved into `en.ts`, and times render en-IN like the guest side.
+
 **Candidates identified during recon, to be judged at their surface:**
 - Orphaned strings from the retired climb/mystery-plate era: `en.guest.climb.*`,
   `en.guest.gamePicker.*`, `en.guest.outcome.*`, `en.guest.round.*`, most of the unused
