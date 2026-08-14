@@ -7,7 +7,13 @@ import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-
 import { getOpenService, getVenueConfig } from '@/lib/service'
 import { resolvePosAdapter } from '@/lib/pos'
 import { recordEvent } from '@/lib/events'
-import { earnedLifeActions, runStateOf, saveRunState, toLadderConfig } from '@/lib/table-run'
+import {
+  earnedLifeActions,
+  openOrResumeTableRun,
+  runStateOf,
+  saveRunState,
+  toLadderConfig,
+} from '@/lib/table-run'
 import { grantLife } from '@/core/game/run'
 import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
@@ -208,6 +214,66 @@ export async function fireOrder(formData: FormData): Promise<void> {
       where: { serviceId: service.id, tableId },
       data: { partySize },
     })
+  }
+
+  revalidatePath('/floor')
+}
+
+/**
+ * The server records an add-on ticket (§4.4, REVAMP-BRIEF.md Part 6).
+ *
+ * The guest asks out loud — that is the point — and the server writes it
+ * down here. Recording IS confirmation, so the row is born ACKED and the
+ * table's life lands in the same tap: the sale happened in front of the
+ * person granting it. This is what feeds tier 1's extra-spend column, which
+ * was structurally ₹0 while nothing could create these rows.
+ */
+export async function recordAddOn(formData: FormData): Promise<void> {
+  const staff = await readStaffSession()
+  if (!staff) return
+
+  const tableId = String(formData.get('tableId') ?? '')
+  const menuItemId = String(formData.get('menuItemId') ?? '')
+  if (!tableId || !menuItemId) return
+
+  const service = await getOpenService(staff.venueId)
+  if (!service) return
+
+  const [table, item] = await Promise.all([
+    db.table.findFirst({ where: { id: tableId, venueId: staff.venueId, active: true } }),
+    db.menuItem.findFirst({ where: { id: menuItemId, venueId: staff.venueId, active: true } }),
+  ])
+  if (!table || !item) return
+
+  const config = await getVenueConfig(staff.venueId)
+  const ladder = toLadderConfig(config)
+
+  // A table that never scanned can still order a dessert. The run is the unit
+  // everything hangs off, so one is opened if the guests never did.
+  const run = await openOrResumeTableRun(service.id, tableId, ladder)
+
+  const now = new Date()
+  const request = await db.addOnRequest.create({
+    data: {
+      tableRunId: run.id,
+      menuItemId: item.id,
+      qty: 1,
+      // Snapshotted so the dashboard's money maths survives a menu edit.
+      pricePaise: item.pricePaise,
+      foodCostPaise: item.foodCostPaise,
+      status: 'ACKED',
+      ackedAt: now,
+    },
+  })
+
+  const earned = await earnedLifeActions(run.id)
+  const { state, granted } = grantLife(runStateOf(run), 'ADDON_CONFIRMED', earned, ladder)
+
+  const context = { serviceId: service.id, arm: 'LIVE' as const, tableRunId: run.id }
+  await recordEvent('ADDON_CONFIRMED', context, { addOnId: request.id })
+  if (granted) {
+    await saveRunState(run.id, state)
+    await recordEvent('LIFE_EARNED', context, { action: 'ADDON_CONFIRMED' })
   }
 
   revalidatePath('/floor')
