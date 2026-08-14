@@ -68,11 +68,15 @@ export default async function ActivityPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.sessionId} className="border-t border-line align-top">
-                  <td className="py-3 pr-4 text-lg font-semibold tabular-nums">{r.tableLabel}</td>
-                  <td className="py-3 pr-4 tabular-nums text-muted">{timeOf(r.scannedAt, tz)}</td>
+                  <td className="py-3 pr-4 font-mono text-lg font-semibold tabular-nums">
+                    {r.tableLabel}
+                  </td>
+                  <td className="py-3 pr-4 font-mono tabular-nums text-muted">
+                    {timeOf(r.scannedAt, tz)}
+                  </td>
                   <td className="py-3 pr-4">{gameLabel(r.mechanic)}</td>
-                  <td className="py-3 pr-4">{resultLabel(r)}</td>
-                  <td className="py-3">{claimLabel(r, tz)}</td>
+                  <td className="py-3 pr-4 font-mono tabular-nums">{resultLabel(r)}</td>
+                  <td className="py-3 font-mono tabular-nums">{claimLabel(r, tz)}</td>
                 </tr>
               ))}
             </tbody>
@@ -83,7 +87,7 @@ export default async function ActivityPage() {
       {controlTableLabels.length > 0 && (
         <section className="mt-10 rounded-2xl border border-line bg-warm p-5">
           <p className="text-sm text-muted">{en.dash.activity.controlNote}</p>
-          <p className="mt-2 text-lg tabular-nums">{controlTableLabels.join(' · ')}</p>
+          <p className="mt-2 font-mono text-lg tabular-nums">{controlTableLabels.join(' · ')}</p>
         </section>
       )}
     </main>

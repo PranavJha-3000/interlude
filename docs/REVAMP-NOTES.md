@@ -229,6 +229,43 @@ debugging cycle tonight). Same failure class as DEPLOY.md §7's smoke-test-venue
   strings ('No service running.', 'Start service', 'Swap tented / control', 'End service')
   moved into `en.ts`, and times render en-IN like the guest side.
 
+**Surfaces 5–7 — dashboard, landing, tent (2026-08-14, committed):**
+
+- Dashboard: the refusal log moved above the ledger into the wide column, reasons full-size in
+  the mono (the §4 mandate this screen was missing), cleared compact beside it; the ledger
+  gained its time column; the negative headline stopped stacking `font-mono font-display` and
+  letting stylesheet order pick the face. The layout inversion is pinned by an E2E assertion
+  (refusals precede the ledger; refused owns the wide span).
+- Landing: the clearing panel is `decidePrizePool` running live on every render over a
+  demonstration menu — the brief asked for "a real menu", and a real venue's pool on a public
+  page would publish that customer's menu and margin fences (§7 tenancy), so the computation is
+  real and the restaurant is illustrative, said on the card by the Example stamp. The steps'
+  accent numbers and display-face heading came off (a fifth use of each); the reassurance line
+  landed under the one CTA. The handwritten decision-card rows and their strings are gone.
+- Tent: 105×148mm with a real `@page` rule, four to an A4 sheet, folded with a deliberate back
+  face (wordmark in the display face, table number at standing height in the mono). The tiny
+  URL line under the QR came off — a 10px URL nobody will type is ink spent against the scan.
+  Every tent string moved to `en.ts`.
+
+**Final audits (2026-08-14):**
+
+- Raw hex outside `globals.css`: exactly the three documented exceptions (two themeColor meta
+  values that mirror tokens, the tents' pure-black QR).
+- Display face: exactly four render sites — landing h1, `/dash` negative headline, tent
+  wordmark, guest won heading.
+- Accent: the audit caught a fifth use hiding in native form controls — `accent-accent` on
+  operator checkboxes (menu upload, menu, prizes) — now `accent-ink`. With the floor drift
+  already removed, the ledger holds at four (use 4, the onboarding step marker, is currently
+  unspent: the wizard has no visual stepper to mark).
+- Motion: every transition is the `transition-state` token class; the only timers are the
+  countdown's 1s tick, the reveal-hold token and the three §11 poll intervals. No `animate-*`
+  anywhere.
+- Mono figures: the recon's fifteen violation sites are closed (the last two — activity's
+  result/claim columns and onboarding's price rows — fixed in this pass).
+- UI-SPEC.md corrected to match what shipped: guest ground clay in §8, the accent list's four
+  uses, the `/floor` exception retired, and the `var()` fallback mechanism note rewritten to
+  say the true thing.
+
 **Candidates identified during recon, to be judged at their surface:**
 - Orphaned strings from the retired climb/mystery-plate era: `en.guest.climb.*`,
   `en.guest.gamePicker.*`, `en.guest.outcome.*`, `en.guest.round.*`, most of the unused

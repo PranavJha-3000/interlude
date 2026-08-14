@@ -287,7 +287,7 @@ async function Menu({ venueId }: { venueId: string }) {
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 border-t border-line py-3">
               <span className="flex-1">{item.name}</span>
-              <span className="text-muted">{formatPaise(item.pricePaise)}</span>
+              <span className="font-mono text-muted tabular-nums">{formatPaise(item.pricePaise)}</span>
               <form action={removeItem}>
                 <input type="hidden" name="menuItemId" value={item.id} />
                 <button type="submit" className="text-sm text-muted underline">

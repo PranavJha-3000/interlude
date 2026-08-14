@@ -279,7 +279,7 @@ function ItemFields({
             type="checkbox"
             name="requiresKitchenWork"
             defaultChecked={item?.requiresKitchenWork ?? true}
-            className="h-5 w-5 accent-accent"
+            className="h-5 w-5 accent-ink"
           />
           {en.dash.menu.kitchenWorkLabel}
           <span className="text-xs text-muted">{en.dash.menu.kitchenWorkHelp}</span>
@@ -289,7 +289,7 @@ function ItemFields({
             type="checkbox"
             name="isHero"
             defaultChecked={item?.isHero ?? false}
-            className="h-5 w-5 accent-accent"
+            className="h-5 w-5 accent-ink"
           />
           {en.dash.menu.heroLabel}
           <span className="text-xs text-muted">{en.dash.menu.heroHelp}</span>

@@ -592,7 +592,7 @@ function Toggle({
         type="checkbox"
         name={name}
         defaultChecked={defaultChecked}
-        className="h-5 w-5 accent-accent"
+        className="h-5 w-5 accent-ink"
       />
       {label}
     </label>

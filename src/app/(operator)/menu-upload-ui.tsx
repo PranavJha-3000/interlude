@@ -96,7 +96,7 @@ export function MenuDraftGrid({
                     name="rowInclude"
                     value={String(i)}
                     defaultChecked
-                    className="h-5 w-5 accent-accent"
+                    className="h-5 w-5 accent-ink"
                   />
                   {en.onboarding.menu.upload.includeLabel}
                 </label>
