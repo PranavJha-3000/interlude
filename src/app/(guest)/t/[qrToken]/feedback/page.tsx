@@ -49,7 +49,7 @@ export default async function FeedbackPage({
 
   if (done) {
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{life ? en.guest.feedback.doneLife : en.guest.feedback.done}</Heading>
         <div className="mt-auto pt-8">
           <a href={`/t/${qrToken}`} className="block text-center text-base underline">
@@ -61,7 +61,7 @@ export default async function FeedbackPage({
   }
 
   return (
-    <Screen venueName={scan.venueName}>
+    <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
       <Heading>{en.guest.feedback.heading}</Heading>
       <Body>{en.guest.feedback.body}</Body>
 
@@ -88,7 +88,7 @@ export default async function FeedbackPage({
             {[1, 2, 3, 4, 5].map((n) => (
               <label
                 key={n}
-                className="flex min-h-14 flex-1 items-center justify-center rounded-xl border border-line font-mono text-lg has-checked:border-ink has-checked:bg-warm"
+                className="flex min-h-14 flex-1 items-center justify-center rounded-xl border border-line font-mono text-lg tabular-nums has-checked:border-ink has-checked:bg-ground-cotton"
               >
                 <input type="radio" name="rating" value={n} className="sr-only" />
                 {n}

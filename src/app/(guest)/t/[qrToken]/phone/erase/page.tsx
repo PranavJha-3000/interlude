@@ -50,7 +50,7 @@ export default async function ErasePage({
 
   if (done) {
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.erase.done}</Heading>
         <div className="mt-auto pt-8">
           <a href={`/t/${qrToken}`} className="block text-center text-base underline">
@@ -62,7 +62,7 @@ export default async function ErasePage({
   }
 
   return (
-    <Screen venueName={scan.venueName}>
+    <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
       <Heading>{en.guest.erase.heading}</Heading>
       <Body>{en.guest.erase.body}</Body>
 

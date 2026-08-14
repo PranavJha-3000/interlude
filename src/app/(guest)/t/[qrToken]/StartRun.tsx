@@ -58,7 +58,7 @@ export function StartRun({
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8">
       <header className="mb-8 flex items-baseline justify-between">
         <p className="text-xs tracking-widest text-muted uppercase">{venueName}</p>
-        <p className="font-mono text-xs text-muted">{tableLabel}</p>
+        <p className="font-mono text-xs text-muted tabular-nums">{tableLabel}</p>
       </header>
 
       <h1 className="text-3xl leading-tight font-semibold text-balance">{en.guest.game.heading}</h1>

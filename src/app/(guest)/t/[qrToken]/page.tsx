@@ -94,7 +94,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   // (§7.3, DPDP purpose limitation).
   if (!device || device.tableRun.serviceId !== scan.serviceId) {
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.consent.heading}</Heading>
         <Body>{en.guest.consent.body}</Body>
         <div className="mt-auto pt-8">
@@ -127,7 +127,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
     if (!runUntimed) {
       return (
-        <Screen venueName={scan.venueName}>
+        <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
           <Poller everyMs={5000} />
           <Heading>{en.guest.waiting.heading}</Heading>
           <Body>{en.guest.waiting.body}</Body>
@@ -160,7 +160,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
     await markReviewShown(run.id, scan.serviceId)
 
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.spent.heading}</Heading>
         <Body>{en.guest.spent.body(run.streak, run.currentRung, config.ladderRungs)}</Body>
 
@@ -182,7 +182,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
                 const href = LIFE_ACTION_HREF[action]?.(qrToken)
 
                 return (
-                  <li key={action} className="rounded-xl border border-line bg-warm p-4 text-base">
+                  <li key={action} className="rounded-xl border border-line bg-ground-cotton p-4 text-base">
                     {href ? (
                       <a href={href} className="underline">
                         {label}
@@ -210,7 +210,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
   if (!canStartRun(state)) {
     await markReviewShown(run.id, scan.serviceId)
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.spent.heading}</Heading>
         <Body>{en.guest.spent.body(run.streak, run.currentRung, config.ladderRungs)}</Body>
         <ReviewLink qrToken={qrToken} />

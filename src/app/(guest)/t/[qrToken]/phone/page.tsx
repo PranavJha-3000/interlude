@@ -58,7 +58,7 @@ export default async function PhonePage({
 
   if (done) {
     return (
-      <Screen venueName={scan.venueName}>
+      <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.phone.done}</Heading>
 
         {code && (
@@ -80,7 +80,7 @@ export default async function PhonePage({
   }
 
   return (
-    <Screen venueName={scan.venueName}>
+    <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
       <Heading>{en.guest.phone.heading}</Heading>
       <Body>{en.guest.phone.body}</Body>
 

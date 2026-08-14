@@ -60,3 +60,6 @@ Thumbs.db
 
 # subagent-driven-development scratch (ledger, briefs, review packages)
 /.superpowers/
+
+# revamp screenshot loop output (scripts/shoot.mts) — reviewed, never committed
+/screenshots/

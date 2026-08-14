@@ -8,7 +8,14 @@ import nextTs from 'eslint-config-next/typescript'
  * pure is what makes the invariants testable. Both are enforced here so they
  * fail CI rather than relying on anyone's discipline.
  */
-const PURE_CORE = ['src/core/prize-engine/**/*.ts', 'src/core/mechanics/**/*.ts']
+const PURE_CORE = [
+  'src/core/prize-engine/**/*.ts',
+  'src/core/mechanics/**/*.ts',
+  // The game's pairing and ladder live here, and pairing.ts already claimed
+  // this ban applied to it. It did not — the glob below is what makes the
+  // claim true, and the deterministic seeded deal is what it protects.
+  'src/core/game/**/*.ts',
+]
 
 const NO_RANDOMNESS = [
   {
