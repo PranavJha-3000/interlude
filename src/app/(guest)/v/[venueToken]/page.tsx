@@ -52,7 +52,7 @@ export default async function VenuePickerPage({
             href={`/t/${t.qrToken}`}
             prefetch={false}
             aria-label={en.guest.tablePicker.tableLabel(t.label)}
-            className="flex min-h-16 items-center justify-center rounded-xl border border-line bg-warm text-xl font-semibold tabular-nums active:bg-ink active:text-paper"
+            className="flex min-h-16 items-center justify-center rounded-xl border border-line bg-ground-cotton text-xl font-semibold tabular-nums active:bg-ink active:text-paper"
           >
             {t.label}
           </Link>

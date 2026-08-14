@@ -164,17 +164,17 @@ function DishCard({
       : state === 'wrong'
         ? 'border-loss text-loss'
         : state === 'committed'
-          ? 'border-ink bg-warm'
+          ? 'border-ink bg-ground-cotton'
           : state === 'dimmed'
             ? 'border-line opacity-40'
-            : 'border-line bg-warm active:bg-accent-soft'
+            : 'border-line bg-ground-cotton active:bg-accent-soft'
 
   return (
     <button
       type="button"
       onClick={onTap}
       disabled={state !== 'idle'}
-      className={`relative flex min-h-32 w-full items-end overflow-hidden rounded-2xl border-2 p-4 text-left transition-colors ${tone}`}
+      className={`relative flex min-h-32 w-full items-end overflow-hidden rounded-2xl border-2 p-4 text-left transition-state ${tone}`}
     >
       {/* A missing photo is a typographic card of the same size and weight —
           never a broken image and never a placeholder icon (§10). */}

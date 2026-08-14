@@ -63,7 +63,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ qrToken
   })
 
   return (
-    <Screen venueName={scan.venueName}>
+    <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
       <Heading>{en.guest.review.heading}</Heading>
       <Body>{en.guest.review.body}</Body>
 
