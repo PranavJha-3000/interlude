@@ -369,8 +369,9 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
       <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
         <Heading>{en.guest.arrived.heading}</Heading>
         <Body>{held ? en.guest.arrived.bodyHeld : en.guest.arrived.body}</Body>
-        {held && (
-          <div className="mt-auto pt-8">
+        {/* The one exit lives where the thumb is, claim or no claim. */}
+        <div className="mt-auto pt-8">
+          {held && (
             <form
               action={async () => {
                 'use server'
@@ -379,9 +380,9 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
             >
               <PrimaryButton>{en.guest.game.claim}</PrimaryButton>
             </form>
-          </div>
-        )}
-        <ReviewLink qrToken={qrToken} />
+          )}
+          <ReviewLink qrToken={qrToken} />
+        </div>
       </Screen>
     )
   }

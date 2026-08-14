@@ -125,6 +125,80 @@ test('the streak belongs to the table, so a second phone inherits it', async ({ 
   await second.close()
 })
 
+test('the clock is enforced by the server, not the phone', async ({ page }) => {
+  const { serviceId, treatmentToken, treatmentTableId } = await arrangeService()
+  await fireFor(serviceId, treatmentTableId, 20)
+  await consentAndBegin(page, treatmentToken)
+
+  // The food comes due while the round is open. Only the database knows —
+  // the phone's countdown is still ticking happily.
+  await db.orderFire.updateMany({
+    where: { serviceId, tableId: treatmentTableId },
+    data: { estReadyAt: new Date(Date.now() - 120_000) },
+  })
+
+  const run = await db.tableRun.findFirstOrThrow({
+    where: { serviceId, tableId: treatmentTableId },
+  })
+  const shown = run.pairsShown[0]!.split(':')
+  const items = await db.menuItem.findMany({
+    where: { id: { in: shown } },
+    select: { name: true, trailingSales: true },
+  })
+  const higher = [...items].sort((a, b) => b.trailingSales - a.trailingSales)[0]!
+
+  // A correct tap after the clock has run out must not be judged — the run
+  // ends the way it was designed to, with the food.
+  await page.getByRole('button', { name: higher.name }).click()
+  await expect(page.getByText('Your food is here.')).toBeVisible()
+
+  const after = await db.tableRun.findFirstOrThrow({ where: { id: run.id } })
+  expect(after.streak, 'the late answer was not judged').toBe(0)
+
+  const events = await db.event.findMany({
+    where: { tableRunId: run.id },
+    select: { type: true, detail: true },
+  })
+  expect(
+    events.some(
+      (e) => e.type === 'RUN_END' && (e.detail as { reason?: string })?.reason === 'FOOD_ARRIVED'
+    ),
+    'the run ended FOOD_ARRIVED on the server'
+  ).toBe(true)
+})
+
+test('a claim survives a reload — the won screen is a server state', async ({ page }) => {
+  const { serviceId, treatmentToken, treatmentTableId } = await arrangeService()
+  await fireFor(serviceId, treatmentTableId)
+  await consentAndBegin(page, treatmentToken)
+
+  const run = await db.tableRun.findFirstOrThrow({
+    where: { serviceId, tableId: treatmentTableId },
+  })
+  const shown = run.pairsShown[0]!.split(':')
+  const items = await db.menuItem.findMany({
+    where: { id: { in: shown } },
+    select: { name: true, trailingSales: true },
+  })
+  const higher = [...items].sort((a, b) => b.trailingSales - a.trailingSales)[0]!
+
+  await page.getByRole('button', { name: higher.name }).click()
+  await expect(page.getByText(/^Rung 1\./)).toBeVisible()
+  await page.getByRole('button', { name: 'Take it' }).click()
+  await expect(page.getByText('You beat the kitchen.')).toBeVisible()
+
+  const award = await db.award.findFirstOrThrow({ where: { tableRunId: run.id } })
+  expect(award.status).toBe('PENDING')
+  expect(award.code).toMatch(/^[ACDEFGHJKLMNPQRTUVWXY34679]{5}$/)
+
+  // The prize is not client memory. A dead battery, a reload, a re-scan on
+  // the same phone — the code and the instruction are still there.
+  await page.reload()
+  await expect(page.getByText('You beat the kitchen.')).toBeVisible()
+  await expect(page.getByText(award.code!)).toBeVisible()
+  await expect(page.getByText('Show this screen to your server.')).toBeVisible()
+})
+
 test('a control night is indistinguishable from a closed venue', async ({ page }) => {
   const { serviceId, treatmentToken } = await arrangeService()
 
