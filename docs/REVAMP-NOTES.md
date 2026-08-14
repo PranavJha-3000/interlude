@@ -188,6 +188,23 @@ the E2E suite is mid-run — both hit the same DATABASE_URL, and ending the suit
 mid-test produces failures that look like application bugs (one such false failure cost a
 debugging cycle tonight). Same failure class as DEPLOY.md §7's smoke-test-venue warning.
 
+**Surface 3 — kitchen pass (2026-08-14, committed):**
+
+- The kill switch moved from above the load switch to a sticky band at the viewport bottom.
+  Above the switch it violated UI-SPEC §8 ("never put anything above the load switch") and read
+  as part of the traffic light; below a long pool it would have failed "findable in a hurry" —
+  sticky solves both, and the distance from the red block is what says "not a fourth state".
+- The separate Veto/Allow buttons went — the row is the toggle, tap to veto, tap again to
+  restore, with the hint written once at the list head. Vetoed rows stay in the same list
+  (strike + soft ink + chip) instead of a second section.
+- The engine reason strings came off the pass rows — the chef judges a veto by item, station
+  and fire time; the *why it's in the pool* is the operator's reading, on /dash/prizes. The
+  rows gained station · fire-minutes (mono) instead.
+- The per-mechanic pool machinery went (one game ships); with it the `gameKitchenRound`,
+  `gameMysteryPlate`, `excludedHeading`, `veto`, `unveto` and `load.setAt` strings.
+- The load switch's help text moved inside each button — state and meaning in one glance —
+  and every white/black opacity utility on the surface became a staff token.
+
 **Candidates identified during recon, to be judged at their surface:**
 - Orphaned strings from the retired climb/mystery-plate era: `en.guest.climb.*`,
   `en.guest.gamePicker.*`, `en.guest.outcome.*`, `en.guest.round.*`, most of the unused

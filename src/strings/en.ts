@@ -506,25 +506,19 @@ export const en = {
       green: 'Green',
       amber: 'Amber',
       red: 'Red',
+      // Spelled out inside the control itself — the chef reads the state and
+      // its meaning in the same glance, mid-service, three metres away.
       greenHelp: 'Everything on',
       amberHelp: 'Low-effort prizes only',
       redHelp: 'No prize that makes you cook',
-      setAt: (time: string) => `Set ${time}`,
     },
     pool: {
       heading: "Tonight's pool",
+      hint: 'Tap to veto. Tap again to restore.',
       empty: 'Nothing in the pool right now.',
+      inPool: 'In pool',
       vetoed: 'Vetoed',
-      veto: 'Veto',
-      unveto: 'Allow',
-      excludedHeading: 'Not in the pool',
-      // A pool per game the venue is running. The two genuinely differ — a
-      // mystery plate is a fixed price, so different items qualify — and the
-      // chef is the one person who has to know what is actually being given
-      // away. Only shown when there is more than one, so a venue running a
-      // single game keeps the plain list it had.
-      gameKitchenRound: 'Kitchen round',
-      gameMysteryPlate: 'Mystery plate',
+      fireMinutes: (m: number) => `${m} min fire`,
       noGames: 'No game is on. Nothing is being offered.',
     },
   },
