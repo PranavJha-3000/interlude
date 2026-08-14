@@ -26,8 +26,10 @@ export const en = {
 
   landing: {
     eyebrow: BRAND.name,
-    heading: 'The wait between ordering and eating is unsold inventory.',
+    heading: 'It knows what not to give away.',
     body: 'A skill game on the guest’s own phone, lasting exactly as long as their food does. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
+    reassurance:
+      'Your tables already have QR codes — this replaces what they open. No app for your guests, no new hardware.',
     forGuests:
       'Your guest scans a code on the table and plays for as long as their food takes — a slow kitchen is a longer game, not a worse wait. They climb a ladder of dishes off your own menu, and keep the rung they reach.',
     forYou:
@@ -37,16 +39,15 @@ export const en = {
     cta: 'Get started',
 
     /**
-     * The signature element (UI-SPEC.md §6): a rendered fragment of the
-     * engine's own audit trail. The refusal column is the pitch, so it is
-     * listed second and its reasons are set in full ink while the item names
-     * are struck and softened — the eye lands on *why it said no*.
+     * The clearing panel (UI-SPEC.md §6, REVAMP-BRIEF.md Part 6): the most
+     * characteristic thing the product does, doing it — `decidePrizePool`
+     * runs live on every render over a demonstration menu, and the reasons on
+     * the card are the engine's own strings, not marketing copy.
      *
-     * These rows are an illustration, not a customer's data. Two things are
-     * deliberately absent: a venue name and a location. There are no customers
-     * yet, and inventing one on the front door of a product whose whole
-     * promise is honest measurement is the single most expensive lie
-     * available. `stamp` says so on the card itself.
+     * The menu is a demonstration by necessity, not laziness: a real venue's
+     * pool on a public page would publish that customer's menu, food costs
+     * and margin fences (PLATFORM.md §7 tenancy). `stamp` says so on the card
+     * itself — the computation is real, the restaurant is not claimed to be.
      */
     decisionCard: {
       stamp: 'Example',
@@ -55,17 +56,6 @@ export const en = {
       clearedNote: 'Winnable tonight',
       refusedHeading: 'Refused',
       refusedNote: 'And the reason, in writing',
-      cleared: [
-        { item: 'Gulab jamun ×2', why: 'Plated cold. No fire time.' },
-        { item: 'Masala chai', why: '₹9 food cost against a ₹90 line.' },
-        { item: 'Veg momos, 20% off', why: 'Margin holds at 41% after the cut.' },
-      ],
-      refused: [
-        { item: 'Butter chicken', why: 'Your hero item. Never discounted.' },
-        { item: 'Tandoori chicken', why: 'Chef set load to red at 6:32pm.' },
-        { item: 'Paneer tikka, 40% off', why: 'Depth cap is 25%. Offered at 25%.' },
-        { item: 'Kulfi', why: 'Pool spend already at ₹1,200 of ₹1,200.' },
-      ],
       footnote:
         'Every line above is a row the engine wrote before service, with the reason attached. You can read it back the next morning and argue with it.',
     },
@@ -73,21 +63,25 @@ export const en = {
     /** Four steps, because the fifth would be the one they abandon. */
     stepsHeading: 'What setup actually looks like',
     steps: [
-      { n: '01', title: 'Tell us the venue', body: 'Name, city, how many tables. Two minutes.' },
       {
-        n: '02',
-        title: 'Load your menu',
-        body: 'Price, food cost, and whether the kitchen has to touch it.',
+        n: '01',
+        title: 'Import your menu',
+        body: 'A photo, a PDF or a CSV. You check every line before anything is saved.',
       },
       {
-        n: '03',
-        title: 'Set your fences',
+        n: '02',
+        title: 'Set your margin floors',
         body: 'Deepest discount, spend per service, items that are never on the table.',
       },
       {
+        n: '03',
+        title: 'Print the QR tents',
+        body: 'One per table. Half stay blank — that is the control group, and it is how the number stays honest.',
+      },
+      {
         n: '04',
-        title: 'Print the tents',
-        body: 'One QR per table. Half of them stay blank — that is the control group, and it is how the number stays honest.',
+        title: 'Go live',
+        body: 'Open a service. The kitchen keeps its veto and a kill switch the whole night.',
       },
     ],
   },
@@ -433,6 +427,20 @@ export const en = {
     },
   },
 
+  /**
+   * The printed tent (REVAMP-BRIEF.md Part 6). Exists to get scanned; the
+   * scripted line is the one the staff briefing uses, on the tent because the
+   * tent is the only part guaranteed to reach the table.
+   */
+  tents: {
+    heading: 'Table tents',
+    intro: (n: number) =>
+      `${n} ${n === 1 ? 'table' : 'tables'}. Print to A4 — four tents a sheet — cut along the solid lines, fold at the dashed one. Only tented tables can play: the tents are how the treatment arm is created, so put them out deliberately.`,
+    print: 'Print',
+    pitch: 'Scan it while you wait — you might win dessert',
+    meta: 'No app, no signup',
+  },
+
   floor: {
     signIn: {
       heading: 'Floor',
@@ -555,6 +563,7 @@ export const en = {
 
     ledger: {
       heading: 'Tonight, table by table',
+      time: 'Time',
       table: 'Table',
       result: 'Result',
       prize: 'Prize',

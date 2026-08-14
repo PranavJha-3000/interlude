@@ -84,9 +84,16 @@ export default async function DashPage() {
           </span>
         </div>
 
+        {/* The face is conditional, not stacked: `font-mono font-display` in
+            one class list leaves the winner to stylesheet order. A positive
+            figure is the instrument (mono, tabular); a negative one earns the
+            display face and the loss colour — the one time this screen raises
+            its voice. */}
         <p
-          className={`mt-1 font-mono text-6xl tabular-nums ${
-            negative ? 'font-display text-loss' : 'font-semibold text-ink'
+          className={`mt-1 text-6xl ${
+            negative
+              ? 'font-display text-loss'
+              : 'font-mono font-semibold text-ink tabular-nums'
           }`}
         >
           {formatPaise(money.netContributionPaise)}
@@ -112,6 +119,52 @@ export default async function DashPage() {
             </a>
           </p>
         )}
+      </section>
+
+      {/* ── The refusal log — the hero, not a panel at the bottom (Part 6).
+          What the engine refused is the product argument rendered as layout:
+          the refused column takes two thirds of the width, its reasons at
+          full size in the mono — the system talking — while the cleared list
+          sits compact. A stranger given three seconds should come away
+          thinking this software says no for a living. ───────────────────── */}
+      <section id="refusals" className="mt-10">
+        <div className="grid gap-8 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <h2 className="text-sm font-semibold tracking-wide text-ink-warm uppercase">
+              {en.dash.refusals.refusedHeading}
+            </h2>
+            <ul className="mt-3 grid gap-3">
+              {data.pool.refused.length === 0 && (
+                <li className="text-sm text-muted">{en.dash.refusals.none}</li>
+              )}
+              {data.pool.refused.map((r, i) => (
+                <li key={i} className="border-b border-line pb-3">
+                  <span className="text-sm text-muted line-through">{r.item}</span>
+                  {r.why && (
+                    <p className="mt-0.5 font-mono text-base leading-snug text-ink">{r.why}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-sm tracking-wide text-muted uppercase">
+              {en.dash.refusals.clearedHeading}
+            </h2>
+            <ul className="mt-3 grid gap-2">
+              {data.pool.cleared.length === 0 && (
+                <li className="text-xs text-muted">{en.dash.refusals.none}</li>
+              )}
+              {data.pool.cleared.map((c, i) => (
+                <li key={i} className="border-b border-line pb-2 text-xs">
+                  <span className="text-ink-warm">{c.item}</span>
+                  {c.why && <span className="block font-mono text-muted">{c.why}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </section>
 
       <section className="mt-10 grid grid-cols-2 gap-3">
@@ -149,6 +202,7 @@ export default async function DashPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-ink-warm text-left text-xs tracking-wide text-ink-warm uppercase">
+                  <th className="py-2 pr-3 font-medium">{en.dash.ledger.time}</th>
                   <th className="py-2 pr-3 font-medium">{en.dash.ledger.table}</th>
                   <th className="py-2 pr-3 font-medium">{en.dash.ledger.result}</th>
                   <th className="py-2 pr-3 font-medium">{en.dash.ledger.prize}</th>
@@ -160,7 +214,13 @@ export default async function DashPage() {
               <tbody>
                 {data.ledger.map((r, i) => (
                   <tr key={`${r.tableLabel}-${i}`} className="border-b border-line">
-                    <td className="py-2 pr-3 font-mono">{r.tableLabel}</td>
+                    <td className="py-2 pr-3 font-mono tabular-nums">
+                      {new Date(r.atMs).toLocaleTimeString('en-IN', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="py-2 pr-3 font-mono tabular-nums">{r.tableLabel}</td>
                     <td className="py-2 pr-3">{r.result}</td>
                     <td className="py-2 pr-3">{r.prizeName ?? en.common.none}</td>
                     <td className="py-2 pr-3 text-right font-mono tabular-nums">
@@ -179,7 +239,7 @@ export default async function DashPage() {
                   </tr>
                 ))}
                 <tr className="font-semibold">
-                  <td className="py-2 pr-3" colSpan={3}>
+                  <td className="py-2 pr-3" colSpan={4}>
                     {en.dash.ledger.totals}
                   </td>
                   <td className="py-2 pr-3 text-right font-mono tabular-nums">
@@ -201,45 +261,6 @@ export default async function DashPage() {
           </div>
         </section>
       )}
-
-      {/* The refusal log. Refused is listed second, its item names struck and
-          softened while the reasons are set in full ink — the eye should land
-          on *why it said no*, because that is the product. */}
-      <section id="refusals" className="mt-10 grid gap-6 sm:grid-cols-2">
-        <div>
-          <h2 className="text-sm tracking-wide text-muted uppercase">
-            {en.dash.refusals.clearedHeading}
-          </h2>
-          <ul className="mt-3 grid gap-2">
-            {data.pool.cleared.length === 0 && (
-              <li className="text-sm text-muted">{en.dash.refusals.none}</li>
-            )}
-            {data.pool.cleared.map((c, i) => (
-              <li key={i} className="border-b border-line pb-2 text-sm text-muted">
-                <span className="text-ink-warm">{c.item}</span>
-                {c.why && <span className="block text-xs">{c.why}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h2 className="text-sm tracking-wide text-ink-warm uppercase">
-            {en.dash.refusals.refusedHeading}
-          </h2>
-          <ul className="mt-3 grid gap-2">
-            {data.pool.refused.length === 0 && (
-              <li className="text-sm text-muted">{en.dash.refusals.none}</li>
-            )}
-            {data.pool.refused.map((r, i) => (
-              <li key={i} className="border-b border-line pb-2 text-sm">
-                <span className="text-muted line-through">{r.item}</span>
-                {r.why && <span className="block text-ink">{r.why}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
 
       <details className="mt-10">
         <summary className="cursor-pointer text-sm text-muted">

@@ -158,6 +158,18 @@ if (flow === 'arrived') {
   await page.reload({ waitUntil: 'networkidle' })
 }
 
+// Operator surfaces: the seeded owner's password sign-in, then `route`.
+if (flow === 'owner') {
+  await page.goto(new URL('/signin', base).toString(), { waitUntil: 'networkidle' })
+  await page.getByLabel('Your email').fill(process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com')
+  await page
+    .getByLabel('Password', { exact: true })
+    .fill(process.env.SEED_OPERATOR_PASSWORD ?? 'pilot-owner-dev')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL('**/dash', { timeout: 15000 })
+  await page.goto(new URL(route, base).toString(), { waitUntil: 'networkidle' })
+}
+
 // Staff surfaces: sign in with the seeded venue PIN, then land wherever the
 // role lands (kitchen → /pass, server → /floor) and finally open `route`.
 if (flow === 'kitchen' || flow === 'server') {

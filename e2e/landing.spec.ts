@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('the landing page offers one way in', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('unsold inventory')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('what not to give away')
 
   // The front door is for an owner who has no account yet, so the one way in is
   // signup. Signing in is a link from there, not the thing they are shown first.
@@ -26,7 +26,9 @@ test('the landing page implies no draw, wheel or lottery', async ({ page }) => {
   }
 })
 
-test('the decision card shows a refusal, and its reason', async ({ page }) => {
+test('the clearing panel runs the engine live and shows a refusal with its reason', async ({
+  page,
+}) => {
   await page.goto('/')
 
   // Presence before absence. The signature element of the whole page is the
@@ -36,8 +38,13 @@ test('the decision card shows a refusal, and its reason', async ({ page }) => {
   await expect(card.getByText('Cleared')).toBeVisible()
   await expect(card.getByText('Refused')).toBeVisible()
 
+  // The engine's own strings, verbatim — the panel is `decidePrizePool`
+  // running on every render, not handwritten marketing rows. The hero rule,
+  // the chef's veto and the depth cap must each show the fence saying no.
   await expect(card.getByText('Butter chicken')).toBeVisible()
-  await expect(card.getByText('Your hero item. Never discounted.')).toBeVisible()
+  await expect(card.getByText('Hero item — never discounted')).toBeVisible()
+  await expect(card.getByText('Chef vetoed')).toBeVisible()
+  await expect(card.getByText(/Over the per-item depth cap/)).toBeVisible()
 })
 
 test('the landing page claims no customer it does not have', async ({ page }) => {
