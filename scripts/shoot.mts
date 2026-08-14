@@ -14,6 +14,15 @@
  * against the same database the dev server reads:
  *   consent — tap Start on the consent screen first, then shoot what follows
  *   spent   — consent, then mark this device's session spent and reload
+ *   round   — consent, fire the order, begin the run
+ *   rung    — round, then answer correctly into the rung gate
+ *   won     — rung, then Take it (the award screen)
+ *   lost    — round, then answer wrongly
+ *   arrived — consent, then a fire whose clock has already run out
+ *   review  — consent, then the review prompt
+ *
+ * Run `npx tsx scripts/open-service.mts pilot` first for a fresh service —
+ * flows spend lives and devices on the table they touch.
  */
 import 'dotenv/config'
 import { chromium, type Page } from '@playwright/test'
@@ -80,21 +89,114 @@ async function spendThisDevice(qrToken: string, standing?: { rung: number; strea
   await db.$disconnect()
 }
 
+async function openDb() {
+  const { PrismaPg } = await import('@prisma/adapter-pg')
+  const { PrismaClient } = await import('../src/generated/prisma/client')
+  return new PrismaClient({
+    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+  })
+}
+
+/** Fire the table's order so the run is bounded by food. Negative = already due. */
+async function fireFor(qrToken: string, minutesOut: number) {
+  const db = await openDb()
+  const table = await db.table.findUniqueOrThrow({ where: { qrToken } })
+  const service = await db.service.findFirstOrThrow({
+    where: { venueId: table.venueId, endedAt: null },
+  })
+  await db.orderFire.create({
+    data: {
+      tableId: table.id,
+      serviceId: service.id,
+      estReadyAt: new Date(Date.now() + minutesOut * 60_000),
+      partySize: 4,
+    },
+  })
+  await db.$disconnect()
+}
+
+/** The dish name to tap — right or wrong — read from the run's last dealt pair. */
+async function dishNameFor(qrToken: string, which: 'higher' | 'lower'): Promise<string> {
+  const db = await openDb()
+  const table = await db.table.findUniqueOrThrow({ where: { qrToken } })
+  const run = await db.tableRun.findFirstOrThrow({
+    where: { tableId: table.id, service: { endedAt: null } },
+  })
+  const ids = run.pairsShown[run.pairsShown.length - 1]!.split(':')
+  const items = await db.menuItem.findMany({
+    where: { id: { in: ids } },
+    select: { name: true, trailingSales: true },
+  })
+  const sorted = [...items].sort((a, b) => b.trailingSales - a.trailingSales)
+  await db.$disconnect()
+  return which === 'higher' ? sorted[0]!.name : sorted[sorted.length - 1]!.name
+}
+
 const browser = await chromium.launch()
 const context = await browser.newContext(VIEWPORTS[viewportName])
 const page = await context.newPage()
 await page.goto(new URL(route, base).toString(), { waitUntil: 'networkidle' })
 
-if (flow === 'consent' || flow === 'spent') {
+const token = route.split('/')[2]!
+
+if (flow === 'consent' || flow === 'spent' || flow === 'review') {
   await consentIfAsked(page)
   if (flow === 'spent') {
     // --standing=3,4 arranges a table on rung 3 with streak 4 before shooting.
     const s = flag('standing')?.split(',').map(Number)
-    await spendThisDevice(
-      route.split('/')[2]!,
-      s && s.length === 2 ? { rung: s[0]!, streak: s[1]! } : undefined,
-    )
+    await spendThisDevice(token, s && s.length === 2 ? { rung: s[0]!, streak: s[1]! } : undefined)
     await page.reload({ waitUntil: 'networkidle' })
+  }
+  if (flow === 'review') {
+    await page.goto(new URL(`${route}/review`, base).toString(), { waitUntil: 'networkidle' })
+  }
+}
+
+if (flow === 'arrived') {
+  await consentIfAsked(page)
+  await fireFor(token, -2)
+  await page.reload({ waitUntil: 'networkidle' })
+}
+
+if (flow === 'round' || flow === 'rung' || flow === 'won' || flow === 'lost') {
+  try {
+    await consentIfAsked(page)
+    await fireFor(token, 20)
+    await page.reload({ waitUntil: 'networkidle' })
+
+    // Consent and StartRun both offer a button reading "Start" — keep tapping
+    // whichever is up until the question is.
+    for (let i = 0; i < 4; i++) {
+      if (await page.getByText(/Which one/).first().isVisible().catch(() => false)) break
+      const start = page.getByRole('button', { name: 'Start' }).first()
+      if (await start.isVisible().catch(() => false)) {
+        await start.click()
+        await page.waitForLoadState('networkidle')
+      } else {
+        await page.waitForTimeout(400)
+      }
+    }
+    await page.getByText(/Which one/).first().waitFor()
+
+    if (flow !== 'round') {
+      const name = await dishNameFor(token, flow === 'lost' ? 'lower' : 'higher')
+      await page.getByRole('button', { name }).first().click()
+
+      if (flow === 'lost') {
+        await page.getByText('The kitchen won this one.').first().waitFor()
+      } else {
+        await page.getByText(/^Rung 1\./).first().waitFor()
+        if (flow === 'won') {
+          await page.getByRole('button', { name: 'Take it' }).first().click()
+          await page.getByText('You beat the kitchen.').first().waitFor()
+        }
+      }
+    }
+  } catch (e) {
+    // Dump what the page actually showed — flow authoring is blind otherwise.
+    await page.screenshot({ path: path.join(outDir, `${name}.FAILED.png`) })
+    console.error('flow stalled; page text was:\n', await page.locator('body').innerText())
+    throw e
   }
 }
 

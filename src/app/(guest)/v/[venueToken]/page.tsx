@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { en } from '@/strings/en'
 import { resolveVenueScan } from '@/lib/service'
-import { Body, Heading, Screen } from '@/app/(guest)/t/[qrToken]/ui'
+import { Body, guestViewport, Heading, Screen } from '@/app/(guest)/t/[qrToken]/ui'
+
+// Local const, never a re-export — see the note in t/[qrToken]/page.tsx.
+export const viewport = guestViewport
 
 export const dynamic = 'force-dynamic'
 

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { en } from '@/strings/en'
-import { beginRun, type PairView } from './game-actions'
+import { beginRun, claimPrize, type PairView } from './game-actions'
 import { Game } from './Game'
 
 /**
@@ -14,14 +15,18 @@ import { Game } from './Game'
  *
  * It also gives the table its standing before committing — a second guest
  * picking up a phone should see what they are inheriting rather than being
- * dropped mid-ladder with no explanation.
+ * dropped mid-ladder with no explanation. An inherited rung can be taken from
+ * here without playing, because claiming costs no life and a stranded rung is
+ * a prize the table already earned.
  */
 export function StartRun({
   qrToken,
   venueName,
   tableLabel,
   endsAtMs,
+  firedAtMs,
   rungs,
+  penaltyRungs,
   streak,
   currentRung,
   livesRemaining,
@@ -30,13 +35,16 @@ export function StartRun({
   venueName: string
   tableLabel: string
   endsAtMs: number | null
+  firedAtMs: number | null
   rungs: number
+  penaltyRungs: number
   streak: number
   currentRung: number
   livesRemaining: number
 }) {
+  const router = useRouter()
   const [pair, setPair] = useState<PairView | null>(null)
-  const [state, setState] = useState({ streak, currentRung, canTake: currentRung > 0 })
+  const [state, setState] = useState({ streak, currentRung })
   const [pending, startTransition] = useTransition()
   const [failed, setFailed] = useState(false)
 
@@ -46,10 +54,11 @@ export function StartRun({
         qrToken={qrToken}
         firstPair={pair}
         endsAtMs={endsAtMs}
+        firedAtMs={firedAtMs}
         streak={state.streak}
         currentRung={state.currentRung}
         rungs={rungs}
-        canTake={state.canTake}
+        penaltyRungs={penaltyRungs}
       />
     )
   }
@@ -68,7 +77,9 @@ export function StartRun({
           : en.guest.start.fresh(rungs)}
       </p>
 
-      <p className="mt-4 font-mono text-sm text-muted">{en.guest.start.lives(livesRemaining)}</p>
+      <p className="mt-4 font-mono text-sm text-muted tabular-nums">
+        {en.guest.start.lives(livesRemaining)}
+      </p>
 
       {failed && <p className="mt-4 text-base text-loss">{en.common.genericError}</p>}
 
@@ -78,15 +89,27 @@ export function StartRun({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const result = await beginRun(qrToken)
+              let result
+              try {
+                result = await beginRun(qrToken)
+              } catch {
+                setFailed(true)
+                return
+              }
               if (!result.ok || !result.nextPair) {
+                // The kitchen may have finished while this screen sat open —
+                // the server refuses to spend a life on a round that is over,
+                // and the page it re-renders says why.
+                if (result?.endedReason === 'FOOD_ARRIVED') {
+                  router.refresh()
+                  return
+                }
                 setFailed(true)
                 return
               }
               setState({
                 streak: result.streak ?? 0,
                 currentRung: result.currentRung ?? 0,
-                canTake: Boolean(result.canTake),
               })
               setPair(result.nextPair)
             })
@@ -95,6 +118,27 @@ export function StartRun({
         >
           {pending ? en.common.loading : en.guest.start.begin}
         </button>
+
+        {currentRung > 0 && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                try {
+                  await claimPrize(qrToken)
+                } catch {
+                  setFailed(true)
+                  return
+                }
+                router.refresh()
+              })
+            }
+            className="transition-state mt-3 min-h-14 w-full rounded-xl border-2 border-line px-5 text-lg font-medium active:border-ink"
+          >
+            {en.guest.start.takeInstead(currentRung)}
+          </button>
+        )}
       </div>
     </main>
   )

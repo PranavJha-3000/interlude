@@ -3,7 +3,10 @@ import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { readGuestSessionId } from '@/lib/session'
 import { resolveScan } from '@/lib/service'
-import { Body, Heading, Screen } from '../ui'
+import { Body, guestViewport, Heading, Screen } from '../ui'
+
+// Local const, never a re-export — see the note in ../page.tsx.
+export const viewport = guestViewport
 import { submitFeedback } from './actions'
 
 export const dynamic = 'force-dynamic'

@@ -16,3 +16,26 @@ export function hashString(s: string): number {
   }
   return h >>> 0
 }
+
+/**
+ * A hash reduced to `[0, max)` — use this, never `hashString(s) % max`.
+ *
+ * FNV-1a's multiply only carries entropy upward, so its low bits are close to
+ * a linear function of the input: bit 0 of the hash is exactly the XOR parity
+ * of the bytes. A bare `% max` therefore collapses related seeds onto a
+ * handful of residues — measured concretely on 2026-08-14, when 10,000
+ * redemption-code seeds produced 267 distinct codes, and the same pattern
+ * biased which pair `dealPair` drew and which side the answer sat on. The
+ * murmur3 finaliser below gives every input bit an even chance at every
+ * output bit. Still pure, still reproducible from the recorded seed —
+ * determinism is the requirement; uniformity is what this adds.
+ */
+export function hashToRange(s: string, max: number): number {
+  let h = hashString(s)
+  h ^= h >>> 16
+  h = Math.imul(h, 0x85ebca6b) >>> 0
+  h ^= h >>> 13
+  h = Math.imul(h, 0xc2b2ae35) >>> 0
+  h ^= h >>> 16
+  return (h >>> 0) % max
+}

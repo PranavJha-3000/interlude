@@ -53,8 +53,20 @@ export default async function FloorPage() {
     }),
     getArmRows(service.id),
     db.addOnRequest.findMany({
-      where: { status: 'REQUESTED', guestSession: { serviceId: service.id } },
-      include: { menuItem: true, guestSession: { include: { table: true } } },
+      // Tickets hang off the TableRun now; guestSession rows are climb-era.
+      // Both parents are matched so old rows still surface.
+      where: {
+        status: 'REQUESTED',
+        OR: [
+          { tableRun: { serviceId: service.id } },
+          { guestSession: { serviceId: service.id } },
+        ],
+      },
+      include: {
+        menuItem: true,
+        guestSession: { include: { table: true } },
+        tableRun: { include: { table: true } },
+      },
       orderBy: { requestedAt: 'asc' },
     }),
     // Awards hang off the table run now, not off a play — the table is the
@@ -121,7 +133,11 @@ export default async function FloorPage() {
             <form key={r.id} action={ackAddOn}>
               <input type="hidden" name="id" value={r.id} />
               <Row
-                label={en.floor.addOns.line(r.guestSession.table.label, r.qty, r.menuItem.name)}
+                label={en.floor.addOns.line(
+                  (r.tableRun ?? r.guestSession)?.table.label ?? en.common.none,
+                  r.qty,
+                  r.menuItem.name
+                )}
                 action={en.floor.addOns.ack}
                 tone="good"
               />

@@ -169,6 +169,22 @@ export async function getLatestOrderFire(serviceId: string, tableId: string, ven
   return resolvePosAdapter(venueId).latestFire(serviceId, tableId)
 }
 
+/**
+ * The server's own reading of the round clock (§4.6).
+ *
+ * The countdown the phone renders is presentation; this is truth. The round
+ * actions and the guest page both read it, so the clock hitting 0:00 means
+ * the same thing everywhere: the run is over, the rung is banked, and no
+ * further answer is judged. Null means an untimed run — the floor never fired.
+ */
+export async function roundEndsAtMs(
+  scan: { serviceId: string; tableId: string; venueId: string },
+  config: { countdownBufferSec: number }
+): Promise<number | null> {
+  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
+  return fire ? fire.estReadyAt.getTime() - config.countdownBufferSec * 1000 : null
+}
+
 /** Current kitchen load. Defaults to GREEN when the chef has not set one. */
 export async function getKitchenLoad(venueId: string): Promise<'GREEN' | 'AMBER' | 'RED'> {
   const row = await db.kitchenLoad.findFirst({

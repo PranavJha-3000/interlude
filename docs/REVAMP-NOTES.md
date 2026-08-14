@@ -152,6 +152,42 @@ Format: what — where — why — did the screen get worse?)*
   `spent.tableBody` added because a table out of goes must not be told to pass the phone (false
   advice — no phone can start when lives are zero).
 
+**Surface 2 — guest flow (2026-08-14, committed):**
+
+- The persistent "Take rung N and stop" button during play — removed. The round is two dish
+  cards and nothing else; banking now happens at the rung gate, where the choice actually is,
+  with the downside stated. A kept rung is still claimable from the lost screen, the arrived
+  screen, and StartRun ("Take rung N instead" — claiming never costs a life).
+- The climb-era string families (`climb`, `gamePicker`, `outcome`, `round`, `addOn`, four
+  unused `waiting` variants, `phone.stampedOnly`, `phone.reward`, `consent.declineNote`,
+  `review.thanks`) — deleted; copy the product cannot say is not copy.
+- The rung gate's right-hand counter says `1/6` in bare mono, not "Rung 1/6" — the heading
+  already says Rung; a label repeating the value comes off.
+- "On the house" left the mono — mono is for figures, and it is words.
+- The lost screen states the margin as the push's cost (`The push cost a rung.`), keeps the
+  banked-rung claim, and offers nothing else — no consolation, per the brief.
+
+**Surface 2 — engine-adjacent fixes (recorded because they change dealt outcomes):**
+
+- `hashToRange` (murmur3-finalised) replaces every `hashString(s) % n` site. Measured before:
+  10,000 redemption-code seeds → 267 distinct codes; FNV-1a's low bits are near-linear, which
+  also biased which pair `dealPair` drew and put the correct answer's screen side on a parity
+  schedule. Determinism is unchanged (same seed → same outcome); uniformity is what changed.
+  Regression-tested in `src/core/mechanics/redemption-code.test.ts`. In-flight runs at deploy
+  time would re-deal differently — none exist; noted for the pilot deploy anyway.
+- The won screen is a server state read from the `Award` row. Before, the claim's reload landed
+  guests on the lifelines screen and the prize, price and code were never shown anywhere. The
+  §11 "3s awaiting redemption" interval finally has the screen it described.
+- Two more Next 16 traps documented in-code: a `viewport` export from a route-group layout
+  404s the whole group; a re-export (`export { x as y } from`) in a page module silently
+  unregisters the page's server actions (POSTs 404 "Failed to find Server Action"). Both found
+  by bisection; both now carry comments at the site that would tempt a refactor.
+
+**Process note (2026-08-14):** never run `open-service.mts` or any db-touching dev script while
+the E2E suite is mid-run — both hit the same DATABASE_URL, and ending the suite's open service
+mid-test produces failures that look like application bugs (one such false failure cost a
+debugging cycle tonight). Same failure class as DEPLOY.md §7's smoke-test-venue warning.
+
 **Candidates identified during recon, to be judged at their surface:**
 - Orphaned strings from the retired climb/mystery-plate era: `en.guest.climb.*`,
   `en.guest.gamePicker.*`, `en.guest.outcome.*`, `en.guest.round.*`, most of the unused
