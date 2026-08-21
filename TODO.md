@@ -1,331 +1,55 @@
-# Interlude — Build List
-
-Every restaurant already has a QR code on the table. It opens a PDF menu and does nothing else.
-We replace it with one that plays a 3-minute game while the food cooks, sells a dessert, and tells
-the owner what it earned him. That is the whole pitch.
-
-**Launch moved out by one week.** The extra week buys two things: menu upload, so a venue can set
-itself up in ten minutes instead of an hour, and enough venues to make one weekend's numbers mean
-something.
-
----
-
-## The pilot
-
-**4–6 venues, one weekend, same two nights.** Not one venue. One venue cannot produce a number worth
-showing anyone — see below.
-
-Each venue: signs itself up, uploads its menu, prints its QR, runs Friday and Saturday dinner. Half
-the tables tented, half not, alternating. We are not in the room.
-
----
-
-## What one small weekend can and cannot prove
-
-This decides the whole build, so it goes first.
-
-| Kind of number | Example | What a weekend gives |
-|---|---|---|
-| **Counts** | Add-ons sold, contribution earned, prize cost, net ₹ | **Exact.** Every row is a real confirmed sale. No statistics needed — 20 add-ons is 20 add-ons |
-| **Rates** | Scan rate, completion rate, add-on conversion | **Usable.** ~200 tented tables pooled across venues gives roughly ±6 percentage points. Good enough to report |
-| **Deltas** | Attach-rate delta, ticket delta | **Not yet.** Detecting a 5pp lift needs ~1,000 tables per arm. A weekend has ~200. It can only catch a very large effect |
-
-So the MLP proves three things, and claims nothing else:
-
-1. **Guests play.** Scan rate and completion rate, with an honest margin of error.
-2. **It sells food.** A ledger of confirmed add-ons and awards in rupees, counted not estimated.
-3. **The kitchen stays in control.** Vetoes used, load flipped, nothing forced past the chef.
-
-The attach-rate delta is still computed, still shown, and **labelled "not yet conclusive" until the
-numbers support it.** Every weekend adds to it. Do not let anyone put it on a slide before then.
-
-**Why more venues.** Pooling four venues is the only way a single weekend reaches even the rate
-numbers. It also kills the "that one place is unusual" objection, which is the first thing a buyer
-says.
-
----
-
-## Rules that do not bend
-
-- **No pure chance.** No wheels, no draws, no `Math.random` in `core/`. Outcomes come from skill
-  only. This is gambling law, not taste.
-- **No number is hardcoded.** Prep times, margins, caps, prices, gates — all venue config, editable
-  in `/dash`. When real numbers arrive we edit config, not code.
-- **`core/` is pure.** No database, no clock, no network, no AI. Everything is an argument.
-- **AI never decides anything.** It reads and drafts; a person confirms. Details in the AI section.
-- **Every operator query gets its venue from the session**, never from a URL or a form field.
-- **Reviews are never gated on sentiment**, and no rating is ever stored.
-- **A control table must fail exactly like a closed venue.** If a guest can tell, the experiment is
-  contaminated.
-
----
-
-## Done
-
-Guest, staff and owner surfaces all run end to end. Build items 1–7 below shipped on 1 Aug 2026;
-only **8. Ship it** remains, because it needs the Vercel account. 482 unit tests and 79 E2E green.
-
-- **Menu upload** — photo/PDF/CSV → draft grid → confirm. The AI port (`lib/ai`) with a Claude
-  adapter and a deterministic Mock; CSV never touches a model, food cost never extracted.
-- **`/dash/menu`** — every engine field editable, contribution computed, deactivate-never-delete,
-  re-upload through the same path.
-- **`/dash/prizes`** — every `VenueConfig` number behind a form, vetoes clearable, tonight's pool
-  read-only from the same `decidePrizePool` call the pass makes.
-- **`scripts/pilot-report.mts`** — pooled counts/rates with 95% intervals; the delta prints
-  NOT YET CONCLUSIVE until its interval excludes zero.
-- **Bill import** — `/dash/import`: idempotent ticket writes, unjoinable bills kept and mappable
-  retroactively, historical baseline upserts.
-- **Review at the bill** — `/t/[qrToken]/review`: funnel timestamps only, words never stored,
-  ESLint boundary keeps game state out, schema test asserts no rating column.
-- **One game** — climb and mystery plate retired; data migration backfills every venue with
-  Beat the Kitchen rows and rules; retired rows kept for history.
-- **`/dash/settings`** — the Google Place ID the review hand-off needs. It was read by the review
-  screen and written by nothing: no onboarding step, no form, not even the seed, so on a real
-  deployment it was permanently null and the hand-off button never rendered. The funnel would have
-  reported 100% shown and 0% handed off as if that were a fact about guests. Not a wizard step —
-  a Place ID has to be looked up, and the wizard is where setup gets abandoned.
-- **The environment fails at the build, not in front of a guest** — `src/lib/deploy-env.ts` names
-  every problem at once; `scripts/check-env.mts` runs first in the Vercel build command so a bad
-  environment leaves the previous deployment serving; `src/instrumentation.ts` re-checks at start.
-- **The pilot's membership is stated** — `pilot-report.mts` takes `--venues=a,b`. It used to pool
-  every venue in the database, so a smoke-test venue you played a round on entered the pilot's
-  scan rate and contribution. It now always prints what it pooled.
-- **Loyalty, private feedback, and the review funnel (V1.5)** — a per-venue stamp card built on
-  `GuestIdentity`, which had a table and zero lines of code. A guest may leave a phone number after
-  their go; it is normalised, HMAC'd with the venue's own salt and discarded, so the same number is
-  two unjoinable identities at two venues. The Nth visit is rewarded through the **same**
-  `decidePrizePool` call the game makes, so hero items, chef vetoes and both depth caps apply for
-  free. Private feedback (`VenueFeedback`, also dormant) earns the other life. The Google prompt is
-  untouched: no reward, no gate, still 100% of tables. `/dash` finally shows the review funnel it
-  has been recording since the prompt shipped.
-- **Two dead ends the spent screen advertised are now real** — `PHONE_SUBMITTED` and
-  `FEEDBACK_SUBMITTED` were offered to guests as inert text with no route behind them, and
-  `grantLife` was only ever called with `ADDON_CONFIRMED`.
-- **The review screen's ESLint boundary had never matched a file** — `files: ['…/t/[qrToken]/review/**']`
-  reads `[qrToken]` as a glob character class, so it matched one character from {q,r,T,o,k,e,n} and
-  never the literal directory. The block existed, its message said "enforced here, not by
-  discipline", and nothing was enforced. Now a `*` segment, with `boundary.test.ts` linting a probe
-  through the ESLint API so it cannot silently come back.
-- **The service prize budget actually depletes** — `getConcededSoFarPaise` counted awards only
-  through `play.guestSession`, but since the table became the unit every award writes `tableRunId`
-  and leaves `playId` null, and a Prisma to-one filter drops a null FK. The sum was always ₹0. The
-  cap still bound *per award* as a fixed ceiling, so it looked like it worked — it simply never
-  ran down, and a venue with a ₹5,000 service cap could concede ₹5,000 on every award all evening
-  while `/pass` and `/dash/prizes` displayed "₹0 conceded so far". `e2e/depth-cap.spec.ts` builds
-  awards the way the live code does; the one other test that built an `Award` set both `playId`
-  and `tableRunId`, a row shape the real code never produces, which is why nothing caught it.
-
-- **Guest** — venue QR → table picker → consent → Beat the Kitchen → win or lose → add-on → done.
-  Countdown driven by a server timestamp, so a suspended tab cannot desync it.
-- **Staff** — `/floor/[venueSlug]`, PIN-scoped to that venue. Fire order with party size, add-on
-  tickets, redemption by code. `/pass` — kitchen load, per-item vetoes, and a kill switch separate
-  from RED.
-- **Owner** — `/signup` → `/onboarding` (six resumable steps) → `/dash`. Net contribution ₹ as the
-  headline with both tiers shown separately, the refusal log, `/dash/activity`, `/dash/games`,
-  `/tents`.
-- **Engine** — prize pool with a `reason` on every decision and every refusal, venue-owned prize
-  rules, hero and veto and depth-cap fences above them, pool snapshotted per service.
-- **Measurement** — append-only `Event` log written by the real flow, service arm assignment,
-  counterbalanced scheduling, §6.3 metrics, bill-export parser, weekly report.
-- **Tenancy** — two seeded venues, isolation asserted by test. Staff PINs are venue-scoped, which
-  fixed a real hole where a PIN opened the wrong restaurant.
-
----
-
-## Build
-
-> Items 1–7 are built — see **Done** above, kept here for their test blocks.
-> Item 8 needs the owner: a Vercel account and the environment variables.
-> Still genuinely open inside these items: running the bill parser against a
-> **real** venue export (needs the file), and the voice path on the review
-> screen (typed works; speech is under Later).
-
-### 1. Menu upload — the onboarding unlock
-
-**Why.** Today a venue types 40 items by hand, one at a time. That is an hour, and it is where
-setup gets abandoned. Ten minutes instead is the difference between 6 pilot venues and 1.
-
-**Build**
-- `/onboarding` menu step accepts a **photo, a PDF, or a CSV**. CSV parses deterministically —
-  no AI. Photo and PDF go to the extractor.
-- Extractor returns a **draft table**: name, category, price, and any options it saw
-  ("Paneer Tikka — Half ₹220 / Full ₹380" becomes two rows, or one row with options).
-- Draft lands in an editable grid. **Nothing is saved until the operator hits confirm.**
-- Food cost is **not** extracted. The operator gives one rough percentage per category
-  ("desserts, about 30%?") and we compute cost per item. A guessed food cost is a wrong
-  contribution number, and contribution is the headline.
-- Margin tier is computed from price and cost, not asked.
-- `requiresKitchenWork`, `isHero`, `prepBurden` default sensibly and are toggled in the grid.
-- Same upload path works later at `/dash/menu` for re-imports.
-
-**Test**
-- A fixture menu photo extracts ≥90% of items with the right price.
-- A CSV import needs zero AI calls — assert the adapter is never invoked.
-- Confirm writes items; abandoning the draft writes nothing.
-- ₹249.50 stores as `24950`. A rounding bug here is money.
-- An extraction that returns garbage shows an error and the manual form, never a broken grid.
-
-### 2. `/dash/menu` — maintain it afterwards
-
-**Build**
-- List, add, edit, deactivate. No hard deletes — `Award` rows point at items.
-- Every field the engine reads is editable. Contribution per item shown live as they type.
-- Bulk re-upload through the same path as step 1.
-
-**Test**
-- Mark an item hero → `decidePrizePool` excludes it with a hero reason.
-- Deactivate an item with a confirmed award → the award still renders on `/dash`.
-- Edit an item, reload `/pass`, the pool and its reasons change.
-
-### 3. `/dash/prizes` — the fences
-
-**Build**
-- Every `VenueConfig` field, grouped and explained in plain words: round shape, depth caps,
-  prep minutes per category, peak window, the gates.
-- Read-only "tonight's pool" from the same call `/pass` makes, with every reason and every refusal.
-- Chef vetoes visible and clearable here too.
-
-**Test**
-- Depth cap per service to 0 → every item excluded with a cap reason.
-- Load RED → every kitchen-work item disappears.
-- Change a category's prep minutes → the ready estimate moves by that amount.
-
-### 4. The pooled pilot report
-
-**Why.** Four venues' numbers have to add up into one view, and no operator may see another
-operator's data.
-
-**Build**
-- `scripts/pilot-report.mts` — a script, not a screen. No new auth surface, no leak risk.
-- Prints, pooled and per-venue: tables tented, scan rate, completion rate, add-on conversion,
-  confirmed add-ons, contribution, prize cost, net.
-- Rates carry a 95% confidence interval. Deltas carry one too, plus the words
-  **"not yet conclusive"** until the interval excludes zero.
-
-**Test**
-- Seeded synthetic weekend with a known ground-truth lift, asserted end to end.
-- A pooled rate with n=200 reports an interval of roughly ±6pp.
-- A delta whose interval spans zero is labelled inconclusive. Assert the label.
-
-### 5. Bill import, for real
-
-**Build**
-- Upload screen for the end-of-day POS export. The parser already exists.
-- `PosTableMap` editing UI so unjoinable rows can be mapped by hand instead of dropped.
-- Historical baseline import writing `HistoricalService`.
-- Once a venue's export lands, tier 2 takes the headline from tier 1.
-
-**Test**
-- Import a known file, assert ticket count and totals.
-- Re-import the same file, assert nothing doubles.
-- An unjoinable row surfaces with a reason and is never silently dropped.
-- **Run it against a real export from a real pilot venue.** Not a fixture. The parser has never
-  seen an actual file.
-
-### 6. Review at the bill
-
-**Build**
-- Prompt screen at the end of the visit. Speak or type → draft → **approve your own words** →
-  deep-link to Google.
-- Fires for **every** table. No incentive, no reward, no rating stored ever.
-- `ReviewPrompt` writes funnel counts only: shown, drafted, handed off.
-
-**Test**
-- Prompt renders for a session that never played and for one that lost.
-- Static import check fails the build if the review module ever reads prize or award state.
-- Assert no rating column exists anywhere.
-
-### 7. Retire the old games
-
-**Build**
-- Delete the climb and the mystery plate. The spec ships one game and Beat the Kitchen works.
-- Remove the stake picker, collapse `VenueGame` to the one mechanic, drop the dead config columns.
-
-**Test**
-- Full E2E suite green with one mechanic. No route offers a choice.
-
-### 8. Ship it
-
-**The full runbook is [docs/DEPLOY.md](docs/DEPLOY.md).** This is the summary.
-
-**Build**
-- Create the Vercel project. `vercel.json` and the cron are already committed.
-- Build command: `npm run check:env && prisma generate && prisma migrate deploy && next build`.
-- Set `DATABASE_URL` (pooled), `DIRECT_URL` (unpooled), `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`,
-  `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `ANTHROPIC_API_KEY`.
-- **They fail at the build, not in front of a guest.** `src/lib/deploy-env.ts` names every problem
-  at once and `scripts/check-env.mts` runs it first in the build command, so a bad environment
-  fails the build while the previous deployment keeps serving. `src/instrumentation.ts` re-runs it
-  at server start, because a variable edited in the dashboard never re-runs a build command.
-  `CRON_SECRET` is in that list for a reason: without it the Monday route answers 404 and the
-  report silently never arrives.
-- Functions pinned to `sin1` — the database is in Singapore.
-- The Monday cron is UTC. `30 3 * * 1` is 09:00 IST. A venue outside IST needs its own handling.
-
-**Test**
-- Deploy, open `/t/<token>` on a real phone, not an emulator.
-- Print a tent sheet and scan it off paper.
-- `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron/weekly-report` before Monday, not on it.
-- **Do not seed the pilot database, and do not play a round on a throwaway venue.**
-  `scripts/pilot-report.mts` pools every venue it finds; a smoke-test venue with real play data
-  enters the pilot numbers. DEPLOY.md §7.
-
----
-
-## AI — what we use it for
-
-**The rule: AI reads and drafts. A person confirms. It never decides.**
-
-It lives in `src/lib/ai/` behind an adapter, exactly like the POS port, with a Mock for tests.
-**It never goes in `core/`** — an LLM is nondeterministic, and nondeterminism anywhere near an
-outcome breaks the no-pure-chance guarantee that keeps this legal.
-
-| Use | When it runs | Rough cost | Who confirms |
-|---|---|---|---|
-| **Menu extraction** from photo or PDF | Once per venue at setup | A few rupees | Operator, in the draft grid |
-| **Monday email in plain language** — turns the week's numbers into three sentences | Weekly per venue | Under ₹1 | Nobody; it only narrates numbers already computed |
-| **Review drafting** — tidies what the guest said into readable prose | Per review | Under ₹1 | The guest, before it is sent |
-| **Item descriptions** for tents and guest cards | Once per item | A few paise | Operator |
-
-Cheap model for all of it. Extraction is transcription, which is the thing these models are
-actually reliable at — we are not asking one to have an opinion.
-
-**Where it is banned outright:** choosing a prize, choosing a pair, deciding an outcome, writing a
-food cost, or reading a rating. The first three are the gambling line. The fourth is money. The
-fifth is the review boundary.
-
-**What we charge for.** Setup is included and it is the demo — an owner watching their menu appear
-from a photo is the moment they believe the rest. The weekly plain-language report is the recurring
-hook. Pricing is not decided.
-
----
-
-## Later
-
-- Server recognition card — *"Table 12, 3rd visit, ordered the fried chicken twice."* Needs
-  optional phone capture with the per-venue HMAC. Wanted; cut for time, not doubt.
-- Offline tolerance across the guest flow.
-- Every dead end and error state designed rather than defaulted.
-- Load test at peak for one venue.
-- Staff briefing pack, including the line: *"Scan it while you wait — you might win dessert."*
-- Operator runbook and a paper fallback for when something breaks at 9pm Saturday.
-- Hindi. Strings are already externalised, so it is a translation job.
-- Design system: IBM Plex Mono for every figure on guest and staff surfaces too, not just operator.
-- `Venue.phoneSalt` rotation has no code path. Rotating one would orphan that venue's identities
-  with nothing to clean them up. Known gap, not a surprise (SECURITY.md §6).
-- `normaliseIndianPhone` is Indian mobiles only, by name. Generalising later means re-normalising
-  every stored hash, which is impossible — so the first venue outside India needs this decided
-  before it onboards, not after.
-- `PosAdapter` sits in `lib/pos`, PLATFORM.md §6 says `core/pos`. It does I/O so `lib` is right —
-  amend the doc.
-
----
-
-## Never build
-
-XP · levels · badges · leaderboards · cross-venue identity · accounts before value ·
-spin wheels · scratch cards · any pure-chance mechanic · incentivised or gated reviews ·
-payment processing · discounts on hero items · unlicensed licensed-property games ·
-a native app · multiplayer of any kind · the queue-window game · the shared screen.
-
-Including in brainstorms. Including under new names.
+# TODO
+
+## NOW
+- [ ] **Deploy to Vercel (Item 8)**: Configure Vercel project, set production env vars (`DATABASE_URL` pooled, `DIRECT_URL` unpooled, `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `ANTHROPIC_API_KEY`), build command `npm run check:env && prisma generate && prisma migrate deploy && next build`, region `sin1`. See [docs/DEPLOY.md](docs/DEPLOY.md).
+- [ ] **Validate POS bill import with live export**: Run `/dash/import` against a real pilot-venue POS export file (not fixture data) and verify `PosTableMap` resolution.
+
+## NEXT
+- [ ] **Verify production deployment**: Open `/t/[qrToken]` on a physical mobile device; print tent sheets from `/tents` and test scanning off paper.
+- [ ] **Verify Monday cron**: Trigger `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron/weekly-report` before Monday to confirm email delivery.
+- [ ] **Run pilot reporting**: Run `npm run tsx scripts/pilot-report.mts -- --venues=slug_a,slug_b` after pilot service to inspect pooled counts, rates, and deltas.
+
+## DONE
+- **Game mechanic**: Beat the Kitchen (`core/game/pairing.ts`, `core/game/run.ts`) shipped as the single game; table-level run (`TableRun`) with shared streak and lives; climb and mystery plate retired.
+- **Prize engine**: Pure deterministic `decidePrizePool` (`core/prize-engine/`) with operator `PrizeRule`s, hero/veto/RED/budget depth cap fences, and audit reasons.
+- **Operator surfaces**: `/signup`, 6-step `/onboarding`, `/dash` (net contribution ₹ headline, refusal log, menu management, prize rules, CSV bill import, private feedback, event activity, game toggles, settings), and printable `/tents`.
+- **Menu upload**: Photo/PDF extraction via Claude AI adapter (`src/lib/ai/`) into draft grid with operator confirmation; deterministic CSV parsing.
+- **Guest surfaces**: `/v/[venueToken]` (table picker) → `/t/[qrToken]` (consent, table run, play, extra life, prize claim), `/t/[qrToken]/review` (Google hand-off), `/t/[qrToken]/phone` (loyalty stamp), `/t/[qrToken]/feedback` (private feedback).
+- **Staff & Pass surfaces**: `/floor/[venueSlug]` (order fire with party size + courses, add-on tickets, code redemptions), `/pass` (kitchen load, vetoes, emergency kill switch).
+- **Measurement & Tenancy**: Service-level arm assignment (`ServiceArmAssignment`), append-only event log (`Event`), multi-tenant session isolation (`requireOperator()`), salted per-venue phone hashing (`GuestIdentity`), pooled CLI (`scripts/pilot-report.mts`).
+- **Deploy & Env verification**: `src/lib/deploy-env.ts` with `scripts/check-env.mts` build gate and `src/instrumentation.ts` boot check.
+- **Test suite**: 486 unit tests (35 test files) and 79 Playwright E2E tests passing.
+
+## RULES
+- `core/` must remain pure: no I/O, no DB, no clock, no AI, no network.
+- No pure chance: `Math.random` and `crypto.getRandomValues` are banned in `core/`.
+- AI reads and drafts only: never decide game outcomes, prize selection, food costs, or review sentiment.
+- No hardcoded constants: prep times, margins, caps, prices, and gates live in `VenueConfig`.
+- Every operator query scopes by session `venueId` via `requireOperator()`, never client-supplied params.
+- Reviews are never gated on sentiment, and no rating is ever stored in `ReviewPrompt`.
+- A control table must fail identically to a closed venue to prevent arm inference.
+- Unit of play is `TableRun` (table-level); unit of assignment is `ServiceArmAssignment` (service-level).
+- Phone numbers are stored only as normalized, per-venue salted HMACs in `GuestIdentity`.
+- Monetary values are stored as integer paise (`Int`), never floats.
+
+## LATER
+- Voice input path for review drafting (typed review works).
+- Server recognition card (*"Table 12, 3rd visit, ordered fried chicken twice"*).
+- Offline tolerance across guest flow.
+- Single-venue peak load testing.
+- Staff briefing pack and Saturday night paper fallback runbook.
+- Hindi localization (strings externalized in `src/strings/en.ts`).
+- IBM Plex Mono styling across guest/staff numerical displays.
+- `Venue.phoneSalt` rotation workflow.
+- International phone normalization support.
+
+## NEVER
+- XP · levels · badges · leaderboards · cross-venue identity · accounts before value.
+- Spin wheels · scratch cards · pure-chance mechanics · mystery plates.
+- Incentivized or gated reviews.
+- Payment processing.
+- Discounts on hero items.
+- Unlicensed licensed-property games.
+- Native mobile app.
+- Multiplayer of any kind (table-vs-table, beat-the-house, match lobbies).
+- Queue-window game (W1) · shared screen.
