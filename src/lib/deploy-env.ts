@@ -128,37 +128,46 @@ export function checkDeploymentEnv(env: Env): EnvProblem[] {
   }
 
   // --- Outbound email ------------------------------------------------------
+  // Operator sign-in uses email + password (SECURITY.md §7a), so Resend is
+  // not required to sign in. Magic links are dormant in the UI. Resend is
+  // only used for the Monday weekly-report cron, which degrades gracefully.
   if (env.EMAIL_TRANSPORT === 'console') {
     // The waiver exists for the E2E suite, which is a production build with no
     // key on purpose. On a deployment it re-arms precisely the silent outage
-    // `email.ts` refuses: `/signin` says "check your email" and sends nothing.
-    fatal(
+    // `email.ts` refuses: any email-sending route says "sending" and writes to
+    // a serverless log nobody reads.
+    warn(
       'EMAIL_TRANSPORT',
-      'Set to "console" on a deployment. Sign-in links would be written to a ' +
-        'serverless log nobody reads while the page still says "check your email". ' +
-        'Unset it and configure RESEND_API_KEY.'
+      'Set to "console" on a deployment. Any email (weekly report) will be ' +
+        'written to a serverless log instead of delivered. ' +
+        'Unset it and configure RESEND_API_KEY when email delivery is needed.'
     )
   } else if (missing(env.RESEND_API_KEY)) {
-    fatal(
+    // Non-fatal: operators sign in with email+password, so a missing Resend
+    // key does not lock anyone out. It only prevents the weekly cron report.
+    warn(
       'RESEND_API_KEY',
-      'Not set. No sign-in link can be delivered and every operator is locked out.'
+      'Not set. The Monday weekly-report email will not be delivered. ' +
+        'Operator sign-in uses email + password and is unaffected.'
     )
   }
 
   if (!missing(env.RESEND_API_KEY) && missing(env.EMAIL_FROM)) {
-    fatal(
+    warn(
       'EMAIL_FROM',
-      'Not set, so there is no sender address. The domain must also be verified in ' +
-        'Resend — an unverified one is rejected with a 403.'
+      'Not set, so there is no sender address for the weekly report email. ' +
+        'The domain must also be verified in Resend — an unverified one is rejected with a 403.'
     )
   }
 
   // --- The Monday cron -----------------------------------------------------
   if (missing(env.CRON_SECRET)) {
-    fatal(
+    // Non-fatal for the pilot: the weekly report is valuable but not blocking.
+    // The route answers 401 without it, so it simply never fires.
+    warn(
       'CRON_SECRET',
-      'Not set. /api/cron/weekly-report refuses rather than running open, so the ' +
-        'weekly report never arrives and nothing anywhere says why.'
+      'Not set. /api/cron/weekly-report will refuse every request, so the ' +
+        'weekly report will never arrive. Set it when email reporting is needed.'
     )
   }
 

@@ -4,6 +4,8 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { expect, type Page } from '@playwright/test'
 import { planArmAssignments } from '../src/core/measurement/arm-assignment'
+import { defaultVenueGames } from '../src/lib/venue-setup'
+import { defaultPrizeRules } from '../src/core/prize-engine/default-rules'
 
 /**
  * Direct database access for the E2E test.
@@ -66,6 +68,41 @@ export async function venueBy(slug: string) {
  */
 export async function arrangeServiceFor(slug: string): Promise<Arranged> {
   const venue = await venueBy(slug)
+
+  // Venues seeded before games were configurable predate their `VenueGame`
+  // rows — and a venue with no rows offers no games, which reads to a guest
+  // as a closed night. Every fixture venue gets the defaults (idempotent:
+  // rows the operator owns are never overwritten), so specs arrange a live
+  // venue, not an accidentally-dark one.
+  await db.venueGame.createMany({
+    data: defaultVenueGames().map((g) => ({ ...g, venueId: venue.id })),
+    skipDuplicates: true,
+  })
+
+  // Every game claims through the one engine path, and the engine offers only
+  // what the venue's own rules allow — deliberately no fallback. These are
+  // pilot stands: they ship with the default rules for every mechanic, so an
+  // arranged night can actually pay out what the guest earned. Ids are
+  // suffixed per venue (`PrizeRule.id` is globally unique) and the write is
+  // idempotent, so arranging twice never doubles a policy.
+  await db.prizeRule.createMany({
+    data: defaultPrizeRules().map((r) => ({
+      id: `${r.id}-${venue.id}`,
+      venueId: venue.id,
+      priority: r.priority,
+      label: r.label,
+      mechanic: r.mechanic,
+      outcome: r.outcome,
+      ...(r.marginTier ? { marginTier: r.marginTier } : {}),
+      ...(r.category ? { category: r.category } : {}),
+      ...(r.menuItemId ? { menuItemId: r.menuItemId } : {}),
+      window: r.window,
+      kind: r.kind,
+      percentOff: r.percentOff ?? null,
+      fixedPricePaise: r.fixedPricePaise ?? null,
+    })),
+    skipDuplicates: true,
+  })
 
   await db.service.updateMany({
     where: { venueId: venue.id, endedAt: null },

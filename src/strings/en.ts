@@ -11,6 +11,12 @@ import { BRAND } from '@/brand'
  *    (PLATFORM.md §7) — the guest wins on skill, or buys at a fixed price.
  */
 export const en = {
+  // The three-game picker (`PLAY WHILE YOU WAIT`). One heading, shared by
+  // every enabled game's entry point.
+  selector: {
+    heading: 'Play while you wait',
+  },
+
   common: {
     continue: 'Continue',
     back: 'Back',

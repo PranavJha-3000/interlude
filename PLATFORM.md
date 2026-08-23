@@ -2,14 +2,9 @@
 
 Single source of truth for what the platform is and how it is built.
 
-**Status:** Pre-validation, shipping anyway. The business doc gates code behind Tests 0–2; that gate
-is lifted by explicit owner decision. We ship a staged MLP, run it across **4–6 venues on one
-weekend**, and validate from live data rather than ahead of it. Consequence — and this is what makes
-the decision recoverable: every unmeasured number (Appendix B, B1–B16) is **venue configuration,
-never a constant.**
-
-**Launch moved out by one week** (owner decision). The week buys menu upload — self-setup in ten
-minutes rather than an hour — and the venue count that makes one weekend's numbers readable.
+**Status:** Pre-validation, shipping anyway. We ship a staged MLP, run it across **4–6 venues on one
+weekend**, and validate from live data. Consequence — and this is what makes
+the decision recoverable.
 
 **The market we are taking.** Every restaurant already has a table QR. It opens a static menu and
 earns nothing. We replace it with one that occupies the food wait, moves the menu, and reports the

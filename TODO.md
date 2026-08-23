@@ -10,7 +10,7 @@
 - [ ] **Run pilot reporting**: Run `npm run tsx scripts/pilot-report.mts -- --venues=slug_a,slug_b` after pilot service to inspect pooled counts, rates, and deltas.
 
 ## DONE
-- **Game mechanic**: Beat the Kitchen (`core/game/pairing.ts`, `core/game/run.ts`) shipped as the single game; table-level run (`TableRun`) with shared streak and lives; climb and mystery plate retired.
+- **Game mechanics**: Three V1 games on one shared spine (selector → game → result → claim through `decideAndWriteAward`). Beat the Kitchen (`core/game/pairing.ts`, `core/game/run.ts`) stays the canonical table-level `TableRun` game; Secret Recipe (`core/games/secret-recipe.ts`) discovers menu combinations configured per venue in `VenueGame.data`; Mystery Customer (`core/games/mystery-customer.ts`) builds a meal against a deterministic budget/craving brief drawn from menu prices and categories. No chance, no AI decisions, no game-specific reward path.
 - **Prize engine**: Pure deterministic `decidePrizePool` (`core/prize-engine/`) with operator `PrizeRule`s, hero/veto/RED/budget depth cap fences, and audit reasons.
 - **Operator surfaces**: `/signup`, 6-step `/onboarding`, `/dash` (net contribution ₹ headline, refusal log, menu management, prize rules, CSV bill import, private feedback, event activity, game toggles, settings), and printable `/tents`.
 - **Menu upload**: Photo/PDF extraction via Claude AI adapter (`src/lib/ai/`) into draft grid with operator confirmation; deterministic CSV parsing.
@@ -18,7 +18,7 @@
 - **Staff & Pass surfaces**: `/floor/[venueSlug]` (order fire with party size + courses, add-on tickets, code redemptions), `/pass` (kitchen load, vetoes, emergency kill switch).
 - **Measurement & Tenancy**: Service-level arm assignment (`ServiceArmAssignment`), append-only event log (`Event`), multi-tenant session isolation (`requireOperator()`), salted per-venue phone hashing (`GuestIdentity`), pooled CLI (`scripts/pilot-report.mts`).
 - **Deploy & Env verification**: `src/lib/deploy-env.ts` with `scripts/check-env.mts` build gate and `src/instrumentation.ts` boot check.
-- **Test suite**: 486 unit tests (35 test files) and 79 Playwright E2E tests passing.
+- **Test suite**: 535 unit tests (41 files) and 84 Playwright E2E tests (17 specs) passing; production `next build` green.
 
 ## RULES
 - `core/` must remain pure: no I/O, no DB, no clock, no AI, no network.

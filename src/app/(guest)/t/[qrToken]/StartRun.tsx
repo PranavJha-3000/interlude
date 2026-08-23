@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { en } from '@/strings/en'
 import { beginRun, claimPrize, type PairView } from './game-actions'
 import { Game } from './Game'
+import { GameSelector } from './GameSelector'
 
 /**
  * The moment before the run starts.
@@ -30,6 +31,7 @@ export function StartRun({
   streak,
   currentRung,
   livesRemaining,
+  selectorGames,
 }: {
   qrToken: string
   venueName: string
@@ -41,6 +43,7 @@ export function StartRun({
   streak: number
   currentRung: number
   livesRemaining: number
+  selectorGames: Array<{ slug: 'secret-recipe' | 'mystery-customer'; title: string }>
 }) {
   const router = useRouter()
   const [pair, setPair] = useState<PairView | null>(null)
@@ -80,6 +83,8 @@ export function StartRun({
       <p className="mt-4 font-mono text-sm text-muted tabular-nums">
         {en.guest.start.lives(livesRemaining)}
       </p>
+
+      <GameSelector qrToken={qrToken} games={selectorGames} />
 
       {failed && <p className="mt-4 text-base text-loss">{en.common.genericError}</p>}
 

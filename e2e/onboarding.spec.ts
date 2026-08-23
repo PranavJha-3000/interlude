@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { db, signInWithPassword, signUpWithPassword } from './fixtures'
+import { defaultVenueGames } from '../src/lib/venue-setup'
 
 /**
  * Self-serve onboarding, end to end: the front door to a working venue without
@@ -116,8 +117,11 @@ test('an owner signs up from the landing page and reaches a working dashboard', 
     await db.prizeRule.count({ where: { venueId: venue.id } }),
     'a venue with no prize rules offers nothing on night one'
   ).toBeGreaterThan(0)
-  // One game ships (the climb and the mystery plate are retired).
-  expect(await db.venueGame.count({ where: { venueId: venue.id, enabled: true } })).toBe(1)
+  // The three V1 games ship enabled at venue creation; assert against the
+  // setup default rather than a magic number, so the day a game is added or
+  // retired at the source this expectation moves with it.
+  const shipped = defaultVenueGames().filter((g) => g.enabled).length
+  expect(await db.venueGame.count({ where: { venueId: venue.id, enabled: true } })).toBe(shipped)
 })
 
 test('setup resumes where it stopped, on a different session', async ({ page }) => {

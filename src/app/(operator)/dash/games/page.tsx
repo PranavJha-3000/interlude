@@ -98,11 +98,17 @@ function Shell({ children }: { children: React.ReactNode }) {
 function nameOf(mechanic: Mechanic): string {
   if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlate
   if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRound
+  if (mechanic === 'SECRET_RECIPE') return 'Secret Recipe'
+  if (mechanic === 'MYSTERY_CUSTOMER') return 'Mystery Customer'
   return en.dash.games.beatTheKitchen
 }
 
 function blurbOf(mechanic: Mechanic): string {
   if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlateBlurb
   if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRoundBlurb
+  if (mechanic === 'SECRET_RECIPE')
+    return 'Ingredient combinations that reveal secret menu pairings.'
+  if (mechanic === 'MYSTERY_CUSTOMER')
+    return 'Guests build a meal for a mystery customer and see how it scores.'
   return en.dash.games.beatTheKitchenBlurb
 }

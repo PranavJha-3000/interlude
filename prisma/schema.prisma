@@ -179,6 +179,11 @@ model VenueGame {
   mechanic     Mechanic
   enabled      Boolean  @default(true)
   displayOrder Int      @default(0)
+  /// Game-specific configuration, shaped by the mechanic that owns the row:
+  /// Secret Recipe's ingredient cards and combinations, Mystery Customer's
+  /// brief options. Null means "the mechanic's built-in defaults" — the same
+  /// seed-not-constant rule as `defaultPrizeRules` (PLATFORM.md §10).
+  data         Json?
   updatedAt    DateTime @updatedAt
 
   @@unique([venueId, mechanic])
@@ -735,6 +740,10 @@ model Award {
   /// Single-use, bound to table and service (§7.4). Short enough to read aloud
   /// across a noisy room, because that is how it will actually be used.
   code         String?   @unique
+  /// The name the guest gave when claiming the reward (Name+Phone form). Used
+  /// by staff to verify the right person is redeeming. Never required — loyalty
+  /// awards and pre-claim awards have none.
+  claimantName String?
   redeemedAt   DateTime?
   redeemedById String?
 
@@ -1074,6 +1083,14 @@ enum EventType {
   LOYALTY_REWARDED
   /// A guest asked for their identity to be deleted. Carries a count, nothing else.
   PHONE_ERASED
+  /// Secret Recipe — an ingredient combination was tried this session.
+  SECRET_RECIPE_ATTEMPT
+  /// Secret Recipe — a valid combination was discovered.
+  SECRET_RECIPE_FOUND
+  /// Mystery Customer — the brief was shown.
+  MYSTERY_BRIEF_SHOWN
+  /// Mystery Customer — a meal was scored.
+  MYSTERY_MEAL_SCORED
 }
 
 /// Why a run ended.
@@ -1127,6 +1144,12 @@ enum Mechanic {
   BEAT_THE_KITCHEN
   KITCHEN_ROUND
   MYSTERY_PLATE
+  /// Secret Recipe — tap ingredients, discover a menu combination. Configured
+  /// entirely from venue data in `VenueGame.data`; nothing global.
+  SECRET_RECIPE
+  /// Mystery Customer — build a meal against a deterministic brief drawn from
+  /// the venue's own menu prices and categories.
+  MYSTERY_CUSTOMER
 }
 
 enum Outcome {

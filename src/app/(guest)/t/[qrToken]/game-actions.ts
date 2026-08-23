@@ -416,7 +416,7 @@ export async function claimPrize(qrToken: string): Promise<{ ok: boolean; code?:
     serviceId: scan.serviceId,
     tableRunId: device.tableRunId,
     nowMs: now,
-    purpose: { kind: 'GAME', rung: state.currentRung },
+    purpose: { kind: 'GAME', mechanic: 'BEAT_THE_KITCHEN', rung: state.currentRung },
   })
   return award ? { ok: true, code: award.code ?? undefined } : { ok: true }
 }

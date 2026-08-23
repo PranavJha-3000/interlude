@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
+import { miniGames } from '@/strings/mini-games'
 import { markReviewShown } from '@/lib/review-funnel'
 import { readGuestSessionId } from '@/lib/session'
 import {
@@ -113,6 +114,24 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   const config = await getVenueConfig(scan.venueId)
   const ladder = toLadderConfig(config)
+
+  // ── The two V1 mini-games ─────────────────────────────────────────────────
+  // Playable here means enabled *and* carrying the venue's own configuration —
+  // an unconfigured Secret Recipe is not shown rather than shown broken. The
+  // rows are the same ones /dash/games edits; nothing is hardcoded.
+  const gameRows = await db.venueGame.findMany({ where: { venueId: scan.venueId } })
+  const playable = (mechanic: 'SECRET_RECIPE' | 'MYSTERY_CUSTOMER') => {
+    const row = gameRows.find((g) => g.mechanic === mechanic)
+    return row?.enabled === true && row.data != null
+  }
+  const selectorGames = [
+    ...(playable('SECRET_RECIPE')
+      ? [{ slug: 'secret-recipe' as const, title: miniGames.secretRecipe.title }]
+      : []),
+    ...(playable('MYSTERY_CUSTOMER')
+      ? [{ slug: 'mystery-customer' as const, title: miniGames.mysteryCustomer.title }]
+      : []),
+  ]
 
   const deviceId = await readGuestSessionId()
   const device = deviceId
@@ -399,6 +418,7 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
       streak={run.streak}
       currentRung={run.currentRung}
       livesRemaining={run.livesRemaining}
+      selectorGames={selectorGames}
     />
   )
 }

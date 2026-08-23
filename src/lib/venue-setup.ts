@@ -56,7 +56,11 @@ export function defaultVenueGames(): Array<{
   enabled: boolean
   displayOrder: number
 }> {
-  return [{ mechanic: 'BEAT_THE_KITCHEN', enabled: true, displayOrder: 0 }]
+  return [
+    { mechanic: 'BEAT_THE_KITCHEN', enabled: true, displayOrder: 0 },
+    { mechanic: 'SECRET_RECIPE', enabled: true, displayOrder: 1 },
+    { mechanic: 'MYSTERY_CUSTOMER', enabled: true, displayOrder: 2 },
+  ]
 }
 
 /**

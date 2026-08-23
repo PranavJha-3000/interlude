@@ -55,6 +55,8 @@ const GAME_LABEL: Record<Mechanic, string> = {
   BEAT_THE_KITCHEN: en.dash.games.beatTheKitchen,
   KITCHEN_ROUND: en.dash.games.kitchenRound,
   MYSTERY_PLATE: en.dash.games.mysteryPlate,
+  SECRET_RECIPE: 'Secret Recipe',
+  MYSTERY_CUSTOMER: 'Mystery Customer',
 }
 
 const INPUT = 'mt-2 min-h-14 w-full rounded-xl border border-line bg-paper px-4 text-lg'

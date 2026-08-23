@@ -72,5 +72,52 @@ export function defaultPrizeRules(): PrizeRuleInput[] {
       kind: 'PERCENT_OFF',
       percentOff: 50,
     },
+
+    // ── Secret Recipe ─────────────────────────────────────────────────────────
+    // Discovery games concede less: the guest found a dish, they did not beat
+    // the kitchen. Half off a discovered item, or half off anything on a miss,
+    // keeps the outcome screen identical in shape to Beat the Kitchen's.
+    {
+      id: 'default-secret-recipe-win',
+      priority: 100,
+      label: 'Secret recipe discovered — half off',
+      mechanic: 'SECRET_RECIPE',
+      outcome: 'WIN',
+      window: 'ANY',
+      kind: 'PERCENT_OFF',
+      percentOff: 50,
+    },
+    {
+      id: 'default-secret-recipe-lose',
+      priority: 100,
+      label: 'Keep looking — a little off',
+      mechanic: 'SECRET_RECIPE',
+      outcome: 'LOSE',
+      window: 'ANY',
+      kind: 'PERCENT_OFF',
+      percentOff: 25,
+    },
+
+    // ── Mystery Customer ──────────────────────────────────────────────────────
+    {
+      id: 'default-mystery-customer-win',
+      priority: 100,
+      label: 'Nailed the brief — on the house side',
+      mechanic: 'MYSTERY_CUSTOMER',
+      outcome: 'WIN',
+      window: 'ANY',
+      kind: 'PERCENT_OFF',
+      percentOff: 40,
+    },
+    {
+      id: 'default-mystery-customer-lose',
+      priority: 100,
+      label: 'Not quite the brief — a little off',
+      mechanic: 'MYSTERY_CUSTOMER',
+      outcome: 'LOSE',
+      window: 'ANY',
+      kind: 'PERCENT_OFF',
+      percentOff: 25,
+    },
   ]
 }

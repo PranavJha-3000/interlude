@@ -1,4 +1,4 @@
-import 'server-only'
+﻿import 'server-only'
 
 import { db } from '@/lib/db'
 import { hashToRange } from '@/core/mechanics/hash'
@@ -21,16 +21,32 @@ import { newRedemptionCode } from '@/lib/table-run'
  *
  * Lifted out of `game-actions.ts` when loyalty arrived, deliberately as an
  * extraction rather than a second implementation. Two engine calls is how one of
- * them ends up missing `chefVetoes` or `concededSoFarPaise` — and the one that
+ * them ends up missing `chefVetoes` or `concededSoFarPaise` â€” and the one that
  * forgets a fence is the one nobody reads until a venue gives away its menu.
  *
- * Everything above the rule lookup — the hero rule, the chef's vetoes, kitchen
- * load, the per-item and per-service depth caps, the peak window — applies to a
+ * Everything above the rule lookup â€” the hero rule, the chef's vetoes, kitchen
+ * load, the per-item and per-service depth caps, the peak window â€” applies to a
  * loyalty reward for free, because it is the same call.
  */
 
+/**
+ * Which game a `GAME` award came from. Literals rather than the Prisma enum
+ * import, so this module stays import-light; the strings match `Mechanic`.
+ */
+export type GameMechanic = 'BEAT_THE_KITCHEN' | 'SECRET_RECIPE' | 'MYSTERY_CUSTOMER'
+
+/**
+ * What earned this award.
+ *
+ * `GAME` spans all three V1 mechanics, so it carries the mechanic explicitly:
+ * the engine filters rules by it, and the redemption-code seed mixes it in, so
+ * two games on one table can never mint the same five characters. `rung` is
+ * the ladder height for Beat the Kitchen and deliberately `null` for the
+ * discovery games, which have no ladder — the ledger reads that null as
+ * "discovery game", not as a missing number.
+ */
 export type AwardPurpose =
-  | { kind: 'GAME'; rung: number }
+  | { kind: 'GAME'; mechanic: GameMechanic; rung: number | null }
   | { kind: 'LOYALTY'; visitNumber: number; maxValuePaise: number }
 
 export interface DecideAndWriteAwardArgs {
@@ -44,12 +60,17 @@ export interface DecideAndWriteAwardArgs {
 /**
  * Run the engine, snapshot the pool, write the award.
  *
- * The whole pool is snapshotted to `PrizePool` — entries *and* exclusions with
- * their reasons — and it is written even when the pool is empty, because "the
+ * The whole pool is snapshotted to `PrizePool` â€” entries *and* exclusions with
+ * their reasons â€” and it is written even when the pool is empty, because "the
  * engine refused everything, and here is why" is exactly the night an operator
  * most wants explained.
  */
-async function runEngine(venueId: string, serviceId: string, nowMs: number) {
+async function runEngine(
+  venueId: string,
+  serviceId: string,
+  nowMs: number,
+  game: { mechanic: GameMechanic; outcome: 'WIN' | 'LOSE' }
+) {
   const [venue, config, menuData, prizeRules, load, vetoes, conceded] = await Promise.all([
     db.venue.findUniqueOrThrow({ where: { id: venueId }, select: { timezone: true } }),
     getVenueConfig(venueId),
@@ -69,8 +90,8 @@ async function runEngine(venueId: string, serviceId: string, nowMs: number) {
       perItemPct: config.depthCapPerItemPct,
       perServicePaise: config.depthCapPerServicePaise,
     },
-    mechanic: 'BEAT_THE_KITCHEN',
-    outcome: 'WIN',
+    mechanic: game.mechanic,
+    outcome: game.outcome,
     prizeRules,
     rankingWeights: parseRankingWeights(config.rankingWeights),
     concededSoFarPaise: conceded,
@@ -83,15 +104,18 @@ async function runEngine(venueId: string, serviceId: string, nowMs: number) {
 }
 
 /**
- * What the rung screen may promise (§9.1's rung-reached moment).
+ * What the rung screen may promise (Â§9.1's rung-reached moment).
  *
- * The same pure engine call the claim will make, read-only — no snapshot, no
+ * The same pure engine call the claim will make, read-only â€” no snapshot, no
  * award. The preview and the decision are seconds apart, so they almost always
  * agree; when they don't (a cap crossed, the kill switch), the claim's answer
  * is the truth and the preview promised "tonight only", not a contract.
  */
 export async function previewTopPrize(venueId: string, serviceId: string, nowMs: number) {
-  const { pool, menuData } = await runEngine(venueId, serviceId, nowMs)
+  const { pool, menuData } = await runEngine(venueId, serviceId, nowMs, {
+    mechanic: 'BEAT_THE_KITCHEN',
+    outcome: 'WIN',
+  })
   const top = pool.entries[0]
   if (!top) return null
 
@@ -110,13 +134,20 @@ export async function previewTopPrize(venueId: string, serviceId: string, nowMs:
 export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
   const { venueId, serviceId, tableRunId, nowMs, purpose } = args
 
-  const { pool, config, menuData, load } = await runEngine(venueId, serviceId, nowMs)
+  // Every game funnels through here, so the mechanic travels with the purpose
+  // rather than being assumed. A loyalty award keeps the kitchen-game rules —
+  // it is a concession on a meal, judged like one.
+  const mechanic = purpose.kind === 'GAME' ? purpose.mechanic : 'BEAT_THE_KITCHEN'
+  const { pool, config, menuData, load } = await runEngine(venueId, serviceId, nowMs, {
+    mechanic,
+    outcome: 'WIN',
+  })
 
   const nameOf = new Map(menuData.rows.map((m) => [m.id, m.name]))
   const snapshot = await db.prizePool.create({
     data: {
       serviceId,
-      mechanic: 'BEAT_THE_KITCHEN',
+      mechanic,
       kitchenLoad: load,
       entries: pool.entries.map((e) => ({ ...e, itemName: nameOf.get(e.itemId) ?? e.itemId })),
       excluded: pool.excluded.map((e) => ({ ...e, itemName: nameOf.get(e.itemId) ?? e.itemId })),
@@ -168,11 +199,11 @@ export async function decideAndWriteAward(args: DecideAndWriteAwardArgs) {
  * **The two purposes must not share a seed.** `code` is `@unique`, so a table
  * that wins a rung prize and takes a loyalty reward on the same run would
  * otherwise generate the identical five-character code twice and fail the
- * insert — at the table, at 9pm, with a guest waiting.
+ * insert â€” at the table, at 9pm, with a guest waiting.
  */
 function seedFor(tableRunId: string, purpose: AwardPurpose): string {
   return purpose.kind === 'GAME'
-    ? `${tableRunId}:${purpose.rung}`
+    ? `${tableRunId}:${purpose.mechanic}:${purpose.rung ?? 'win'}`
     : `${tableRunId}:loyalty:${purpose.visitNumber}`
 }
 
@@ -196,7 +227,7 @@ function decide(
   if (purpose.kind === 'LOYALTY') {
     // A loyalty reward the venue cannot afford is a legible refusal on
     // /dash/prizes, not a consolation. The fallback below exists for a guest
-    // who *earned a rung* — §5 forbids telling them there is nothing — and a
+    // who *earned a rung* â€” Â§5 forbids telling them there is nothing â€” and a
     // returning guest has not earned anything tonight.
     const chosen = chooseLoyaltyReward({
       entries: pool.entries,
@@ -210,9 +241,9 @@ function decide(
 }
 
 /**
- * The zero-kitchen fallback (§5).
+ * The zero-kitchen fallback (Â§5).
  *
- * Configured per venue — something the bar pours or the counter hands over. A
+ * Configured per venue â€” something the bar pours or the counter hands over. A
  * pool of nothing must never reach a guest screen, and the alternative to this
  * is a table that earned a prize and is told there isn't one.
  */
@@ -230,6 +261,6 @@ function fallbackEntry(
     ruleId: null,
     valuePaise: item.pricePaise,
     costPaise: item.foodCostPaise,
-    reason: 'Fallback item — the pool was empty, and a guest is never told there is nothing.',
+    reason: 'Fallback item â€” the pool was empty, and a guest is never told there is nothing.',
   }
 }

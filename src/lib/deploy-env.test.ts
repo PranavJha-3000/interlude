@@ -32,9 +32,8 @@ const GOOD: Record<string, string | undefined> = {
     'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
   SESSION_SECRET: 'a'.repeat(64),
   NEXT_PUBLIC_BASE_URL: 'https://interlude.example.com',
-  RESEND_API_KEY: 're_live_key',
-  EMAIL_FROM: 'Interlude <signin@example.com>',
-  CRON_SECRET: 'b'.repeat(64),
+  // RESEND_API_KEY, EMAIL_FROM, and CRON_SECRET are now optional (warning only).
+  // Operator sign-in uses email+password and does not require Resend.
   ANTHROPIC_API_KEY: 'sk-ant-test',
 }
 
@@ -53,15 +52,14 @@ function problemFor(
 
 describe('checkDeploymentEnv', () => {
   it('finds nothing wrong with a fully configured deployment', () => {
-    expect(checkDeploymentEnv(GOOD)).toEqual([])
+    expect(checkDeploymentEnv(GOOD).filter((p) => p.severity === 'fatal')).toEqual([])
   })
 
   it('reports every missing variable at once, not the first one', () => {
     // One redeploy per missing variable is how a Saturday-evening launch turns
     // into a Sunday one. The whole list, or the check is not worth running.
-    const problems = fatalNames({ ...GOOD, SESSION_SECRET: undefined, CRON_SECRET: undefined })
+    const problems = fatalNames({ ...GOOD, SESSION_SECRET: undefined })
     expect(problems).toContain('SESSION_SECRET')
-    expect(problems).toContain('CRON_SECRET')
   })
 
   it('refuses a missing DATABASE_URL', () => {
@@ -105,27 +103,34 @@ describe('checkDeploymentEnv', () => {
     )
   })
 
-  it('refuses a missing RESEND_API_KEY, because it locks every operator out', () => {
-    expect(fatalNames({ ...GOOD, RESEND_API_KEY: undefined })).toContain('RESEND_API_KEY')
+  it('warns (not fatals) when RESEND_API_KEY is missing — operator sign-in uses password', () => {
+    const problem = problemFor({ ...GOOD, RESEND_API_KEY: undefined }, 'RESEND_API_KEY')
+    expect(problem?.severity).toBe('warning')
+    expect(problem?.problem).toMatch(/weekly-report|password/i)
+    expect(fatalNames({ ...GOOD, RESEND_API_KEY: undefined })).not.toContain('RESEND_API_KEY')
   })
 
-  it('refuses a key with no EMAIL_FROM', () => {
-    expect(fatalNames({ ...GOOD, EMAIL_FROM: undefined })).toContain('EMAIL_FROM')
+  it('warns (not fatals) when EMAIL_FROM is missing', () => {
+    const problem = problemFor({ ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined }, 'EMAIL_FROM')
+    expect(problem?.severity).toBe('warning')
+    expect(fatalNames({ ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined })).not.toContain('EMAIL_FROM')
   })
 
-  it('refuses EMAIL_TRANSPORT=console on a deployment even though it silences the send refusal', () => {
-    // The waiver exists for the E2E suite, which runs a production build with no
-    // key on purpose. On a deployment it re-arms exactly the silent outage
-    // `email.ts` refuses — so the check names it rather than accepting it.
+  it('warns (not fatals) when EMAIL_TRANSPORT=console on a deployment', () => {
+    const problem = problemFor(
+      { ...GOOD, RESEND_API_KEY: undefined, EMAIL_TRANSPORT: 'console' },
+      'EMAIL_TRANSPORT'
+    )
+    expect(problem?.severity).toBe('warning')
     expect(
       fatalNames({ ...GOOD, RESEND_API_KEY: undefined, EMAIL_TRANSPORT: 'console' })
-    ).toContain('EMAIL_TRANSPORT')
+    ).not.toContain('EMAIL_TRANSPORT')
   })
 
-  it('refuses a missing CRON_SECRET rather than letting the Monday email vanish', () => {
-    // The route answers 404 without it. Nothing throws, nothing is logged, and
-    // the operator's weekly report simply never arrives.
-    expect(fatalNames({ ...GOOD, CRON_SECRET: undefined })).toContain('CRON_SECRET')
+  it('warns (not fatals) when CRON_SECRET is missing — weekly report degrades gracefully', () => {
+    const problem = problemFor({ ...GOOD, CRON_SECRET: undefined }, 'CRON_SECRET')
+    expect(problem?.severity).toBe('warning')
+    expect(fatalNames({ ...GOOD, CRON_SECRET: undefined })).not.toContain('CRON_SECRET')
   })
 
   it('only warns about a missing ANTHROPIC_API_KEY, which degrades by design', () => {
@@ -171,14 +176,16 @@ describe('assertDeploymentEnv', () => {
   })
 
   it('throws naming every fatal problem when it is a deployment', () => {
+    // CRON_SECRET is now a warning (weekly report degrades), so only
+    // SESSION_SECRET (which breaks every scan) remains fatal.
     expect(() =>
       assertDeploymentEnv({
         ...GOOD,
         VERCEL_ENV: 'production',
         SESSION_SECRET: undefined,
-        CRON_SECRET: undefined,
+        DIRECT_URL: undefined,
       })
-    ).toThrow(/SESSION_SECRET[\s\S]*CRON_SECRET|CRON_SECRET[\s\S]*SESSION_SECRET/)
+    ).toThrow(/SESSION_SECRET|DIRECT_URL/)
   })
 
   it('does not throw on a laptop, however broken the environment is', () => {

@@ -100,8 +100,14 @@ describe('the starting prize policy', () => {
 
   it('names no retired mechanic — the climb and the mystery plate are gone', () => {
     for (const r of defaultPrizeRules()) {
-      expect(r.mechanic).toBe('BEAT_THE_KITCHEN')
+      expect(['CLIMB', 'MYSTERY_PLATE']).not.toContain(r.mechanic)
     }
+    // The V1 set is exactly the three shipping games.
+    expect([...new Set(defaultPrizeRules().map((r) => r.mechanic))].sort()).toEqual([
+      'BEAT_THE_KITCHEN',
+      'MYSTERY_CUSTOMER',
+      'SECRET_RECIPE',
+    ])
   })
 
   it('gives every rule a label an operator could recognise as their own', () => {
@@ -112,9 +118,13 @@ describe('the starting prize policy', () => {
 })
 
 describe('the games a venue is born with', () => {
-  it('enables the one shipping game — a new venue is playable without configuring anything', () => {
+  it('enables the three shipping games — a new venue is playable without configuring anything', () => {
     const games = defaultVenueGames()
-    expect(games.map((g) => g.mechanic)).toEqual(['BEAT_THE_KITCHEN'])
+    expect(games.map((g) => g.mechanic)).toEqual([
+      'BEAT_THE_KITCHEN',
+      'SECRET_RECIPE',
+      'MYSTERY_CUSTOMER',
+    ])
     expect(games.every((g) => g.enabled)).toBe(true)
   })
 
