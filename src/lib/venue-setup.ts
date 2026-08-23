@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import type { PrismaClient } from '@/generated/prisma/client'
-import { defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
+import { DEFAULT_RANKING_WEIGHTS, defaultPrizeRules, type Mechanic } from '@/core/prize-engine'
 
 /**
  * Creating a venue — the one code path, used by both the seed script and
@@ -34,8 +34,18 @@ export const DEFAULT_PREP_MINUTES: Record<string, number> = {
 }
 
 /**
- * The games a venue starts with. Both on, so a new venue gets the picker
- * without configuring anything.
+ * What we assume when the floor fires without naming courses — the common case,
+ * because one tap is the whole point of that button.
+ *
+ * Sits between the quickest and slowest categories above rather than at either
+ * end: too low and every run is pointlessly short, too high and the run is
+ * still going when the food lands. Written into the row like everything else.
+ */
+export const DEFAULT_PREP_FALLBACK_MINUTES = 12
+
+/**
+ * The games a venue starts with — one, on. The spec ships one game; the row
+ * (rather than a flag) is the seam a future mechanic plugs into.
  *
  * Pure, and separate from the write, for the same reason `defaultPrizeRules` is:
  * a starting point written into rows the operator then owns — never a constant
@@ -47,9 +57,27 @@ export function defaultVenueGames(): Array<{
   displayOrder: number
 }> {
   return [
-    { mechanic: 'KITCHEN_ROUND', enabled: true, displayOrder: 0 },
-    { mechanic: 'MYSTERY_PLATE', enabled: true, displayOrder: 1 },
+    { mechanic: 'BEAT_THE_KITCHEN', enabled: true, displayOrder: 0 },
+    { mechanic: 'SECRET_RECIPE', enabled: true, displayOrder: 1 },
+    { mechanic: 'MYSTERY_CUSTOMER', enabled: true, displayOrder: 2 },
   ]
+}
+
+/**
+ * A staff PIN, generated rather than chosen.
+ *
+ * Asking an owner to invent two PINs during signup is a screen they can abandon,
+ * and a venue with no staff cannot open a service at all — so onboarding makes
+ * them and shows them. `randomInt` rather than `Math.random` because this is a
+ * credential: it is weak by design (four digits, typed one-handed on a shared
+ * tablet, see `pin.ts`) and there is no reason to make it weaker still by
+ * generating it from a predictable source.
+ *
+ * Leading zeros are kept — `padStart` matters, or one PIN in ten is three
+ * digits and the operator reads it out wrong.
+ */
+export function newStaffPin(): string {
+  return String(randomInt(0, 10_000)).padStart(4, '0')
 }
 
 /** Long enough that a QR token cannot be guessed or enumerated. */
@@ -92,10 +120,9 @@ export interface CreateVenueInput {
  * The `VenueGame` rows are nested in the same `create` for a sharper reason: a
  * venue with no game rows is **closed to guests**, so a half-written venue
  * would be a venue nobody can play at. Nesting makes them arrive with the venue
- * or not at all. The prize rules cannot join them — they are priced from the
- * config row's own `mysteryPlatePricePaise`, which does not exist until the
- * insert returns — but a venue with no prize rules merely offers nothing and
- * says why, which is recoverable from `/dash/prizes`.
+ * or not at all. The prize rules follow in a second write; a venue with no
+ * prize rules merely offers nothing and says why, which is recoverable from
+ * `/dash/prizes`.
  */
 export async function createVenue(db: Db, input: CreateVenueInput) {
   const slug = input.slug ?? slugify(input.name)
@@ -108,14 +135,22 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
       phoneSalt: newPhoneSalt(),
       qrToken: newQrToken(),
       onboardingStep: 'TABLES',
-      config: { create: { prepMinutesByCategory: DEFAULT_PREP_MINUTES } },
+      config: {
+        create: {
+          prepMinutesByCategory: DEFAULT_PREP_MINUTES,
+          defaultPrepMinutes: DEFAULT_PREP_FALLBACK_MINUTES,
+          // Spread into a plain record: Prisma's Json input wants an index
+          // signature, and `RankingWeights` is deliberately a closed shape.
+          rankingWeights: { ...DEFAULT_RANKING_WEIGHTS } as Record<string, number>,
+        },
+      },
       games: { create: defaultVenueGames() },
       ...(input.operatorId ? { operators: { connect: { id: input.operatorId } } } : {}),
     },
     include: { config: true },
   })
 
-  await createDefaultPrizeRules(db, venue.id, venue.config!.mysteryPlatePricePaise)
+  await createDefaultPrizeRules(db, venue.id)
 
   return venue
 }
@@ -128,12 +163,8 @@ export async function createVenue(db: Db, input: CreateVenueInput) {
  * but it must never be the state a venue is *created* in, or night one is a
  * guest winning nothing and nobody knowing why.
  */
-export async function createDefaultPrizeRules(
-  db: Db,
-  venueId: string,
-  mysteryPlatePricePaise: number
-) {
-  const rules = defaultPrizeRules(mysteryPlatePricePaise)
+export async function createDefaultPrizeRules(db: Db, venueId: string) {
+  const rules = defaultPrizeRules()
   await db.prizeRule.createMany({
     data: rules.map((r) => ({
       venueId,
@@ -226,8 +257,23 @@ export async function createStaff(
   return staff.length
 }
 
-/** The order onboarding walks in. Resumable — nobody finishes in one sitting. */
-export const ONBOARDING_ORDER = ['DETAILS', 'TABLES', 'MENU', 'STAFF', 'QR', 'DONE'] as const
+/**
+ * The order onboarding walks in. Resumable — nobody finishes in one sitting.
+ *
+ * `STAFF` shows the generated PINs rather than asking for them, and `GAMES` is
+ * last because it is the only step with a sensible default already written:
+ * `defaultVenueGames()` turns both on at venue creation, so a venue that
+ * abandons the wizard here is still playable.
+ */
+export const ONBOARDING_ORDER = [
+  'DETAILS',
+  'TABLES',
+  'MENU',
+  'STAFF',
+  'QR',
+  'GAMES',
+  'DONE',
+] as const
 export type OnboardingStepName = (typeof ONBOARDING_ORDER)[number]
 
 export function nextOnboardingStep(current: OnboardingStepName): OnboardingStepName {

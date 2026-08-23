@@ -31,6 +31,24 @@
  */
 
 @theme {
+  /* ── The build spec's §8 names ────────────────────────────────────────────
+   * The pilot spec names these tokens `ground-cotton`, `ink-soft`, `loss` and
+   * so on. Every value already matched; only the names did not. Both spellings
+   * are defined rather than renaming across forty files for no visual change —
+   * the §8 names are canonical for anything written from here on, and the older
+   * ones are kept so existing screens keep working.
+   *
+   * The rule that matters is unchanged either way: no raw hex outside this
+   * file. */
+  --color-ground-cotton: #faf5ee;
+  --color-ground-clay: #efe4d4;
+  --color-ground-iron: #161210;
+  --color-panel-iron: #221b16;
+  --color-ink-soft: #6e5b49;
+  --color-ink-iron: #f2eae0;
+  --color-ink-iron-soft: #a99a8b;
+  --color-loss: #b01e1e;
+
   /* Light grounds. Cotton is the operator's; clay is the guest's and doubles
    * as the panel colour on cotton. */
   --color-paper: #faf5ee;
@@ -83,14 +101,44 @@
    * the operator subtree only (see `(operator)/layout.tsx`). Everywhere else
    * they are undefined and the fallback wins — so `font-mono` and
    * `font-display` are usable on the guest route at a cost of zero bytes,
-   * while the operator gets the real faces. */
-  --font-mono:
-    var(--font-plex-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  --font-display: var(--font-instrument), Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+   * while the operator gets the real faces.
+   *
+   * The fallback list lives INSIDE var(), not after it. `var(--x), a, b` with
+   * `--x` undefined does not fall through to `a, b` — an unresolvable var()
+   * invalidates the whole declaration at computed-value time and the property
+   * silently inherits, which is how every guest and staff figure rendered in
+   * the sans stack from the first commit until 2026-08-14 without anyone
+   * noticing. Only `var(--x, a, b)` falls back. */
+  --font-mono: var(
+    --font-plex-mono,
+    ui-monospace,
+    SFMono-Regular,
+    'SF Mono',
+    Menlo,
+    Consolas,
+    monospace
+  );
+  --font-display: var(--font-instrument, Georgia, 'Iowan Old Style', 'Times New Roman', serif);
+
+  /* ── Motion ──────────────────────────────────────────────────────────────
+   * The countdown is the only continuously moving element in the product, and
+   * the rung reveal is the only staged moment (REVAMP-BRIEF.md Part 5). Every
+   * other change is a discrete state, and a discrete state change gets exactly
+   * one duration and one curve. No other timing value may appear anywhere. */
+  --ease-state: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
   color-scheme: light;
+
+  /* Motion tokens, continued. Durations live here rather than in @theme so
+   * they stay plain variables — they are read from JS (the reveal hold is a
+   * setTimeout) as well as from CSS, and nothing should generate utilities
+   * from them. `--duration-state` is the one transition length; the reveal
+   * hold is how long a verdict stays on screen before the next pair, which is
+   * reading time, not animation. */
+  --duration-state: 180ms;
+  --duration-reveal-hold: 900ms;
 }
 
 html,
@@ -107,6 +155,25 @@ body {
 .surface-staff {
   background: var(--color-staff-ground);
   color: var(--color-staff-ink);
+}
+
+/* The guest's ground is clay — the audience signal for a phone in a dim dining
+ * room. Cotton stays the operator's, iron the kitchen's; a person should tell
+ * whose screen they are looking at from the ground alone (REVAMP-BRIEF.md
+ * Part 4). Panels and cards on clay are cotton, the inverse of the operator
+ * side, where clay is the panel on cotton. */
+.surface-guest {
+  background: var(--color-ground-clay);
+  color: var(--color-ink);
+}
+
+/* The one way a discrete state change is allowed to move. Transition the
+ * paint properties only — layout never animates, and a tap must resolve
+ * immediately rather than waiting on this. */
+.transition-state {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: var(--duration-state);
+  transition-timing-function: var(--ease-state);
 }
 
 /* The operator's typographic identity. Applied on one wrapper in

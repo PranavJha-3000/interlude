@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { en } from '@/strings/en'
 import { resolveVenueScan } from '@/lib/service'
-import { Body, Heading, Screen } from '@/app/(guest)/t/[qrToken]/ui'
+import { Body, guestViewport, Heading, Screen } from '@/app/(guest)/t/[qrToken]/ui'
+
+// Local const, never a re-export — see the note in t/[qrToken]/page.tsx.
+export const viewport = guestViewport
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +55,7 @@ export default async function VenuePickerPage({
             href={`/t/${t.qrToken}`}
             prefetch={false}
             aria-label={en.guest.tablePicker.tableLabel(t.label)}
-            className="flex min-h-16 items-center justify-center rounded-xl border border-line bg-warm text-xl font-semibold tabular-nums active:bg-ink active:text-paper"
+            className="flex min-h-16 items-center justify-center rounded-xl border border-line bg-ground-cotton text-xl font-semibold tabular-nums active:bg-ink active:text-paper"
           >
             {t.label}
           </Link>

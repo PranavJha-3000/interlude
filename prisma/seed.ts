@@ -1,6 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { hashPin } from '../src/lib/pin'
+import { hashPassword } from '../src/lib/password'
 import { createMenuItems, createStaff, createTables, createVenue } from '../src/lib/venue-setup'
 
 /**
@@ -290,6 +291,7 @@ interface SeedVenue {
   seatsFor?: (index: number) => number
   menu: typeof MENU
   operatorEmail: string
+  operatorPassword: string
   serverPin: string
   kitchenPin: string
 }
@@ -321,7 +323,14 @@ async function seedVenue(v: SeedVenue) {
 
   await createTables(db, venue.id, v.tableCount, v.seatsFor)
   await db.operatorUser.create({
-    data: { email: v.operatorEmail, venueId: venue.id, name: 'Owner' },
+    data: {
+      email: v.operatorEmail,
+      venueId: venue.id,
+      name: 'Owner',
+      // Without a hash the seeded owner exists but cannot use the password
+      // door, which is the only door the UI currently offers (SECURITY.md §7a).
+      passwordHash: hashPassword(v.operatorPassword),
+    },
   })
   await createStaff(db, venue.id, [
     { name: 'Floor', role: 'SERVER', pinHash: hashPin(v.serverPin) },
@@ -356,6 +365,10 @@ async function main() {
     db.staffUser.deleteMany(),
     db.prizeRule.deleteMany(),
     db.magicLinkToken.deleteMany(),
+    // Otherwise a reseed leaves the throttle mid-window, and the first few
+    // sign-ins after it are refused for reasons that have nothing to do with
+    // the credentials being typed.
+    db.operatorLoginAttempt.deleteMany(),
     db.operatorUser.deleteMany(),
     db.venueConfig.deleteMany(),
     db.venue.deleteMany(),
@@ -365,6 +378,7 @@ async function main() {
   // the venue every test runs against stops resembling the ones real operators
   // create — so there is exactly one path, and a test asserts it.
   const operatorEmail = process.env.SEED_OPERATOR_EMAIL ?? 'owner@example.com'
+  const operatorPassword = process.env.SEED_OPERATOR_PASSWORD ?? 'pilot-owner-dev'
   const venue = await seedVenue({
     name: 'The Pilot Kitchen',
     slug: 'pilot',
@@ -372,6 +386,7 @@ async function main() {
     seatsFor: (i) => (i < 20 ? 4 : 2),
     menu: MENU,
     operatorEmail,
+    operatorPassword,
     serverPin: '1234',
     kitchenPin: '5678',
   })
@@ -379,7 +394,7 @@ async function main() {
   console.log('  prize rules: starting policy written, editable in /dash/prizes')
   console.log(`  menu: ${MENU.length} items (${MENU.filter((m) => m.hero).length} heroes)`)
   console.log('  tables: 30, each with a unique QR token')
-  console.log(`  operator: ${operatorEmail} — sign in at /signin, link prints to this console`)
+  console.log(`  operator: ${operatorEmail} / ${operatorPassword} — sign in at /signin`)
   console.log('  staff: floor PIN 1234, kitchen PIN 5678 (dev only — change before the pilot)')
 
   // A second tenant, so "venue A cannot see venue B" is a claim a test can
@@ -391,6 +406,7 @@ async function main() {
     tableCount: 8,
     menu: MENU.slice(0, 6),
     operatorEmail: 'owner-two@example.com',
+    operatorPassword,
     serverPin: '4321',
     kitchenPin: '8765',
   })

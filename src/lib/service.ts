@@ -1,54 +1,21 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { armAt, canOpenSession, type ArmRow } from '@/core/measurement/arm-assignment'
-import type { ClimbConfig, ClimbItemInput } from '@/core/mechanics/climb'
-import type { Mechanic, PrizeRuleInput } from '@/core/prize-engine'
+import { armAt, type ArmRow } from '@/core/measurement/arm-assignment'
+import { MECHANICS, type Mechanic, type PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
+import { resolvePosAdapter } from '@/lib/pos'
 
 /**
  * Reads the live state a guest surface needs. Everything here is I/O; the
  * decisions themselves live in `core/` and take this data as arguments.
  */
 
-export interface PrepMinutes {
-  [category: string]: number
-}
-
 /** The venue's own numbers, never constants (PLATFORM.md §10). */
 export async function getVenueConfig(venueId: string) {
   const config = await db.venueConfig.findUnique({ where: { venueId } })
   if (!config) throw new Error(`Venue ${venueId} has no config row`)
   return config
-}
-
-export function toClimbConfig(config: {
-  climbRungs: number
-  climbHandSec: number
-  climbMinRunSec: number
-}): ClimbConfig {
-  return {
-    rungs: config.climbRungs,
-    handSec: config.climbHandSec,
-    minRunSec: config.climbMinRunSec,
-  }
-}
-
-/**
- * The venue's menu as the climb sees it: id, name, price.
- *
- * Only active items, and only ones with a name and a price — a half-entered
- * row from a venue still onboarding must not turn up in a hand at a table.
- * Ordered by price then id so the deal is a function of the data rather than
- * of whatever order Postgres felt like returning.
- */
-export async function getMenuForClimb(venueId: string): Promise<ClimbItemInput[]> {
-  const rows = await db.menuItem.findMany({
-    where: { venueId, active: true, pricePaise: { gt: 0 } },
-    select: { id: true, name: true, pricePaise: true },
-    orderBy: [{ pricePaise: 'asc' }, { id: 'asc' }],
-  })
-  return rows.filter((r) => r.name.trim().length > 0)
 }
 
 /** The service currently running at this venue, or null between services. */
@@ -81,6 +48,9 @@ export type ScanResolution =
       venueId: string
       venueName: string
       serviceId: string
+      arm: 'LIVE' | 'CONTROL'
+      /** The chef has hit the kill switch: play on, award nothing (§7.4). */
+      killed: boolean
       tableId: string
       tableLabel: string
     }
@@ -94,7 +64,7 @@ export type ScanResolution =
  * The guest sees an ordinary "nothing running" screen — they must never learn
  * they are in a control group, or the behaviour we are measuring changes.
  */
-export async function resolveScan(qrToken: string, atMs: number): Promise<ScanResolution> {
+export async function resolveScan(qrToken: string): Promise<ScanResolution> {
   const table = await db.table.findUnique({
     where: { qrToken },
     include: { venue: { select: { id: true, name: true } } },
@@ -104,17 +74,24 @@ export async function resolveScan(qrToken: string, atMs: number): Promise<ScanRe
   const service = await getOpenService(table.venueId)
   if (!service) return { kind: 'NO_SERVICE', venueName: table.venue.name }
 
-  const rows = await getArmRows(service.id)
-  const verdict = canOpenSession(rows, table.id, atMs)
-  if (!verdict.allowed) {
-    return { kind: 'BLOCKED', venueName: table.venue.name, reason: verdict.reason }
+  // The service is the unit of assignment now, not the table. A control service
+  // put no tents out at all, so a scan during one is a guest holding last
+  // week's tent — and they get the closed-venue screen, byte for byte. They
+  // must never learn a control night is a control night, or the behaviour being
+  // measured changes.
+  if (service.arm === 'CONTROL') {
+    return { kind: 'NO_SERVICE', venueName: table.venue.name }
   }
 
+  // The chef's kill switch (§7.4) stops offers and awards, never the game or
+  // the measurement. The night still produces a number, so the scan resolves.
   return {
     kind: 'OK',
     venueId: table.venueId,
     venueName: table.venue.name,
     serviceId: service.id,
+    arm: service.arm,
+    killed: service.killedAt !== null,
     tableId: table.id,
     tableLabel: table.label,
   }
@@ -182,13 +159,30 @@ export async function armForTable(
 
 /**
  * The most recent order fired for this table in this service, which is what
- * drives the #5 countdown through the Manual POS adapter.
+ * drives the countdown.
+ *
+ * Goes through the `PosAdapter` port rather than the table directly, so that
+ * the day a venue has a real till, the guest surface does not change
+ * (PLATFORM.md §6).
  */
-export async function getLatestOrderFire(serviceId: string, tableId: string) {
-  return db.orderFire.findFirst({
-    where: { serviceId, tableId },
-    orderBy: { firedAt: 'desc' },
-  })
+export async function getLatestOrderFire(serviceId: string, tableId: string, venueId: string) {
+  return resolvePosAdapter(venueId).latestFire(serviceId, tableId)
+}
+
+/**
+ * The server's own reading of the round clock (§4.6).
+ *
+ * The countdown the phone renders is presentation; this is truth. The round
+ * actions and the guest page both read it, so the clock hitting 0:00 means
+ * the same thing everywhere: the run is over, the rung is banked, and no
+ * further answer is judged. Null means an untimed run — the floor never fired.
+ */
+export async function roundEndsAtMs(
+  scan: { serviceId: string; tableId: string; venueId: string },
+  config: { countdownBufferSec: number }
+): Promise<number | null> {
+  const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
+  return fire ? fire.estReadyAt.getTime() - config.countdownBufferSec * 1000 : null
 }
 
 /** Current kitchen load. Defaults to GREEN when the chef has not set one. */
@@ -259,13 +253,33 @@ export async function getMenuForEngine(venueId: string) {
   }
 }
 
-/** Value already conceded this service, so the depth cap is a running total. */
+/**
+ * Value already conceded this service, so the depth cap is a running total.
+ *
+ * **The `tableRun` branch is the one that matters, and it was missing.** This
+ * counted awards only through `play.guestSession.serviceId`, which was right
+ * when the climb was the game and every award hung off a `Play`. Since the
+ * table became the unit, `awardFor` writes `tableRunId` and leaves `playId`
+ * null — and a Prisma to-one relation filter does not match a row whose foreign
+ * key is null. So the sum was always zero.
+ *
+ * What that broke is subtler than the cap not working. `decidePrizePool`
+ * computes `perServicePaise - concededSoFarPaise`, so with the total stuck at
+ * zero the cap still bound *per award*, as a fixed ceiling — it simply never
+ * **depleted**. A venue with a ₹5,000 service cap could concede ₹5,000 on every
+ * award, all evening, while `/pass` and `/dash/prizes` both displayed "₹0
+ * conceded so far" and looked like they were working.
+ *
+ * The climb-era branch is kept rather than replaced: those awards are real rows
+ * that really conceded value, and dropping them would understate a service that
+ * spans the migration.
+ */
 export async function getConcededSoFarPaise(serviceId: string): Promise<number> {
   const result = await db.award.aggregate({
     _sum: { valuePaise: true },
     where: {
       status: { in: ['PENDING', 'CONFIRMED'] },
-      play: { guestSession: { serviceId } },
+      OR: [{ tableRun: { serviceId } }, { play: { guestSession: { serviceId } } }],
     },
   })
   return result._sum.valuePaise ?? 0
@@ -284,17 +298,10 @@ export function serviceClockMinute(atMs: number, timezone: string): number {
   return hour * 60 + minute
 }
 
-/** Estimated ready time from the venue's configured prep minutes per category. */
-export function estimateReadyAt(
-  firedAtMs: number,
-  categories: readonly string[],
-  prepMinutes: PrepMinutes,
-  fallbackMinutes = 15
-): Date {
-  const longest = categories.reduce((max, c) => Math.max(max, prepMinutes[c] ?? 0), 0)
-  const minutes = longest > 0 ? longest : fallbackMinutes
-  return new Date(firedAtMs + minutes * 60_000)
-}
+// The ready estimate used to live here. It is now a pure function in
+// core/mechanics/prep-estimate.ts, reached through the PosAdapter port, so the
+// rule can be tested without a database — and so nothing outside the port
+// computes it independently.
 
 /**
  * The games this venue is currently running, in the order the guest sees them.
@@ -310,7 +317,9 @@ export async function getEnabledGames(venueId: string): Promise<Mechanic[]> {
     orderBy: [{ displayOrder: 'asc' }, { mechanic: 'asc' }],
     select: { mechanic: true },
   })
-  return rows.map((r) => r.mechanic)
+  // Retired mechanics never reach a guest even if a venue's old row is still
+  // enabled — the platform list is the gate, the rows are the preference.
+  return rows.map((r) => r.mechanic).filter((m) => MECHANICS.some((known) => known === m))
 }
 
 /** Every game, on or off — what the operator's toggle page lists. */

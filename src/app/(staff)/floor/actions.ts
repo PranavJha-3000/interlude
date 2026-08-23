@@ -4,7 +4,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-session'
-import { estimateReadyAt, getOpenService, getVenueConfig, type PrepMinutes } from '@/lib/service'
+import { getOpenService, getVenueConfig } from '@/lib/service'
+import { resolvePosAdapter } from '@/lib/pos'
+import { recordEvent } from '@/lib/events'
+import {
+  earnedLifeActions,
+  openOrResumeTableRun,
+  runStateOf,
+  saveRunState,
+  toLadderConfig,
+} from '@/lib/table-run'
+import { grantLife } from '@/core/game/run'
 import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
 /**
@@ -145,7 +155,17 @@ export async function swapArms(): Promise<void> {
   revalidatePath('/floor')
 }
 
-/** The Manual POS adapter. Staff taps when food goes in; that starts the clock. */
+/**
+ * Food went in. This starts the guest's clock, so it is the one action on
+ * `/floor` a guest can feel.
+ *
+ * The work happens behind the `PosAdapter` port — this action only decides
+ * *who* fired and *what*, never how long the food takes.
+ *
+ * Courses are optional by design. One tap sends none and the venue's
+ * `defaultPrepMinutes` applies; a server with a spare second taps the chips and
+ * the estimate sharpens. Nothing on the busy path requires the second tap.
+ */
 export async function fireOrder(formData: FormData): Promise<void> {
   const staff = await readStaffSession()
   if (!staff) return
@@ -159,24 +179,102 @@ export async function fireOrder(formData: FormData): Promise<void> {
   const table = await db.table.findFirst({ where: { id: tableId, venueId: staff.venueId } })
   if (!table) return
 
+  // Only categories the venue actually configured. A form field is client
+  // input, and an unrecognised course would otherwise silently widen the
+  // estimate's vocabulary.
   const config = await getVenueConfig(staff.venueId)
-  const now = Date.now()
+  const known = new Set(Object.keys(config.prepMinutesByCategory as Record<string, number>))
+  const courses = formData
+    .getAll('course')
+    .map(String)
+    .filter((c) => known.has(c))
 
-  // Without a POS we do not know what was ordered, so assume the slowest
-  // category the venue configured. Guessing short would end the round after
-  // the food has already landed.
-  const prep = config.prepMinutesByCategory as PrepMinutes
-  const estReadyAt = estimateReadyAt(now, Object.keys(prep), prep)
+  // Party size, captured in the same tap (§3). Spend per table is dominated by
+  // how many people are sitting at it, so without this the spend comparison is
+  // noise — which is why it is a required part of firing rather than a separate
+  // screen somebody will skip on a Saturday.
+  const partySizeRaw = Number(formData.get('partySize'))
+  const partySize =
+    Number.isInteger(partySizeRaw) && partySizeRaw > 0 && partySizeRaw <= 20 ? partySizeRaw : null
 
-  await db.orderFire.create({
+  const fire = await resolvePosAdapter(staff.venueId).recordFire({
+    venueId: staff.venueId,
+    serviceId: service.id,
+    tableId,
+    courses,
+    firedAtMs: Date.now(),
+    firedByStaffId: staff.staffId,
+  })
+
+  if (partySize !== null) {
+    await db.orderFire.update({ where: { id: fire.id }, data: { partySize } })
+    // Onto the run too, where the metrics read it — a run may outlive the fire
+    // row's usefulness, and spend per cover is computed over runs.
+    await db.tableRun.updateMany({
+      where: { serviceId: service.id, tableId },
+      data: { partySize },
+    })
+  }
+
+  revalidatePath('/floor')
+}
+
+/**
+ * The server records an add-on ticket (§4.4, REVAMP-BRIEF.md Part 6).
+ *
+ * The guest asks out loud — that is the point — and the server writes it
+ * down here. Recording IS confirmation, so the row is born ACKED and the
+ * table's life lands in the same tap: the sale happened in front of the
+ * person granting it. This is what feeds tier 1's extra-spend column, which
+ * was structurally ₹0 while nothing could create these rows.
+ */
+export async function recordAddOn(formData: FormData): Promise<void> {
+  const staff = await readStaffSession()
+  if (!staff) return
+
+  const tableId = String(formData.get('tableId') ?? '')
+  const menuItemId = String(formData.get('menuItemId') ?? '')
+  if (!tableId || !menuItemId) return
+
+  const service = await getOpenService(staff.venueId)
+  if (!service) return
+
+  const [table, item] = await Promise.all([
+    db.table.findFirst({ where: { id: tableId, venueId: staff.venueId, active: true } }),
+    db.menuItem.findFirst({ where: { id: menuItemId, venueId: staff.venueId, active: true } }),
+  ])
+  if (!table || !item) return
+
+  const config = await getVenueConfig(staff.venueId)
+  const ladder = toLadderConfig(config)
+
+  // A table that never scanned can still order a dessert. The run is the unit
+  // everything hangs off, so one is opened if the guests never did.
+  const run = await openOrResumeTableRun(service.id, tableId, ladder)
+
+  const now = new Date()
+  const request = await db.addOnRequest.create({
     data: {
-      tableId,
-      serviceId: service.id,
-      firedAt: new Date(now),
-      estReadyAt,
-      firedById: staff.staffId,
+      tableRunId: run.id,
+      menuItemId: item.id,
+      qty: 1,
+      // Snapshotted so the dashboard's money maths survives a menu edit.
+      pricePaise: item.pricePaise,
+      foodCostPaise: item.foodCostPaise,
+      status: 'ACKED',
+      ackedAt: now,
     },
   })
+
+  const earned = await earnedLifeActions(run.id)
+  const { state, granted } = grantLife(runStateOf(run), 'ADDON_CONFIRMED', earned, ladder)
+
+  const context = { serviceId: service.id, arm: 'LIVE' as const, tableRunId: run.id }
+  await recordEvent('ADDON_CONFIRMED', context, { addOnId: request.id })
+  if (granted) {
+    await saveRunState(run.id, state)
+    await recordEvent('LIFE_EARNED', context, { action: 'ADDON_CONFIRMED' })
+  }
 
   revalidatePath('/floor')
 }
@@ -187,10 +285,45 @@ export async function ackAddOn(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
-  await db.addOnRequest.updateMany({
-    where: { id, status: 'REQUESTED', guestSession: { table: { venueId: staff.venueId } } },
+  const request = await db.addOnRequest.findFirst({
+    where: { id, status: 'REQUESTED', tableRun: { table: { venueId: staff.venueId } } },
+    include: { tableRun: true },
+  })
+  if (!request) return
+
+  await db.addOnRequest.update({
+    where: { id },
     data: { status: 'ACKED', ackedAt: new Date() },
   })
+
+  // **The life lands here, on confirmation — never on the request** (§4.4).
+  // This is the strongest of the three earning actions precisely because it is
+  // the behaviour the product exists to cause; granting it on the tap would pay
+  // for the intention rather than the sale.
+  if (request.tableRun) {
+    const config = await getVenueConfig(staff.venueId)
+    const ladder = toLadderConfig(config)
+    const earned = await earnedLifeActions(request.tableRun.id)
+    const { state, granted } = grantLife(
+      runStateOf(request.tableRun),
+      'ADDON_CONFIRMED',
+      earned,
+      ladder
+    )
+
+    const context = {
+      serviceId: request.tableRun.serviceId,
+      arm: 'LIVE' as const,
+      tableRunId: request.tableRun.id,
+    }
+    await recordEvent('ADDON_CONFIRMED', context, { addOnId: id })
+
+    if (granted) {
+      await saveRunState(request.tableRun.id, state)
+      await recordEvent('LIFE_EARNED', context, { action: 'ADDON_CONFIRMED' })
+    }
+  }
+
   revalidatePath('/floor')
 }
 
@@ -205,13 +338,37 @@ export async function confirmAward(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
 
+  // Scoped through the table run, not through a play. Awards stopped hanging
+  // off a play when the table became the unit — matching on the old path here
+  // silently confirmed nothing, which on a Saturday reads as a broken button.
+  const now = new Date()
   await db.award.updateMany({
     where: {
       id,
       status: 'PENDING',
-      play: { guestSession: { table: { venueId: staff.venueId } } },
+      tableRun: { table: { venueId: staff.venueId } },
     },
-    data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: staff.staffId },
+    data: {
+      status: 'CONFIRMED',
+      confirmedAt: now,
+      confirmedById: staff.staffId,
+      redeemedAt: now,
+      redeemedById: staff.staffId,
+    },
   })
+
+  const award = await db.award.findUnique({ where: { id }, include: { tableRun: true } })
+  if (award?.tableRun) {
+    await recordEvent(
+      'AWARD_REDEEMED',
+      {
+        serviceId: award.tableRun.serviceId,
+        arm: 'LIVE',
+        tableRunId: award.tableRun.id,
+      },
+      { awardId: id, code: award.code }
+    )
+  }
+
   revalidatePath('/floor')
 }

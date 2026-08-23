@@ -15,7 +15,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Guests hold the phone one-handed and will pinch. Never disable that.
   maximumScale: 5,
-  themeColor: '#fbf7f0',
+  // Cotton (--color-ground-cotton). The previous value was a hex that matched
+  // no token at all. The guest layout overrides this with clay.
+  themeColor: '#faf5ee',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

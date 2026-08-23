@@ -32,7 +32,11 @@ export default async function GamesPage() {
   // writes one, so a venue that somehow has no rows is a venue with everything
   // switched off rather than a venue with an empty screen and a guest surface
   // that says it is closed.
-  const rows = await listVenueGames(operator.venueId)
+  // Rows for retired mechanics are history, not options — they stay in the
+  // table for the audit trail and off this screen.
+  const rows = (await listVenueGames(operator.venueId)).filter((r) =>
+    MECHANICS.some((m) => m === r.mechanic)
+  )
   const games = [
     ...rows,
     ...MECHANICS.filter((m) => !rows.some((r) => r.mechanic === m)).map((mechanic) => ({
@@ -92,11 +96,19 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function nameOf(mechanic: Mechanic): string {
-  return mechanic === 'MYSTERY_PLATE' ? en.dash.games.mysteryPlate : en.dash.games.kitchenRound
+  if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlate
+  if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRound
+  if (mechanic === 'SECRET_RECIPE') return 'Secret Recipe'
+  if (mechanic === 'MYSTERY_CUSTOMER') return 'Mystery Customer'
+  return en.dash.games.beatTheKitchen
 }
 
 function blurbOf(mechanic: Mechanic): string {
-  return mechanic === 'MYSTERY_PLATE'
-    ? en.dash.games.mysteryPlateBlurb
-    : en.dash.games.kitchenRoundBlurb
+  if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlateBlurb
+  if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRoundBlurb
+  if (mechanic === 'SECRET_RECIPE')
+    return 'Ingredient combinations that reveal secret menu pairings.'
+  if (mechanic === 'MYSTERY_CUSTOMER')
+    return 'Guests build a meal for a mystery customer and see how it scores.'
+  return en.dash.games.beatTheKitchenBlurb
 }

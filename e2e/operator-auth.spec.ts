@@ -1,10 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { db, issueMagicLinkFor } from './fixtures'
-// Imported by relative path rather than the `@/` alias: fixtures.ts already
-// does this, because Playwright's own runner does not resolve the tsconfig
-// path mapping the way `tsc`/webpack do. Importing rather than copying the
-// numbers keeps this test meaningful after someone tunes the limit.
-import { MAGIC_LINK_MAX_PER_IP_PER_WINDOW } from '../src/lib/magic-link'
+import { db, issueMagicLinkFor, signInWithPassword } from './fixtures'
 
 test.afterAll(async () => {
   await db.$disconnect()
@@ -43,12 +38,17 @@ test('a garbage token is refused without a 500', async ({ page }) => {
   await expect(page).toHaveURL(/\/signin\?error=unknown$/)
 })
 
-test('a first-time signup with no venue lands on the dashboard empty state', async ({ page }) => {
+test('a first-time signup with no venue lands in the wizard, not on a dashboard', async ({
+  page,
+}) => {
   const token = await issueMagicLinkFor('brand-new-owner@example.com', { withVenue: false })
 
   await page.goto(`/signin/verify?token=${encodeURIComponent(token)}`)
-  await expect(page).toHaveURL(/\/dash$/)
-  await expect(page.locator('main')).toContainText('No service running')
+
+  // A dashboard about a venue that does not exist has nothing on it, and the
+  // only thing it could say is "go and set your venue up" — which is /onboarding.
+  await expect(page).toHaveURL(/\/onboarding$/)
+  await expect(page.locator('main')).toContainText('Tell us about the venue')
 })
 
 test('a staff session is redirected away from /dash, to /floor', async ({ page }) => {
@@ -68,21 +68,13 @@ test('a staff session is redirected away from /dash, to /floor', async ({ page }
   await expect(page).toHaveURL(/\/floor$/)
 })
 
-test('requesting a link responds identically for known and unknown addresses', async ({ page }) => {
-  await page.goto('/signin')
-  await page.getByLabel('Your email').fill('owner@example.com')
-  await page.getByRole('button', { name: 'Email me a link' }).click()
-  await expect(page).toHaveURL(/\/signin\?sent=1$/)
-  const known = await page.locator('main').innerText()
-
-  await page.goto('/signin')
-  await page.getByLabel('Your email').fill('nobody-here@example.com')
-  await page.getByRole('button', { name: 'Email me a link' }).click()
-  await expect(page).toHaveURL(/\/signin\?sent=1$/)
-  const unknown = await page.locator('main').innerText()
-
-  expect(known, 'a different response would be an enumeration oracle').toBe(unknown)
-})
+// The "requesting a link answers identically for known and unknown addresses"
+// test used to live here, driving the `/signin` form. That form is a password
+// form now (SECURITY.md §7a), so the assertion moved to
+// `src/lib/operator-auth.test.ts`, where it can call `requestMagicLink`
+// directly. It is a property of the link path, not of the page, and it has to
+// survive the page changing — the link returns to the front door once there is
+// a verified sending domain.
 
 test('a signed-out visitor to the dashboard is sent to sign in', async ({ page }) => {
   await page.context().clearCookies()
@@ -95,7 +87,7 @@ test('a venue-less operator keeps nav and sign-out, and is not bounced off activ
 }) => {
   const token = await issueMagicLinkFor('brand-new-owner@example.com', { withVenue: false })
   await page.goto(`/signin/verify?token=${encodeURIComponent(token)}`)
-  await expect(page).toHaveURL(/\/dash$/)
+  await expect(page).toHaveURL(/\/onboarding$/)
 
   // Signed in is signed in. The shell must not treat "no venue yet" as
   // "no session" — that leaves them with no way to sign out of a session
@@ -110,54 +102,35 @@ test('a venue-less operator keeps nav and sign-out, and is not bounced off activ
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
 
-test('a flood from one address gets the same answer as a first-time visitor, and leaves no rows', async ({
+/**
+ * The flood test that used to sit here drove `/signin` past the per-IP limit.
+ * It cannot, for two reasons: that form no longer requests a link (§7a), and a
+ * flood driven through the *password* endpoints would burn the shared per-IP
+ * budget for the whole window and starve `operator-password-auth.spec.ts`,
+ * which runs after this file.
+ *
+ * What it asserted is now split. That a refusal happens *before* the write, so
+ * a rate-limited request leaves no junk `OperatorUser` behind, is asserted
+ * directly against both services in `src/lib/operator-auth.test.ts` and
+ * `src/lib/operator-password-auth.test.ts`. What only a real server can show —
+ * that a client IP is actually visible to the action behind `next start` — is
+ * the one thing kept here, and it costs a single attempt.
+ */
+test('a client IP reaches the action behind next start, so the throttle can see it', async ({
   page,
 }) => {
-  test.setTimeout(120_000)
+  const before = await db.operatorLoginAttempt.count()
 
-  // Each request uses a fresh, never-seen address, so the per-address limit
-  // (checked further down, against `operatorUserId`) cannot be what refuses
-  // them — only the per-IP one, checked first, can.
-  const stamp = String(await db.magicLinkToken.count())
-  const addresses = Array.from(
-    { length: MAGIC_LINK_MAX_PER_IP_PER_WINDOW + 2 },
-    (_, i) => `flood-${stamp}-${i}@example.com`
-  )
+  await signInWithPassword(page, 'throttle-probe@example.com', 'a-long-enough-password')
 
-  // No proxy sits in front of `next start` in this harness, but nothing needs
-  // to fake one: confirmed by a temporary diagnostic log in `actions.ts`,
-  // Next's own server synthesises `x-forwarded-for` from the socket's address
-  // when the header is otherwise absent, so every request this suite makes —
-  // in this test and every other one in this file — arrives as the same
-  // loopback address. That is exactly the shape the production code expects
-  // (one IP, many requests), which is what makes the per-IP branch reachable
-  // here without touching production code to force it.
-  let lastBody = ''
-  for (const email of addresses) {
-    await page.goto('/signin')
-    await page.getByLabel('Your email').fill(email)
-    await page.getByRole('button', { name: 'Email me a link' }).click()
-    await expect(page.getByText('Check your email')).toBeVisible()
-    lastBody = await page.locator('main').innerText()
-  }
-
-  // The last request was refused by the limit. It must be indistinguishable
-  // from the first, which was not — a different response would tell an
-  // attacker walking the address space exactly where the fence sits.
-  expect(lastBody).toContain('Check your email')
-
-  // And the refusal happened before the write: the addresses past the limit
-  // must not have become operator rows. The per-IP check sits above the
-  // `operatorUser.upsert` in requestMagicLink specifically so a refused
-  // request leaves no junk row behind — this is the assertion that catches
-  // someone moving the check below the upsert "for simplicity" later.
-  const created = await db.operatorUser.count({
-    where: { email: { startsWith: `flood-${stamp}-` } },
-  })
-  expect(
-    created,
-    'a rate-limited request must not leave an OperatorUser behind'
-  ).toBeLessThanOrEqual(MAGIC_LINK_MAX_PER_IP_PER_WINDOW)
+  // No proxy sits in front of `next start` in this harness and none needs to be
+  // faked: Next synthesises `x-forwarded-for` from the socket address when the
+  // header is absent, which is the same shape production sees (one IP, many
+  // requests). If this ever regresses to undefined, `throttled()` short-circuits
+  // and every password endpoint silently loses its brake.
+  const recorded = await db.operatorLoginAttempt.findFirst({ orderBy: { createdAt: 'desc' } })
+  expect(await db.operatorLoginAttempt.count()).toBe(before + 1)
+  expect(recorded?.ip, 'no IP means no throttle at all').toBeTruthy()
 })
 
 test('a signed-in operator can open the tent sheet from the nav', async ({ page }) => {

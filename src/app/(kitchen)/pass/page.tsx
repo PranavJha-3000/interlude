@@ -13,23 +13,24 @@ import {
   getVenueConfig,
   serviceClockMinute,
 } from '@/lib/service'
-import { decidePrizePool, type Mechanic, type PrizePoolResult } from '@/core/prize-engine'
+import { decidePrizePool } from '@/core/prize-engine'
+import { parseRankingWeights } from '@/lib/prize-config'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
-import { setKitchenLoad, toggleVeto } from './actions'
+import { setKitchenLoad, toggleKillSwitch, toggleVeto } from './actions'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * The pass console (PLATFORM.md §3).
+ * The pass console (PLATFORM.md §3, REVAMP-BRIEF.md Part 6).
  *
- * One control that matters and one list. Read at a glance, mid-service, with
- * wet hands — so the load switch is three targets the size of a fist, and
- * everything else is secondary.
+ * Exists to let a chef with wet hands, mid-service, three metres away, control
+ * what the engine may give away tonight. At a glance: what state am I in, and
+ * what is on the list. One switch, one list, one kill switch — and nothing
+ * goes above the switch (UI-SPEC §8), which is why the kill switch lives at
+ * the bottom: it is an operator decision, not a fourth load state, and its
+ * distance from the red block is part of saying so.
  *
- * The list is one pool per game the venue is running, labelled only when there
- * is more than one. A second heading is a cost on a screen this terse, and it
- * is worth paying: the pools differ by mechanic, so a single list would be a
- * confident preview of prizes no guest is being offered.
+ * No metrics, no revenue, no graphs, no accent, ever.
  */
 export default async function PassPage() {
   const staff = await readStaffSession()
@@ -54,22 +55,17 @@ export default async function PassPage() {
     getMenuForEngine(staff.venueId),
     getPrizeRules(staff.venueId),
   ])
-  const menu = [...menuData.rows].sort((a, b) => a.name.localeCompare(b.name))
   const conceded = service ? await getConcededSoFarPaise(service.id) : 0
+  const killed = service?.killedAt !== null && service?.killedAt !== undefined
 
   // The same pure function the guest flow calls, with the same inputs and the
   // venue's own rules — so what the chef sees here is exactly what the next
-  // guest will be offered. `outcome: WIN` because that is the deepest the pool
-  // ever goes; a consolation is never worse for the kitchen than a win.
-  //
-  // One pool per game the venue is running, because the pools genuinely differ:
-  // a mystery plate is awarded at a fixed price, so a different set of items
-  // clears the depth caps. A single hardcoded `KITCHEN_ROUND` would show the
-  // chef of a mystery-plate-only venue a list no guest can ever be offered.
-  const pools: Array<{ mechanic: Mechanic; pool: PrizePoolResult }> = enabledGames.map(
-    (mechanic) => ({
-      mechanic,
-      pool: decidePrizePool({
+  // guest will be offered. The platform runs one game (§4), so this is one
+  // pool; the per-mechanic machinery that used to live here served games that
+  // no longer exist.
+  const gameOn = enabledGames.length > 0
+  const pool = gameOn
+    ? decidePrizePool({
         menu: menuData.engineMenu,
         velocity: menuData.velocity,
         kitchenLoad: load,
@@ -78,158 +74,191 @@ export default async function PassPage() {
           perItemPct: config.depthCapPerItemPct,
           perServicePaise: config.depthCapPerServicePaise,
         },
-        mechanic,
+        mechanic: 'BEAT_THE_KITCHEN',
         outcome: 'WIN',
         prizeRules,
+        rankingWeights: parseRankingWeights(config.rankingWeights),
         concededSoFarPaise: conceded,
         serviceClockMinute: serviceClockMinute(now, venue.timezone),
         peakStartMinute: config.peakStartMinute,
         peakEndMinute: config.peakEndMinute,
-      }),
-    })
-  )
+      })
+    : null
 
-  const byId = new Map(menu.map((m) => [m.id, m]))
+  const byId = new Map(menuData.rows.map((m) => [m.id, m]))
   const vetoedSet = new Set(vetoes)
+  const prepMinutes = (config.prepMinutesByCategory ?? {}) as Record<string, number>
+
+  /** Item, station, fire time — what a chef needs to judge a veto (Part 6). */
+  const rowMeta = (itemId: string) => {
+    const item = byId.get(itemId)
+    if (!item) return null
+    const minutes = prepMinutes[item.category] ?? config.defaultPrepMinutes
+    return { name: item.name, station: en.floor.tables.course(item.category), minutes }
+  }
+
+  const inPool = (pool?.entries ?? []).map((e) => e.itemId).filter((id) => byId.has(id))
+  const vetoedItems = menuData.rows.filter((m) => vetoedSet.has(m.id)).map((m) => m.id)
 
   return (
-    <main className="surface-staff min-h-dvh px-4 py-6">
+    <main className="surface-staff min-h-dvh px-6 py-6">
       <Poller everyMs={10000} />
-      <div className="mx-auto max-w-2xl">
-        <h1 className="text-xs tracking-widest text-white/40 uppercase">{en.pass.heading}</h1>
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-baseline justify-between">
+          <h1 className="text-xs tracking-widest text-staff-muted uppercase">{en.pass.heading}</h1>
+          <p className="text-xs tracking-widest text-staff-muted uppercase">{venue.name}</p>
+        </header>
 
-        {/* The one control that matters. */}
+        {/* ── The one control that matters. Nothing goes above it. ─────────── */}
         <section className="mt-5">
-          <p className="mb-3 text-sm text-white/50">{en.pass.load.label}</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-4">
             {(['GREEN', 'AMBER', 'RED'] as const).map((level) => {
               const on = load === level
               // Dark text on the active fill, not white. These hues are bright
-              // by design — they have to read across a pass — and white on them
-              // is about 1.8:1. The dark ground they sit on is 6.1:1 at worst.
+              // by design — they have to read across a pass — and white on
+              // them is about 1.8:1. The dark ground they sit on is 6.1:1.
               const bg =
                 level === 'GREEN'
                   ? 'bg-load-green'
                   : level === 'AMBER'
                     ? 'bg-load-amber'
                     : 'bg-load-red'
+              const label =
+                level === 'GREEN'
+                  ? en.pass.load.green
+                  : level === 'AMBER'
+                    ? en.pass.load.amber
+                    : en.pass.load.red
+              const help =
+                level === 'GREEN'
+                  ? en.pass.load.greenHelp
+                  : level === 'AMBER'
+                    ? en.pass.load.amberHelp
+                    : en.pass.load.redHelp
+
               return (
                 <form key={level} action={setKitchenLoad}>
                   <input type="hidden" name="level" value={level} />
+                  {/* The active state is a filled block with dark text —
+                      readable by fill area and position alone; the colour is
+                      confirmation, never the only carrier (Part 4). */}
                   <button
                     type="submit"
                     aria-pressed={on}
-                    className={`min-h-28 w-full rounded-2xl text-xl font-bold tracking-wide ${
-                      on ? `${bg} text-staff-ground` : 'bg-white/8 text-white/35'
+                    className={`transition-state min-h-32 w-full rounded-2xl px-3 py-4 text-left ${
+                      on ? `${bg} text-staff-ground` : 'bg-panel-iron'
                     }`}
                   >
-                    {level === 'GREEN'
-                      ? en.pass.load.green
-                      : level === 'AMBER'
-                        ? en.pass.load.amber
-                        : en.pass.load.red}
+                    <span
+                      className={`block text-2xl font-bold tracking-wide ${on ? '' : 'text-staff-ink'}`}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      className={`mt-1 block text-sm leading-snug ${
+                        on ? 'font-medium' : 'text-staff-muted'
+                      }`}
+                    >
+                      {help}
+                    </span>
                   </button>
                 </form>
               )
             })}
           </div>
-          <p className="mt-3 text-sm text-white/45">
-            {load === 'GREEN'
-              ? en.pass.load.greenHelp
-              : load === 'AMBER'
-                ? en.pass.load.amberHelp
-                : en.pass.load.redHelp}
-          </p>
         </section>
 
-        {/* Tonight's pool, each line carrying the engine's own reason. */}
+        {/* ── Tonight's pool: one list, the row is the toggle. ─────────────── */}
         <section className="mt-10">
-          <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/50 uppercase">
-            {en.pass.pool.heading}
-          </h2>
-          {pools.length === 0 ? (
-            <p className="text-white/40">{en.pass.pool.noGames}</p>
-          ) : (
-            pools.map(({ mechanic, pool }) => (
-              <div key={mechanic} className="mt-5 first:mt-0">
-                {/* Unlabelled when there is only one — a single-game venue keeps
-                    the plain list it had, and the label is noise mid-service. */}
-                {pools.length > 1 && (
-                  <p className="mb-2 text-xs tracking-widest text-white/40 uppercase">
-                    {gameLabel(mechanic)}
-                  </p>
-                )}
-                {pool.entries.length === 0 ? (
-                  <p className="text-white/40">{en.pass.pool.empty}</p>
-                ) : (
-                  <ul className="grid gap-2">
-                    {pool.entries.slice(0, 12).map((e) => {
-                      const item = byId.get(e.itemId)
-                      if (!item) return null
-                      return (
-                        <li
-                          key={e.itemId}
-                          className="flex items-center justify-between gap-3 rounded-xl bg-white/8 px-4 py-3"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-lg">{item.name}</p>
-                            <p className="mt-0.5 text-xs text-white/45">{e.reason}</p>
-                          </div>
-                          <form action={toggleVeto} className="shrink-0">
-                            <input type="hidden" name="menuItemId" value={e.itemId} />
-                            <button
-                              type="submit"
-                              className="min-h-11 rounded-lg border border-white/25 px-4 text-sm text-white/70 active:bg-load-red active:text-staff-ground"
-                            >
-                              {en.pass.pool.veto}
-                            </button>
-                          </form>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-            ))
-          )}
-        </section>
-
-        {/* Vetoed items stay visible, or the chef cannot undo one. */}
-        {vetoes.length > 0 && (
-          <section className="mt-8">
-            <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/50 uppercase">
-              {en.pass.pool.vetoed}
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold tracking-wide text-staff-muted uppercase">
+              {en.pass.pool.heading}
             </h2>
+            <p className="text-xs text-staff-muted">{en.pass.pool.hint}</p>
+          </div>
+
+          {!gameOn ? (
+            <p className="text-staff-muted">{en.pass.pool.noGames}</p>
+          ) : inPool.length === 0 && vetoedItems.length === 0 ? (
+            <p className="text-staff-muted">{en.pass.pool.empty}</p>
+          ) : (
             <ul className="grid gap-2">
-              {menu
-                .filter((m) => vetoedSet.has(m.id))
-                .map((m) => (
-                  <li
-                    key={m.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-load-red/40 px-4 py-3"
-                  >
-                    <span className="truncate text-lg text-white/60 line-through">{m.name}</span>
-                    <form action={toggleVeto} className="shrink-0">
-                      <input type="hidden" name="menuItemId" value={m.id} />
+              {[...inPool, ...vetoedItems].map((itemId) => {
+                const meta = rowMeta(itemId)
+                if (!meta) return null
+                const isVetoed = vetoedSet.has(itemId)
+
+                return (
+                  <li key={itemId}>
+                    <form action={toggleVeto}>
+                      <input type="hidden" name="menuItemId" value={itemId} />
                       <button
                         type="submit"
-                        className="min-h-11 rounded-lg border border-white/25 px-4 text-sm text-white/70"
+                        aria-pressed={isVetoed}
+                        className={`transition-state flex min-h-16 w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left ${
+                          isVetoed ? 'border border-load-red/40' : 'bg-panel-iron'
+                        }`}
                       >
-                        {en.pass.pool.unveto}
+                        <span className="min-w-0">
+                          <span
+                            className={`block truncate text-xl ${
+                              isVetoed ? 'text-staff-muted line-through' : 'text-staff-ink'
+                            }`}
+                          >
+                            {meta.name}
+                          </span>
+                          <span className="mt-0.5 block text-sm text-staff-muted">
+                            {meta.station} ·{' '}
+                            <span className="font-mono tabular-nums">
+                              {en.pass.pool.fireMinutes(meta.minutes)}
+                            </span>
+                          </span>
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs tracking-wide uppercase ${
+                            isVetoed
+                              ? 'border-load-red/60 text-load-red'
+                              : 'border-staff-muted/40 text-staff-muted'
+                          }`}
+                        >
+                          {isVetoed ? en.pass.pool.vetoed : en.pass.pool.inPool}
+                        </span>
                       </button>
                     </form>
                   </li>
-                ))}
+                )
+              })}
             </ul>
+          )}
+        </section>
+
+        {/* ── The kill switch (§7.4) — an operator decision, not a load state.
+            Pinned to the bottom of the viewport, bordered rather than filled,
+            the whole pool list away from the red block: findable in a hurry
+            even under a forty-item menu, hard to read as part of the traffic
+            light, and hard to hit by accident — it sits alone on its own
+            band of ground. ──────────────────────────────────────────────── */}
+        {service && (
+          <section className="sticky bottom-0 mt-14 bg-staff-ground pt-3 pb-4">
+            <form action={toggleKillSwitch}>
+              <button
+                type="submit"
+                aria-pressed={killed}
+                className={`transition-state min-h-16 w-full rounded-2xl border-2 text-base font-semibold tracking-wide ${
+                  killed
+                    ? 'border-load-red bg-load-red text-staff-ground'
+                    : 'border-load-red/40 text-load-red'
+                }`}
+              >
+                {killed ? en.pass.kill.on : en.pass.kill.off}
+              </button>
+              <p className="mt-2 text-xs text-staff-muted">
+                {killed ? en.pass.kill.onNote : en.pass.kill.offNote}
+              </p>
+            </form>
           </section>
         )}
       </div>
     </main>
   )
-}
-
-function gameLabel(mechanic: Mechanic): string {
-  return mechanic === 'MYSTERY_PLATE'
-    ? en.pass.pool.gameMysteryPlate
-    : en.pass.pool.gameKitchenRound
 }

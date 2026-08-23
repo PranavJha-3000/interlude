@@ -62,3 +62,38 @@ export async function toggleVeto(formData: FormData): Promise<void> {
 
   revalidatePath('/pass')
 }
+
+/**
+ * The kill switch (§7.4).
+ *
+ * **Separate from RED, and the separation is the point.** RED is a kitchen
+ * state that shapes the pool — it says "nothing that makes me cook", and the
+ * engine still offers what the bar can pour. This says "stop giving things
+ * away", full stop.
+ *
+ * The game, the event log and the measurement all carry on, so the night still
+ * produces a number. That matters: a chef who can only stop the product by
+ * stopping the pilot will stop the pilot.
+ *
+ * The chef needs to know it exists, or he will find a worse one.
+ */
+export async function toggleKillSwitch(): Promise<void> {
+  const staff = await readStaffSession()
+  if (!staff) return
+
+  const service = await getOpenService(staff.venueId)
+  if (!service) return
+
+  const killing = service.killedAt === null
+
+  await db.service.update({
+    where: { id: service.id },
+    data: {
+      killedAt: killing ? new Date() : null,
+      killedById: killing ? staff.staffId : null,
+    },
+  })
+
+  revalidatePath('/pass')
+  revalidatePath('/floor')
+}

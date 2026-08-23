@@ -126,8 +126,11 @@ the landing page feel authored rather than generated:
 
 **`font-display` and `font-mono` resolve differently per surface, and that is deliberate.**
 `src/app/fonts.ts` is applied on the operator layout and the landing page and nowhere else, so it
-defines `--font-instrument` and `--font-plex-mono` on those subtrees only. Elsewhere those variables are
-undefined and the fallback in the token wins — Georgia for display, the system monospace for figures.
+defines `--font-instrument` and `--font-plex-mono` on those subtrees only. Elsewhere those variables
+are undefined and the fallback **inside `var()`** wins — Georgia for display, the system monospace
+for figures. The fallback list must live inside the `var()` parentheses: `var(--x), a, b` with `--x`
+undefined invalidates the whole declaration and silently inherits, which is how every guest and
+staff "mono" figure rendered in the sans stack from the first commit until 2026-08-14.
 So the guest route can use the same two utilities and pay **zero bytes**, while the operator gets the
 real faces. A `next/font` import under `(guest)` would put ~30KB of webfont on a phone whose entire
 discretionary budget is 15KB; the fallback stack is not a compromise here, it is the mechanism.
@@ -221,11 +224,13 @@ and a near-black tablet.
 
 ### Accent discipline
 
-**Accent is reserved for exactly these, and nothing else:**
+**Accent is reserved for exactly these, and nothing else** (REVAMP-BRIEF.md Part 2 tightened
+use 3 on 2026-08-14 — onboarding step CTAs are ink primary buttons now, their pressed state
+covered by use 2):
 
-1. The price line on a guest's won prize
-2. The pressed state of a guest primary button and add-on option
-3. The single primary CTA on the landing page and on each onboarding step
+1. The won price on the guest phone, beside the struck menu price
+2. A primary button while pressed (and the dish card's pressed wash)
+3. The single primary CTA on the landing page
 4. The active step marker in onboarding
 
 It is **not** for links, not for headings, not for every interactive element, and not for the `/dash`
@@ -236,10 +241,8 @@ time the dashboard should raise its voice.
 gold, no warm panel behind a figure. A P&L that looks promotional undercuts the one claim this
 product rests on, and arousal palettes read as less trustworthy exactly where trust is the product.
 
-**Known exception, recorded rather than hidden:** `/floor` fills its redemption rows with `accent`,
-which is not on the list above. It predates this table. The row is the single most urgent action on
-the server's screen and nothing else on that surface competes for the colour, so it stays until
-`/floor` is revisited — but it is drift, not precedent.
+**The `/floor` redemption-row exception is retired** — the 2026-08 revamp removed the accent fill
+(§10), and the staff surfaces carry no accent anywhere again.
 
 **Focus rings are part of the colour contract, not an afterthought.** 2px accent at 2px offset on
 light grounds; 2px `staff-ink` on the dark ones. **The offset is load-bearing.** It puts a gap of
@@ -368,8 +371,8 @@ Hindi has to be a translation job, not a refactor.
 | Surface | Ground | Leads with | Must never |
 |---|---|---|---|
 | `/` | paper | The decision card | Fake social proof, pricing, a phone mockup |
-| `/v/[venueToken]` | paper | "Which table are you at?" | Omit or mark control tables; write any row |
-| `/t/[qrToken]` | paper | One heading, one action | More than one primary action on screen |
+| `/v/[venueToken]` | clay | "Which table are you at?" | Omit or mark control tables; write any row |
+| `/t/[qrToken]` | clay | One heading, one action | More than one primary action on screen |
 | `/signin`, `/onboarding` | paper | One decision per screen | Lose entered data on Back |
 | `/floor` | `.surface-staff` | Whatever a guest is waiting on | Show a metric of any kind |
 | `/pass` | `.surface-staff` | The GREEN/AMBER/RED switch | Put anything above the load switch |
@@ -400,8 +403,9 @@ Not negotiable, not announced in the UI:
 
 ## 10. Known drift to fix
 
-- **`/floor` fills its redemption rows with `accent`**, which is not one of the four reserved uses.
-  Recorded in §5; stays until `/floor` is revisited.
+- **Resolved 2026-08-14:** `/floor` no longer fills its redemption rows with `accent` — task rows
+  are ink on iron, and urgency is carried by position and the mono age. The ledger is back to
+  exactly four uses. (The corresponding §5 exception note is retired.)
 **Fixed:** the stale `globals.css` header comment claiming a sub-100KB budget now states the
 measured rule — ≤15KB over the framework floor, 200KB ceiling. The type decision is applied: IBM
 Plex Sans + Mono + Instrument Serif ship on the operator subtree and the landing page via

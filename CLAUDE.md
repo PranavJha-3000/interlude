@@ -4,16 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-**The guest loop is built; the operator front door is not.** The build sequence in [TODO.md](TODO.md)
-is a linear list of phases, not the old three waves and not the older M0–M6. Phase 0 is a truth pass
-recording what already works — the guest flow, `/floor`, `/pass`, tier-1 `/dash`, per-table QR and
-printable tents, the prize engine, and the Playwright happy path. Phases 1–8 build what is missing:
-operator identity, venue creation, the venue QR, a landing page, self-serve onboarding, menu
-management, prize admin, and a venue-scoped dashboard. Everything after that is under **Later**.
+**Guest, staff and operator surfaces all run end to end.** 482 unit tests and 79 E2E tests pass.
+[TODO.md](TODO.md) is now a short build list, not the old phase sequence and not the older waves;
+its **Done** section is the truth pass. Build items 1–7 have shipped; **only item 8, the Vercel
+deploy, remains**, and it is blocked on an account rather than on code — the runbook is
+[docs/DEPLOY.md](docs/DEPLOY.md). Still genuinely open inside the shipped items: running the bill
+parser against a **real** venue export, and the voice path on the review screen (typed works).
 
-**Every phase carries a "How to test" block, and that is not decoration.** A phase is done when the
-commands in its block pass — not when the code looks finished. If you add work to a phase, add the
-test that proves it.
+**Every item carries a "Test" block, and that is not decoration.** An item is done when those
+commands pass — not when the code looks finished. If you add work, add the test that proves it.
+
+**The launch moved out by one week, and the pilot is now 4–6 venues on one weekend, not one venue.**
+This is a statistical decision, not an ambition: one venue's weekend cannot produce a defensible
+attach-rate delta, so the MLP sells on counts (the tier-1 ledger, exact) and rates (scan and
+completion, ±6pp pooled), and the delta ships with a confidence interval and an explicit "not yet
+conclusive" label until the interval excludes zero. PLATFORM.md §9a is the contract. Do not put the
+delta in front of a buyer before it earns it.
 
 These documents are the source of truth and should be read before writing anything:
 
@@ -36,7 +42,7 @@ A third document, *INTERLUDE — Business Foundation v1.0*, is referenced throug
 ## Tenancy
 
 **The platform is multi-tenant and restaurants sign themselves up.** A landing page leads to an email
-magic link, and an owner onboards their own venue — details, tables, menu, staff PINs, QR — without
+and a password, and an owner onboards their own venue — details, tables, menu, staff PINs, QR — without
 anyone helping them. Two consequences that are easy to get wrong:
 
 - **Every operator query takes its `venueId` from the session, never from a URL parameter or a form
@@ -46,6 +52,22 @@ anyone helping them. Two consequences that are easy to get wrong:
   computed for it. Arm assignment stays mandatory and control tables still cannot open a session —
   that invariant does not bend for onboarding convenience. Letting a venue opt out of the control arm
   is a config decision, not a default.
+
+## AI
+
+**AI reads and drafts. A person confirms. It never decides.** It lives in `src/lib/ai/` behind an
+adapter with a `Mock`, and is **import-banned from `core/`** — an LLM is nondeterministic, and
+`core/prize-engine` and `core/mechanics` are where the no-pure-chance guarantee is proved. A model
+call in that path destroys the proof that keeps the product legal.
+
+Four uses, all narrow and all cheap: menu extraction from a photo or PDF at setup, weekly report
+narration, review drafting the guest approves, and item descriptions. Four hard prohibitions:
+never choose a prize, a pair or an outcome; never write a food cost; never read a rating; never sit
+on the guest's critical path where wifi can block a screen. PLATFORM.md §6a.
+
+Menu extraction is transcription — names, categories, prices, portion options. Food cost is **not**
+extracted: the operator gives one rough percentage per category and cost is computed, because a
+hallucinated food cost becomes a wrong contribution number shown to an owner as fact.
 
 ## Planned stack
 
@@ -58,6 +80,14 @@ These come from PLATFORM.md §5–§7 and §12. They are the reason the product 
 **`core/` is pure.** `prize-engine`, `mechanics`, and `measurement` take everything as arguments — no I/O, no database, no clock, no randomness. That purity is what makes the compliance invariants testable.
 
 **No pure chance, anywhere.** `Math.random` and `crypto.getRandomValues` are banned by ESLint inside `core/prize-engine` and `core/mechanics`. Outcomes must be a pure function of skill input. The mystery plate is modelled as a fixed-price product the guest wins the *right to buy* — never a draw, never a wheel. This is a gambling-law line, not a design taste.
+
+**Loyalty is per venue, and cross-venue identity stays impossible.** A guest may leave a phone
+number *after* their go — never before, never as an account wall. It is normalised
+(`core/mechanics/phone.ts`), HMAC'd with `Venue.phoneSalt` and discarded; only the hash is stored.
+The same number is two unrelated identities at two venues, by construction. The Nth-visit reward
+goes through the same `decidePrizePool` call the game uses, so every fence applies without being
+re-implemented. Erasure is a guest surface only — there is deliberately no operator-side phone
+lookup, because a one-way hash plus a search box is a re-identification oracle.
 
 **Review capture is structurally separated from rewards.** The review module is given no prize or award state — enforced as a module boundary, not by discipline. It stores funnel counts only (shown, drafted, handed off) and never a rating, because storing sentiment would create the ability to gate on it. The prompt fires for 100% of sessions regardless of play, win, or sentiment.
 
@@ -88,16 +118,24 @@ Four archetypes, four different design contracts. Building the wrong one into a 
 | `/` | Owner, not yet signed up | The front door. Says what the product does in the operator's language. Zero client components |
 | `/v/[venueToken]` | Guest | Venue QR. Pick your table, then hand off to `/t/[qrToken]`. A control table must fail here indistinguishably from a closed venue |
 | `/t/[qrToken]` | Guest | Anonymous, no account, no app. Payload budget **revised** — see below |
-| `/signin`, `/onboarding` | Owner | Magic link, then a resumable five-step setup ending in a printable QR |
+| `/signin`, `/signup`, `/onboarding` | Owner | Email + password, then a resumable five-step setup ending in a printable QR |
 | `/floor` | Server | Never shown a dashboard or a metric. Only: what to do, at which table, right now |
 | `/pass` | Chef | One control (kitchen load) and one list (vetoes). Glanceable mid-service, wet hands |
 | `/dash` | Owner | Leads with one number; everything else collapsible |
 | `/dash/menu`, `/dash/prizes` | Owner | The venue's own menu and its own fences. Every field writes `VenueConfig` or `MenuItem` — nothing here becomes a constant |
+| `/dash/feedback` | Owner | What guests said privately. Words and an optional rating — the deliberate mirror of the review screen, which stores neither |
+| `/dash/settings` | Owner | Venue fields that are neither menu nor fences. Today: the Google Place ID the review hand-off needs. Deliberately not a wizard step — a Place ID has to be looked up, and the wizard is where setup gets abandoned |
 | `/tents` | Owner | Printable per-table tents and the venue QR. A print stylesheet, not a generated PDF |
 
 Auth splits cleanly and must stay split: **guest** has none, **staff** hold a venue PIN (`/floor`,
-`/pass`), **owner** holds a magic-link session (`/`-side surfaces and everything under `/dash`). A
+`/pass`), **owner** holds an operator session (`/`-side surfaces and everything under `/dash`). A
 staff PIN must never reach a metric; an operator session must never be required to fire an order.
+
+**The owner signs in with an email and a password, not a magic link** — sending anything needs a
+verified domain the pilot does not have, so a link would go nowhere. This is a knowing weakening,
+written down in SECURITY.md §7a with what it costs, and expected to revert. The magic link is
+dormant, not deleted: `/signin/verify` and `src/lib/operator-auth.ts` still work and are still
+tested, so restoring it is a UI change. Do not delete them.
 
 The north-star number is **attach-rate delta**, reported two ways. **ITT delta** (all tented vs. all untented) is the honest headline. **Engaged delta** (scanned vs. untented) includes guest self-selection and is only ever shown with that caveat — never as the headline.
 
@@ -111,8 +149,21 @@ Including in brainstorms, including under new names: XP · levels · badges · g
 
 V1 scope is two mechanics (#5, #2), one screen (voice review), and one dashboard number. Anything not on PLATFORM.md §4's list is out. The server recognition card is deferred, not cancelled.
 
-**Venue onboarding is no longer deferred.** It was, and both this file and PLATFORM.md said so; that
-changed by owner decision when the platform went multi-tenant. It ships as `/signin` + `/onboarding`
-rather than as an internal `/admin`, because the restaurant does it themselves. Onboarding, menu
+**Venue onboarding is no longer deferred, and it is built.** It was deferred, and both this file and
+PLATFORM.md said so; that changed by owner decision when the platform went multi-tenant. It ships as
+`/signup` + `/onboarding` rather than as an internal `/admin`, because the restaurant does it
+themselves.
+
+The wizard is six screens driven by `Venue.onboardingStep` and nothing else — details, tables, menu,
+staff PINs, the venue QR, games. **The cursor lives on the venue row, never in a cookie or the URL**,
+so setup resumes on another device and a step cannot be skipped by editing an address. `/dash`
+redirects into it until the step is `DONE`. Two things about it are load-bearing rather than
+incidental:
+
+- **The menu step will not let an empty menu through.** The climb is built from the menu and prizes
+  come off it, so a venue with no items cannot run a service at all.
+- **Staff PINs are generated, not chosen, and shown exactly once** — on a POST, never while
+  rendering, because only the hash is stored and a page that minted them during render would rotate
+  a venue's PINs on a reload or a link prefetch. Onboarding, menu
 management and prize admin are operator plumbing, not new guest mechanics — they do not open the
 door to anything on the never-build list above.

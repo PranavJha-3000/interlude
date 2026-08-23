@@ -74,64 +74,66 @@ describe('onboarding is resumable', () => {
 })
 
 describe('the starting prize policy', () => {
-  it('covers both outcomes for both mechanics, so no guest can fall through', () => {
-    const rules = defaultPrizeRules(9900)
-    for (const mechanic of ['KITCHEN_ROUND', 'MYSTERY_PLATE'] as const) {
-      for (const outcome of ['WIN', 'LOSE'] as const) {
-        const catchAll = rules.find(
-          (r) =>
-            r.mechanic === mechanic &&
-            r.outcome === outcome &&
-            r.window === 'ANY' &&
-            r.marginTier === undefined &&
-            r.category === undefined &&
-            r.menuItemId === undefined
-        )
-        expect(catchAll, `no catch-all rule for ${mechanic}/${outcome}`).toBeDefined()
-      }
+  it('covers both outcomes of the one shipping mechanic, so no guest can fall through', () => {
+    const rules = defaultPrizeRules()
+    for (const outcome of ['WIN', 'LOSE'] as const) {
+      const catchAll = rules.find(
+        (r) =>
+          r.mechanic === 'BEAT_THE_KITCHEN' &&
+          r.outcome === outcome &&
+          r.window === 'ANY' &&
+          r.marginTier === undefined &&
+          r.category === undefined &&
+          r.menuItemId === undefined
+      )
+      expect(catchAll, `no catch-all rule for BEAT_THE_KITCHEN/${outcome}`).toBeDefined()
     }
   })
 
   it('gives a losing guest something rather than nothing', () => {
-    const lose = defaultPrizeRules(9900).find(
-      (r) => r.outcome === 'LOSE' && r.mechanic === 'KITCHEN_ROUND'
+    const lose = defaultPrizeRules().find(
+      (r) => r.outcome === 'LOSE' && r.mechanic === 'BEAT_THE_KITCHEN'
     )
     expect(lose?.kind).toBe('PERCENT_OFF')
     expect(lose?.percentOff).toBeGreaterThan(0)
   })
 
-  it('takes the mystery-plate price as an argument rather than hardcoding one', () => {
-    const cheap = defaultPrizeRules(4900).find((r) => r.mechanic === 'MYSTERY_PLATE')
-    const dear = defaultPrizeRules(19900).find((r) => r.mechanic === 'MYSTERY_PLATE')
-    expect(cheap?.fixedPricePaise).toBe(4900)
-    expect(dear?.fixedPricePaise).toBe(19900)
+  it('names no retired mechanic — the climb and the mystery plate are gone', () => {
+    for (const r of defaultPrizeRules()) {
+      expect(['CLIMB', 'MYSTERY_PLATE']).not.toContain(r.mechanic)
+    }
+    // The V1 set is exactly the three shipping games.
+    expect([...new Set(defaultPrizeRules().map((r) => r.mechanic))].sort()).toEqual([
+      'BEAT_THE_KITCHEN',
+      'MYSTERY_CUSTOMER',
+      'SECRET_RECIPE',
+    ])
   })
 
   it('gives every rule a label an operator could recognise as their own', () => {
-    for (const r of defaultPrizeRules(9900)) {
+    for (const r of defaultPrizeRules()) {
       expect(r.label.trim().length).toBeGreaterThan(0)
     }
   })
 })
 
 describe('the games a venue is born with', () => {
-  it('enables both mechanics, so a new venue gets the picker without configuring anything', () => {
+  it('enables the three shipping games — a new venue is playable without configuring anything', () => {
     const games = defaultVenueGames()
-    expect(games.map((g) => g.mechanic).sort()).toEqual(['KITCHEN_ROUND', 'MYSTERY_PLATE'])
+    expect(games.map((g) => g.mechanic)).toEqual([
+      'BEAT_THE_KITCHEN',
+      'SECRET_RECIPE',
+      'MYSTERY_CUSTOMER',
+    ])
     expect(games.every((g) => g.enabled)).toBe(true)
   })
 
-  it('gives every game a distinct display order, so the picker is not arbitrary', () => {
+  it('gives every game a distinct display order', () => {
     const orders = defaultVenueGames().map((g) => g.displayOrder)
     expect(new Set(orders).size).toBe(orders.length)
   })
 
-  it('leads with the kitchen round, which is the game the copy explains', () => {
-    const first = [...defaultVenueGames()].sort((a, b) => a.displayOrder - b.displayOrder)[0]
-    expect(first?.mechanic).toBe('KITCHEN_ROUND')
-  })
-
-  // `/dash/games` lists MECHANICS and `setVenueGameEnabled` upserts the row, so
+// `/dash/games` lists MECHANICS and `setVenueGameEnabled` upserts the row, so
   // a mechanic missing from here would still be switchable — but it would be
   // born off, and a venue created after it shipped would not offer it until
   // someone noticed. The two lists have to stay in step.
