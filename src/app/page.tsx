@@ -1,198 +1,455 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google'
 import { BRAND } from '@/brand'
-import { en } from '@/strings/en'
-import { formatPaise } from '@/lib/money'
-import { decidePrizePool, type MenuItemInput, type PrizeRuleInput } from '@/core/prize-engine'
-import { DEFAULT_RANKING_WEIGHTS } from '@/core/prize-engine/default-rules'
-import { operatorFontVars } from './fonts'
+import { LandingEnhancements } from './landing-enhancements'
+import './landing.css'
 
 /**
- * The operator front door.
+ * The public front door — the `/` route Vercel and `npm run dev` serve.
  *
- * `/` is an operator surface (UI-SPEC.md §3) but it lives at the root rather
- * than inside `(operator)`, because that group's layout renders the signed-in
- * nav shell and this page is read by someone who has never signed in. So it
- * applies the operator type identity itself, from the shared `fonts` module.
- * Nothing under `(guest)` may do the same.
+ * Warm cream ground, terracotta accent, soft rounded cards. Headlines are a
+ * heavy Plus Jakarta Sans grotesk; Fraunces italic appears exactly once, on
+ * the hero's accent word, as the single serif touch. The hero is a centred
+ * headline floating over product-UI cards and a warm wash; below it a numbered
+ * "how it works" strip, a "for restaurants" stat panel, two testimonials, a
+ * dark CTA, and a minimal footer.
  *
- * Server component, zero client JS — the whole page is one document.
+ * Everything is scoped under `.lp` (see landing.css) so this page's reset and
+ * palette never touch the operator/guest/staff surfaces that share the
+ * document. The wordmark and every in-copy product name come from `BRAND` —
+ * the name is a placeholder that lives in one file, so a rename stays one edit.
  */
-export default function LandingPage() {
-  return (
-    <div className={`${operatorFontVars} surface-operator min-h-dvh`}>
-      <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:py-24">
-        <p className="text-xs tracking-[0.18em] text-muted uppercase">{en.landing.eyebrow}</p>
 
-        {/* The hero is a two-column grid on desktop and stacks on mobile. The
-            clearing panel is not an illustration of the argument, it *is* the
-            argument, so it gets equal width rather than sitting below the
-            fold. */}
-        <div className="mt-8 grid gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
-          <div>
-            <h1 className="font-display text-[2.75rem] leading-[1.08] text-balance sm:text-6xl">
-              {en.landing.heading}
-            </h1>
+// The two faces this page needs, loaded as CSS variables landing.css references
+// via --font-display / --font-body. Fraunces carries its optical-size axis so
+// the one italic accent word tightens the way the design intends. Neither is
+// the operator `next/font` set — the landing owns its own type identity.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  axes: ['opsz'],
+  display: 'swap',
+  variable: '--font-fraunces',
+})
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jakarta',
+})
 
-            <p className="mt-7 max-w-prose text-lg leading-relaxed text-ink-warm text-pretty">
-              {en.landing.body}
-            </p>
-
-            {/* The one accent fill on the page — the third of the ledger's
-                four uses (REVAMP-BRIEF.md Part 2). Everything else here is
-                ink or a border. */}
-            <Link
-              href="/signup"
-              className="mt-9 inline-flex min-h-14 items-center rounded-xl bg-accent px-8 text-lg font-medium text-paper"
-            >
-              {en.landing.cta}
-            </Link>
-            <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
-              {en.landing.reassurance}
-            </p>
-
-            <div className="mt-12 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-line bg-warm p-5">
-                <p className="leading-relaxed">{en.landing.forGuests}</p>
-              </div>
-              <div className="rounded-2xl border border-line bg-warm p-5">
-                <p className="leading-relaxed">{en.landing.forYou}</p>
-              </div>
-            </div>
-          </div>
-
-          <ClearingPanel />
-        </div>
-
-        <section className="mt-24 border-t border-line pt-12">
-          <h2 className="text-2xl font-semibold">{en.landing.stepsHeading}</h2>
-          <ol className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {en.landing.steps.map((step) => (
-              <li key={step.n}>
-                <span className="font-mono text-sm tracking-wider text-muted tabular-nums">
-                  {step.n}
-                </span>
-                <h3 className="mt-2 text-lg font-medium">{step.title}</h3>
-                <p className="mt-2 leading-relaxed text-muted text-pretty">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <p className="mt-20 max-w-prose text-sm leading-relaxed text-muted">{en.landing.honesty}</p>
-
-        <footer className="mt-16 border-t border-line pt-6 text-xs text-muted">
-          {BRAND.name} — {BRAND.tagline}
-        </footer>
-      </main>
-    </div>
-  )
+// This is the one public, indexable page. The root layout defaults every route
+// to noindex (the operator/guest app is private); the marketing front door
+// overrides that back to indexable.
+export const metadata: Metadata = {
+  title: `${BRAND.name} — Merchandising wait times`,
+  description: `${BRAND.name} turns the minutes between ordering and eating into menu discovery — a quick, playful moment at the table that gets guests to order more and leave happier. No app, no login. Onboarding pilot restaurants now.`,
+  robots: { index: true, follow: true },
 }
 
-/**
- * A demonstration menu, fed through the real engine on every render.
- *
- * The clearing panel used to be handwritten rows; now `decidePrizePool` runs
- * live and the reasons on the card are the engine's own strings. The menu is
- * demonstration data by necessity, not laziness — a real venue's pool on a
- * public page would publish that customer's menu, food costs and margin
- * fences (PLATFORM.md §7 tenancy) — and every number below is illustrative
- * input to a pure function, never product behaviour.
- */
-const DEMO_MENU: MenuItemInput[] = [
-  { id: 'butter-chicken', name: 'Butter chicken', category: 'mains', pricePaise: 42000, foodCostPaise: 18000, marginTier: 'MID', prepBurden: 'HIGH', requiresKitchenWork: true, isHero: true, active: true },
-  { id: 'gulab-jamun', name: 'Gulab jamun', category: 'desserts', pricePaise: 17900, foodCostPaise: 3800, marginTier: 'HIGH', prepBurden: 'LOW', requiresKitchenWork: false, isHero: false, active: true },
-  { id: 'masala-chai', name: 'Masala chai', category: 'beverages', pricePaise: 9000, foodCostPaise: 900, marginTier: 'HIGH', prepBurden: 'LOW', requiresKitchenWork: false, isHero: false, active: true },
-  { id: 'paneer-tikka', name: 'Paneer tikka', category: 'starters', pricePaise: 26000, foodCostPaise: 12000, marginTier: 'MID', prepBurden: 'MEDIUM', requiresKitchenWork: true, isHero: false, active: true },
-  { id: 'tandoori-chicken', name: 'Tandoori chicken', category: 'mains', pricePaise: 38000, foodCostPaise: 15000, marginTier: 'MID', prepBurden: 'HIGH', requiresKitchenWork: true, isHero: false, active: true },
-  { id: 'rogan-josh', name: 'Rogan josh', category: 'mains', pricePaise: 45000, foodCostPaise: 21000, marginTier: 'MID', prepBurden: 'HIGH', requiresKitchenWork: true, isHero: false, active: true },
-  { id: 'kulfi', name: 'Kulfi', category: 'desserts', pricePaise: 12000, foodCostPaise: 3000, marginTier: 'HIGH', prepBurden: 'LOW', requiresKitchenWork: false, isHero: false, active: true },
-]
-
-const DEMO_RULES: PrizeRuleInput[] = [
-  // Deliberately deeper than the demo's 40% cap, so the panel shows the cap
-  // refusing a rule the "restaurant" wrote — the fence outranking the policy.
-  { id: 'demo-kulfi-free', priority: 10, label: 'kulfi on the house', mechanic: 'BEAT_THE_KITCHEN', outcome: 'WIN', menuItemId: 'kulfi', window: 'ANY', kind: 'FREE' },
-  { id: 'demo-quarter-off', priority: 100, label: 'a quarter off anything', mechanic: 'BEAT_THE_KITCHEN', outcome: 'WIN', window: 'ANY', kind: 'PERCENT_OFF', percentOff: 25 },
-]
-
-function ClearingPanel() {
-  const card = en.landing.decisionCard
-  const nameOf = new Map(DEMO_MENU.map((m) => [m.id, m.name]))
-
-  // The same pure call the pass, the prizes page and the claim make.
-  const pool = decidePrizePool({
-    menu: DEMO_MENU,
-    velocity: [
-      { itemId: 'gulab-jamun', unitsSold: 0, daysSinceLastSale: 4 },
-      { itemId: 'masala-chai', unitsSold: 2, daysSinceLastSale: 1 },
-      { itemId: 'paneer-tikka', unitsSold: 6, daysSinceLastSale: 1 },
-      { itemId: 'kulfi', unitsSold: 1, daysSinceLastSale: 2 },
-    ],
-    kitchenLoad: 'AMBER',
-    chefVetoes: ['tandoori-chicken'],
-    depthCaps: { perItemPct: 40, perServicePaise: 120000 },
-    mechanic: 'BEAT_THE_KITCHEN',
-    outcome: 'WIN',
-    prizeRules: DEMO_RULES,
-    rankingWeights: DEFAULT_RANKING_WEIGHTS,
-    concededSoFarPaise: 0,
-    serviceClockMinute: 1120, // 6:40pm, matching the card's title
-    peakStartMinute: 1140,
-    peakEndMinute: 1380,
-  })
-
+export default function LandingPage() {
   return (
-    <figure className="rounded-2xl border border-line bg-warm p-6 sm:p-7">
-      <figcaption className="flex items-baseline justify-between gap-4">
-        <span className="font-mono text-sm text-ink-warm">{card.title}</span>
-        <span className="rounded-full border border-line px-2.5 py-0.5 text-[0.6875rem] tracking-widest text-muted uppercase">
-          {card.stamp}
-        </span>
-      </figcaption>
+    <div id="top" className={`lp ${fraunces.variable} ${jakarta.variable}`} suppressHydrationWarning>
+      {/*
+        Add the JS-ready class before first paint, so `.reveal` sections start
+        hidden ONLY when JS is present to reveal them. Without JS the class is
+        never added and every section stays visible — the animation is pure
+        enhancement, never a prerequisite for reading the page.
 
-      <section className="mt-7">
-        <h2 className="text-xs tracking-[0.16em] uppercase">
-          {card.clearedHeading}
-          <span className="ml-2 tracking-normal text-muted normal-case">{card.clearedNote}</span>
-        </h2>
-        <ul className="mt-3">
-          {pool.entries.map((e) => (
-            <li key={e.itemId} className="border-t border-line py-3">
-              <p className="font-medium">
-                {nameOf.get(e.itemId)}
-                <span className="ml-2 font-mono text-sm text-muted tabular-nums">
-                  {e.kind === 'FREE'
-                    ? formatPaise(0)
-                    : e.kind === 'PERCENT_OFF'
-                      ? `−${e.percentOff}%`
-                      : formatPaise(e.fixedPricePaise ?? 0)}
+        The script mutates this div's own className, so its server HTML and
+        post-script client DOM differ by exactly ` lp--js`. That is a deliberate
+        difference, not a bug, so the element opts out of hydration diffing —
+        the flag stays on this one node and does not affect its children.
+      */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.currentScript.parentElement.classList.add('lp--js')`,
+        }}
+      />
+
+      <a className="skip-link" href="#how">
+        Skip to content
+      </a>
+
+      {/* ───────────────────────────  NAV  ─────────────────────────── */}
+      <header className="nav" id="nav" data-nav>
+        <div className="nav__inner container">
+          <a className="nav__brand" href="#top" aria-label={`${BRAND.name} — home`}>
+            {BRAND.name}
+            <span className="nav__beta">beta</span>
+          </a>
+
+          <nav className="nav__links" aria-label="Primary">
+            <a href="#how">How it works</a>
+            <a href="#forres">For restaurants</a>
+          </nav>
+
+          <div className="nav__actions">
+            <Link className="nav__refer" href="/refer">
+              Refer a Restaurant
+            </Link>
+            <Link className="btn btn--dark btn--sm" href="/signin">
+              Log In
+            </Link>
+            <Link className="btn btn--primary btn--sm" href="/signup">
+              Get Started
+            </Link>
+            <button
+              className="nav__toggle"
+              type="button"
+              aria-label="Open menu"
+              aria-expanded="false"
+              aria-controls="nav-mobile"
+              data-nav-toggle
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+        </div>
+
+        <div className="nav__mobile" id="nav-mobile" data-nav-mobile hidden>
+          <a href="#how">How it works</a>
+          <a href="#forres">For restaurants</a>
+          <Link href="/refer">Refer a Restaurant</Link>
+          <Link className="btn btn--dark" href="/signin">
+            Log In
+          </Link>
+          <Link className="btn btn--primary" href="/signup">
+            Get Started
+          </Link>
+        </div>
+      </header>
+
+      <main>
+        {/* ───────────────────────────  HERO  ─────────────────────────── */}
+        <section className="hero">
+          <div className="hero__stage container">
+            {/* Decorative product surfaces floating behind the headline. Masked
+                out of the centre and hidden below 60rem — purely atmospheric. */}
+            <div className="hero__float" aria-hidden="true">
+              <div className="floaty floaty--a">
+                <span className="floaty__label">Guest review</span>
+                <span className="floaty__stars">★★★★★</span>
+                <p className="floaty__line">&ldquo;Tried the dessert I saw in the game.&rdquo;</p>
+              </div>
+
+              <div className="floaty floaty--play floaty--b">
+                <div className="floaty__head">
+                  <span className="floaty__label">Beat the kitchen</span>
+                  <span className="floaty__timer">0:23</span>
+                </div>
+                <p className="floaty__q">Tonight&rsquo;s chef&rsquo;s pick?</p>
+                <div className="floaty__opts">
+                  <span className="floaty__opt floaty__opt--pick">Truffle fries</span>
+                  <span className="floaty__opt">Garlic bread</span>
+                </div>
+              </div>
+
+              <div className="floaty floaty--c">
+                <span className="floaty__label">Reward unlocked</span>
+                <p className="floaty__code">FRIES-7Q</p>
+                <p className="floaty__sub">Show your server</p>
+              </div>
+
+              <div className="floaty floaty--pick floaty--d">
+                <span className="floaty__emoji">🍰</span>
+                <div>
+                  <span className="floaty__label">Added to order</span>
+                  <p className="floaty__line">Tiramisu · ₹280</p>
+                </div>
+              </div>
+
+              <div className="floaty floaty--chip floaty--e">
+                <p className="floaty__line">+ 3 items discovered</p>
+              </div>
+
+              <div className="floaty floaty--chip floaty--f">
+                <p className="floaty__line">★ 4.9 this week</p>
+              </div>
+            </div>
+
+            {/* The thesis: a centred two-tone headline over the wash. */}
+            <div className="hero__center">
+              <span className="hero__pin" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C7.9 2 4.5 5.4 4.5 9.5c0 5.3 6.3 11.4 7 12.1.3.3.7.3 1 0 .7-.7 7-6.8 7-12.1C19.5 5.4 16.1 2 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z" />
+                </svg>
+              </span>
+              <h1 className="hero__title">
+                <em>Merchandising</em>
+                wait times
+                <span className="dot" aria-hidden="true">
+                  .
                 </span>
+              </h1>
+              <p className="hero__sub">
+                {BRAND.name} turns the time between order and arrival into a playful, menu-driven
+                experience &mdash; so guests discover more, order more, and leave happier.
               </p>
-              {/* The engine's own sentence, in the mono — the system talking. */}
-              <p className="mt-0.5 font-mono text-sm leading-relaxed text-muted">{e.reason}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+              <p className="hero__note">Now taking pilot restaurants</p>
+            </div>
+          </div>
+        </section>
 
-      <section className="mt-7">
-        <h2 className="text-xs tracking-[0.16em] uppercase">
-          {card.refusedHeading}
-          <span className="ml-2 tracking-normal text-muted normal-case">{card.refusedNote}</span>
-        </h2>
-        <ul className="mt-3">
-          {pool.excluded.map((r) => (
-            <li key={r.itemId} className="border-t border-line py-3">
-              <p className="text-muted line-through">{nameOf.get(r.itemId)}</p>
-              <p className="mt-0.5 font-mono text-sm leading-relaxed text-ink-warm">{r.reason}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+        {/* ────────────────────────  HOW IT WORKS  ──────────────────────── */}
+        <section className="section how" id="how">
+          <div className="container">
+            <header className="section-head reveal">
+              <p className="eyebrow-rule">
+                <span>How it works</span>
+              </p>
+              <h2 className="section-title">Three bites and you&rsquo;re hooked.</h2>
+              <p className="section-sub">
+                No app. No QR maze. Just a beautifully simple experience that starts the moment they
+                sit down.
+              </p>
+            </header>
 
-      <p className="mt-7 border-t border-line pt-5 text-sm leading-relaxed text-muted">
-        {card.footnote}
-      </p>
-    </figure>
+            <ol className="steps">
+              <li className="step reveal">
+                <div className="step__top">
+                  <span className="step__n">01</span>
+                  <span className="pill pill--step">Arrival</span>
+                </div>
+                <h3 className="step__title">Guest scans, game begins</h3>
+                <p className="step__body">
+                  A quick QR scan at the table launches {BRAND.name}. Instantly, guests are drawn
+                  into bite-sized menu stories, trivia, and discovery.
+                </p>
+              </li>
+              <li className="step reveal" data-reveal-delay="1">
+                <div className="step__top">
+                  <span className="step__n">02</span>
+                  <span className="pill pill--step">Wait time</span>
+                </div>
+                <h3 className="step__title">Explore while they wait</h3>
+                <p className="step__body">
+                  Guests discover menu highlights, chef picks, and off-menu gems through a
+                  quick, playful game &mdash; with rewards to win and little moments of delight
+                  along the way.
+                </p>
+              </li>
+              <li className="step reveal" data-reveal-delay="2">
+                <div className="step__top">
+                  <span className="step__n">03</span>
+                  <span className="pill pill--step">Revenue</span>
+                </div>
+                <h3 className="step__title">Add to order, effortlessly</h3>
+                <p className="step__body">
+                  With a tap, they send add-on suggestions straight to the server. No friction
+                  &mdash; just a spontaneous second cocktail or dessert they didn&rsquo;t know they
+                  wanted.
+                </p>
+              </li>
+              <li className="step reveal" data-reveal-delay="3">
+                <div className="step__top">
+                  <span className="step__n">04</span>
+                  <span className="pill pill--step">Insights</span>
+                </div>
+                <h3 className="step__title">You get the data</h3>
+                <p className="step__body">
+                  See what guests explored, what converted, and what flopped. Real engagement
+                  signals that make your menu smarter over time.
+                </p>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        {/* ─────────────────────  FOR RESTAURANTS  ──────────────────────── */}
+        <section className="section forres" id="forres">
+          <div className="container">
+            <div className="panel reveal">
+              <header className="panel__head">
+                <div className="panel__headline">
+                  <span className="pill">For restaurants</span>
+                  <h2 className="section-title">
+                    Dead time, meet your new job description
+                    <span className="dot" aria-hidden="true">
+                      .
+                    </span>
+                  </h2>
+                </div>
+                <p className="panel__lead">
+                  Every restaurant has idle wait-time. {BRAND.name} puts it to work &mdash; quietly,
+                  tastefully, effectively.
+                </p>
+              </header>
+
+              <div className="stats">
+                <article className="stat">
+                  <span className="stat__icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M8 22h8" />
+                      <path d="M7 10h10" />
+                      <path d="M12 15v7" />
+                      <path d="M12 15a5 5 0 0 0 5-5c0-2-.5-4-1-6H8c-.5 2-1 4-1 6a5 5 0 0 0 5 5Z" />
+                    </svg>
+                  </span>
+                  <p className="stat__num">+28%</p>
+                  <p className="stat__label">avg. order value</p>
+                  <p className="stat__body">
+                    Guests discover and add items they never would have ordered at the table.
+                  </p>
+                </article>
+
+                <article className="stat">
+                  <span className="stat__icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="10" x2="14" y1="2" y2="2" />
+                      <line x1="12" x2="15" y1="14" y2="11" />
+                      <circle cx="12" cy="14" r="8" />
+                    </svg>
+                  </span>
+                  <p className="stat__num">&minus;40%</p>
+                  <p className="stat__label">perceived wait time</p>
+                  <p className="stat__body">
+                    Engaged guests don&rsquo;t watch the clock. They&rsquo;re too busy eyeing the
+                    dessert menu.
+                  </p>
+                </article>
+
+                <article className="stat">
+                  <span className="stat__icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </span>
+                  <p className="stat__num">+1.3</p>
+                  <p className="stat__label">avg. review score</p>
+                  <p className="stat__body">
+                    A better wait experience translates directly into better ratings and return
+                    visits.
+                  </p>
+                </article>
+
+                <article className="stat">
+                  <span className="stat__icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect width="7" height="7" x="3" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="14" rx="1" />
+                      <rect width="7" height="7" x="3" y="14" rx="1" />
+                    </svg>
+                  </span>
+                  <p className="stat__num">3.2&times;</p>
+                  <p className="stat__label">more menu items viewed</p>
+                  <p className="stat__body">
+                    Guests explore your full menu, not just what they already know.
+                  </p>
+                </article>
+              </div>
+            </div>
+
+            {/* Testimonials */}
+            <div className="quotes">
+              <figure className="quote quote--peach reveal">
+                <blockquote className="quote__text">
+                  &ldquo;We sold out of our featured dessert on the first night. Guests kept saying
+                  they saw it in the game.&rdquo;
+                </blockquote>
+                <figcaption className="quote__who">
+                  <span className="quote__avatar" aria-hidden="true">
+                    KS
+                  </span>
+                  <span>
+                    <span className="quote__name">Kabir Sharma</span>
+                    <span className="quote__role">Owner, Dilli Junction — New Delhi</span>
+                  </span>
+                </figcaption>
+              </figure>
+
+              <figure className="quote quote--sage reveal" data-reveal-delay="1">
+                <blockquote className="quote__text">
+                  &ldquo;Our servers love it. Guests arrive at the table already excited &mdash; the
+                  conversation shifts from &lsquo;how long?&rsquo; to &lsquo;can I add the truffle
+                  fries?&rsquo;&rdquo;
+                </blockquote>
+                <figcaption className="quote__who">
+                  <span className="quote__avatar" aria-hidden="true">
+                    MI
+                  </span>
+                  <span>
+                    <span className="quote__name">Meera Iyer</span>
+                    <span className="quote__role">GM, Coastal Table — Bengaluru</span>
+                  </span>
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        {/* ────────────────────────────  CTA  ───────────────────────────── */}
+        <section className="cta">
+          <div className="container">
+            <div className="cta__block reveal">
+              <span className="pill pill--on-dark">For restaurants &amp; F&amp;B operators</span>
+              <h2 className="cta__title">Ready to turn the wait into revenue?</h2>
+              <p className="cta__body">
+                Join a handful of pilot restaurants transforming dead wait-time into their most
+                profitable moment.
+              </p>
+              <div className="cta__actions">
+                <Link className="btn btn--primary btn--lg" href="/signup">
+                  Get Started
+                </Link>
+                <a className="btn btn--on-dark btn--lg" href="#how">
+                  See how it works
+                </a>
+              </div>
+              <p className="cta__fine">
+                No setup fee. No long-term contract. Just happy, spending guests.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* ───────────────────────────  FOOTER  ─────────────────────────── */}
+      <footer className="footer">
+        <div className="container footer__inner">
+          <span className="footer__word">{BRAND.name}</span>
+          <nav className="footer__links" aria-label="Footer">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Contact</a>
+          </nav>
+          <span className="footer__copy">
+            &copy; 2026 {BRAND.name}. All rights reserved.
+          </span>
+        </div>
+      </footer>
+
+      <LandingEnhancements />
+    </div>
   )
 }
