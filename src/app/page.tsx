@@ -84,9 +84,9 @@ export default function LandingPage() {
           </nav>
 
           <div className="nav__actions">
-            <a className="nav__refer" href="#">
+            <Link className="nav__refer" href="/refer">
               Refer a Restaurant
-            </a>
+            </Link>
             <Link className="btn btn--dark btn--sm" href="/signin">
               Log In
             </Link>
@@ -111,7 +111,7 @@ export default function LandingPage() {
         <div className="nav__mobile" id="nav-mobile" data-nav-mobile hidden>
           <a href="#how">How it works</a>
           <a href="#forres">For restaurants</a>
-          <a href="#">Refer a Restaurant</a>
+          <Link href="/refer">Refer a Restaurant</Link>
           <Link className="btn btn--dark" href="/signin">
             Log In
           </Link>

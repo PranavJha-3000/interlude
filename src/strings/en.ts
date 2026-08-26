@@ -897,6 +897,59 @@ export const en = {
       saved: 'Saved.',
     },
   },
+
+  /**
+   * The /refer route — where "Refer a Restaurant" lands. The copy stays as
+   * plain-spoken as the rest of the operator surfaces: nothing here promises
+   * money or timelines we do not control, and every label names the thing it
+   * labels. Error copy follows UI-SPEC's honesty rule — say what was wrong,
+   * never tease.
+   */
+  refer: {
+    eyebrow: 'Refer a restaurant',
+    heading: 'Know a kitchen that should run this?',
+    body:
+      'Send us a restaurant you think belongs on this platform. We call them ourselves — no drip campaign, no pitch deck — and your name goes down as the one who sent us.',
+    fields: {
+      restaurantLabel: 'Restaurant name',
+      restaurantPlaceholder: 'e.g. Dilli Junction',
+      locationLabel: 'Location',
+      locationPlaceholder: 'City or locality',
+      pocNameLabel: 'Who should we ask for?',
+      pocNamePlaceholder: 'Full name',
+      pocPhoneLabel: 'Their phone',
+      pocPhoneHelp: 'The number our team actually calls. Include the country code if you have it.',
+      pocRoleLabel: 'Their role / title',
+      pocRolePlaceholder: 'Owner, GM, floor manager…',
+      referrerNameLabel: 'Your name',
+      referrerNamePlaceholder: 'So we know who to thank.',
+      referrerContactLabel: 'Your contact',
+      referrerContactHelp: 'Phone or email — only ever used to credit you or ask you one question.',
+      submit: 'Send the referral',
+      requiredNote: '* All fields are required.',
+    },
+    honeypotLabel: 'Leave this field empty',
+    errorHeading: 'Almost there',
+    errors: {
+      RESTAURANT_NAME: 'Give the restaurant its name — two characters or more.',
+      LOCATION: 'Where is it? A city or a locality is plenty.',
+      POC_NAME: 'Tell us who to ask for by name.',
+      POC_PHONE:
+        'That phone number does not look dialable. Digits, spaces and a leading + are fine — for example +91 98765 43210.',
+      POC_ROLE_TITLE: 'A role or title helps us open the right door.',
+      REFERRER_NAME: 'Your name, however you like to be credited.',
+      REFERRER_CONTACT: 'How do we reach you? A phone number or an email address.',
+      RATE_LIMITED:
+        'Too many referrals from this connection today. Try again tomorrow, or write to us directly.',
+      GENERIC: 'Something went wrong at our end. Nothing was sent — please try again.',
+    } as Record<string, string>,
+    success: {
+      heading: 'Thank you — the referral is ours now.',
+      body:
+        'We will ring them within two working days. If they come aboard, the record already shows you sent them.',
+      backHome: 'Back to the site',
+    },
+  },
 } as const
 
 export type Strings = typeof en

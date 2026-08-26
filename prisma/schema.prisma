@@ -1202,3 +1202,42 @@ enum AddOnStatus {
   ACKED
   CANCELLED
 }
+
+/// A restaurant handed to us by someone who knows us — the landing page's
+/// "Refer a Restaurant" form writes one row per submission, stored plainly as
+/// Referral. Deliberately not related to Venue: a referral is a lead, not a
+/// tenant until it signs up, and linking early would let the referral form see
+/// tenancy data it has no business reading (PLATFORM.md §7).
+///
+/// PII here is minimal and volunteered: the person being referred expects the
+/// call, and the referrer asked to be credited. There is no contact *email*
+/// column by design — outreach happens by phone because there is no verified
+/// sending domain yet (SECURITY.md §7a).
+model Referral {
+  id             String   @id @default(cuid())
+  /// As spelled by the referrer; never normalised against Venue.name, so a
+  /// referral for a venue that already exists stays visible as a duplicate.
+  restaurantName String
+  /// Free text — city or locality. Coordinates would be false precision here.
+  location       String
+  pocName        String
+  /// Mandatory. Stored raw; normalisation lives in lib/referral.ts so the
+  /// column keeps what the referrer typed and future corrections stay lossless.
+  pocPhone       String
+  pocRoleTitle   String
+
+  /// Who sent this — attributed when the referral converts (owner decision).
+  referrerName    String
+  /// Phone or email, whichever the referrer gave. One column because either
+  /// reaches them, and a second nullable column invites nobody filling it.
+  referrerContact String
+
+  /// HMAC of the submitting IP keyed by SESSION_SECRET — never the address
+  /// itself (same stance as Venue.phoneSalt, DPDP §7). The rate limiter only
+  /// needs equality, and equality survives hashing.
+  submitterKey String
+  createdAt    DateTime @default(now())
+
+  @@index([submitterKey, createdAt])
+  @@index([createdAt])
+}
