@@ -225,8 +225,9 @@ export default function LandingPage() {
                 </div>
                 <h3 className="step__title">Explore while they wait</h3>
                 <p className="step__body">
-                  Guests unlock menu highlights, chef picks, and off-menu gems through light
-                  gamification &mdash; earning points, badges, and little moments of delight.
+                  Guests discover menu highlights, chef picks, and off-menu gems through a
+                  quick, playful game &mdash; with rewards to win and little moments of delight
+                  along the way.
                 </p>
               </li>
               <li className="step reveal" data-reveal-delay="2">
