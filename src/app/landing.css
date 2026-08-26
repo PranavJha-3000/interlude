@@ -1,0 +1,1083 @@
+/* ============================================================================
+   Landing (the `/` route).
+   Warm cream ground, terracotta accent, soft rounded cards. Headlines are a
+   heavy Plus Jakarta Sans grotesk; Fraunces italic is used for a single
+   accent word in the hero (the one serif touch), matching the reference:
+   a centered, floating-card hero over an orange wash, a numbered "how it
+   works" strip, a "for restaurants" panel of stat cards, two testimonials,
+   a dark CTA block, and a light footer.
+
+   Every rule is scoped under `.lp`. This page shares one <html>/<body> with
+   the operator, guest, staff and kitchen surfaces, and Next keeps the CSS of
+   an already-visited route in the document after a client navigation. Scoping
+   means the reset, the tokens and the terracotta palette live only inside this
+   page's wrapper and cannot bleed onto `globals.css`'s operator system. The
+   two display/body faces come in as `next/font` CSS variables from page.tsx.
+   ========================================================================== */
+
+/* Smooth anchor scrolling is a window/html behaviour, so it is the one rule
+   that must stay global. It is inert on routes without in-page anchors. */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ── Root: tokens + base, all on the wrapper ─────────────────────────────── */
+.lp {
+  /* warm palette */
+  --bg: #fdfbf7; /* page ground, warm off-white          */
+  --surface: #f7f1e9; /* warm band / panel                    */
+  --card: #ffffff; /* raised card                          */
+  --ink: #3a1c0d; /* headings, deep roast brown           */
+  --body: #5a3a28; /* body copy                            */
+  --muted: #8f563d; /* eyebrows, captions, secondary        */
+  --primary: #e6611e; /* terracotta accent                    */
+  --primary-2: #c84f13; /* darker terracotta (hover / on light) */
+  --brand: #e87c48; /* lighter warm orange                  */
+  --border: #e7dece; /* hairline on warm ground              */
+
+  /* testimonial tints */
+  --peach: #f8e7dc;
+  --peach-line: #f0d3c1;
+  --sage: #dfece4;
+  --sage-line: #cbe0d3;
+
+  /* dark surfaces (CTA block) */
+  --dark: #241108; /* espresso, not black — stays in the family */
+  --dark-2: #38190c;
+  --on-dark: #f6ece1; /* text on dark */
+  --on-dark-muted: #d4b7a2;
+
+  /* elevation — cool shadow reads as real depth on warm paper */
+  --shadow-sm: 0 1px 2px hsl(24 30% 20% / 0.05), 0 1px 3px hsl(24 30% 20% / 0.04);
+  --shadow-md: 0 4px 8px hsl(24 24% 18% / 0.05), 0 10px 24px hsl(24 24% 18% / 0.07);
+  --shadow-lg: 0 18px 48px hsl(24 24% 16% / 0.14);
+  --shadow-float: 0 10px 30px hsl(24 30% 20% / 0.1), 0 2px 6px hsl(24 30% 20% / 0.06);
+
+  --radius: 0.85rem;
+  --radius-lg: 1.5rem;
+  --radius-pill: 999px;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Faces arrive as next/font variables (page.tsx); the stacks are the fallback. */
+  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-body: var(--font-jakarta), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  --container: 75rem;
+
+  position: relative;
+  min-height: 100dvh;
+  /* clip (not hidden) keeps the vertical axis `visible`, so the fixed nav is
+     unaffected while sideways bleed from the hero's floats is caught. */
+  overflow-x: clip;
+  background: var(--bg);
+  color: var(--body);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Reset (scoped) ──────────────────────────────────────────────────────── */
+.lp *,
+.lp *::before,
+.lp *::after {
+  box-sizing: border-box;
+}
+.lp * {
+  margin: 0;
+}
+.lp img,
+.lp svg {
+  display: block;
+  max-width: 100%;
+}
+.lp a {
+  color: inherit;
+  text-decoration: none;
+}
+.lp button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.lp ol,
+.lp ul {
+  list-style: none;
+  padding: 0;
+}
+.lp ::selection {
+  background: hsl(20 80% 51% / 0.22);
+  color: var(--ink);
+}
+
+/* ── Skip link ───────────────────────────────────────────────────────────── */
+.lp .skip-link {
+  position: absolute;
+  left: 50%;
+  top: -3rem;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  transition: top 0.18s var(--ease);
+}
+.lp .skip-link:focus {
+  top: 0.75rem;
+}
+
+/* ── Layout primitives ───────────────────────────────────────────────────── */
+.lp .container {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 5vw, 2.5rem);
+}
+.lp .section {
+  padding-block: clamp(4.25rem, 8vw, 7.5rem);
+}
+
+/* ── Shared type devices ─────────────────────────────────────────────────── */
+.lp .eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lp .eyebrow--accent {
+  color: var(--primary-2);
+}
+
+/* the orange accent-period — the one recurring signature mark */
+.lp .dot {
+  color: var(--primary);
+}
+
+/* centered eyebrow flanked by hairlines (How It Works) */
+.lp .eyebrow-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+}
+.lp .eyebrow-rule::before,
+.lp .eyebrow-rule::after {
+  content: '';
+  height: 1px;
+  width: min(4.5rem, 14vw);
+  background: linear-gradient(to var(--_dir, right), transparent, var(--border));
+}
+.lp .eyebrow-rule::before {
+  --_dir: left;
+}
+.lp .eyebrow-rule span {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* category / label pill */
+.lp .pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.34rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-2);
+  background: hsl(20 80% 51% / 0.1);
+  border: 1px solid hsl(20 80% 51% / 0.2);
+  border-radius: var(--radius-pill);
+}
+.lp .pill--on-dark {
+  color: var(--on-dark);
+  background: hsl(30 40% 90% / 0.1);
+  border-color: hsl(30 40% 90% / 0.24);
+}
+
+/* Section headline is the heavy grotesk, dark, with a tight track. */
+.lp .section-title {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(1.95rem, 3.8vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.lp .section-sub {
+  margin-top: 1rem;
+  font-size: 1.075rem;
+  color: var(--muted);
+  max-width: 34rem;
+}
+.lp .section-head {
+  margin-bottom: clamp(2.5rem, 5vw, 3.75rem);
+}
+.lp .section-head--center {
+  text-align: center;
+}
+.lp .section-head--center .section-sub {
+  margin-inline: auto;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.lp .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.82rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.975rem;
+  letter-spacing: -0.005em;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  transition:
+    transform 0.18s var(--ease),
+    background-color 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease),
+    color 0.18s var(--ease);
+  will-change: transform;
+}
+.lp .btn--sm {
+  padding: 0.58rem 1.05rem;
+  font-size: 0.9rem;
+}
+.lp .btn--lg {
+  padding: 0.95rem 1.75rem;
+  font-size: 1.03rem;
+}
+.lp .btn--primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 1px 2px hsl(20 80% 30% / 0.3), 0 6px 16px hsl(20 80% 40% / 0.28);
+}
+.lp .btn--primary:hover {
+  background: var(--primary-2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px hsl(20 80% 30% / 0.32), 0 10px 22px hsl(20 80% 40% / 0.32);
+}
+.lp .btn--primary:active {
+  transform: translateY(0);
+}
+.lp .btn--dark {
+  background: var(--ink);
+  color: var(--bg);
+}
+.lp .btn--dark:hover {
+  background: var(--dark);
+  transform: translateY(-1px);
+}
+.lp .btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--border);
+}
+.lp .btn--ghost:hover {
+  background: var(--surface);
+  border-color: #d8ccba;
+  transform: translateY(-1px);
+}
+.lp .btn--on-dark {
+  background: transparent;
+  color: var(--on-dark);
+  border-color: hsl(30 40% 90% / 0.3);
+}
+.lp .btn--on-dark:hover {
+  background: hsl(30 40% 90% / 0.1);
+  transform: translateY(-1px);
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+.lp .nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  transition:
+    background-color 0.28s var(--ease),
+    box-shadow 0.28s var(--ease),
+    border-color 0.28s var(--ease);
+  border-bottom: 1px solid transparent;
+}
+.lp .nav--solid {
+  background: hsl(40 50% 98% / 0.82);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.lp .nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 4.5rem;
+}
+.lp .nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1.28rem;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.lp .nav__beta {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-2);
+  background: hsl(20 80% 51% / 0.12);
+  border: 1px solid hsl(20 80% 51% / 0.24);
+  padding: 0.14rem 0.42rem;
+  border-radius: var(--radius-pill);
+}
+.lp .nav__links {
+  display: flex;
+  gap: 2rem;
+  margin-inline: auto;
+}
+.lp .nav__links a {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--body);
+  position: relative;
+  padding: 0.25rem 0;
+  transition: color 0.18s var(--ease);
+}
+.lp .nav__links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 0;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: right 0.22s var(--ease);
+}
+.lp .nav__links a:hover {
+  color: var(--ink);
+}
+.lp .nav__links a:hover::after {
+  right: 0;
+}
+.lp .nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.lp .nav__refer {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--body);
+  padding: 0.4rem 0.5rem;
+  transition: color 0.18s var(--ease);
+}
+.lp .nav__refer:hover {
+  color: var(--primary-2);
+}
+.lp .nav__toggle {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.lp .nav__toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+  transition:
+    transform 0.2s var(--ease),
+    opacity 0.2s var(--ease);
+}
+.lp .nav__toggle[aria-expanded='true'] span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+.lp .nav__toggle[aria-expanded='true'] span:nth-child(2) {
+  opacity: 0;
+}
+.lp .nav__toggle[aria-expanded='true'] span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+.lp .nav__mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem clamp(1.25rem, 5vw, 2.5rem) 1.25rem;
+  background: hsl(40 50% 98% / 0.97);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.lp .nav__mobile a:not(.btn) {
+  padding: 0.7rem 0.25rem;
+  font-weight: 500;
+  color: var(--ink);
+  border-bottom: 1px solid var(--border);
+}
+.lp .nav__mobile .btn {
+  margin-top: 0.6rem;
+}
+
+/* ── Hero — centered headline over floating product cards ─────────────────── */
+.lp .hero {
+  position: relative;
+  padding-top: clamp(7.5rem, 12vw, 10.5rem);
+  padding-bottom: clamp(3.5rem, 7vw, 6rem);
+  overflow: hidden;
+}
+/* warm wash that pools behind the headline, exactly like the reference */
+.lp .hero::before {
+  content: '';
+  position: absolute;
+  inset: -10% -10% 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 42% at 50% 44%, hsl(22 88% 58% / 0.22), transparent 70%),
+    radial-gradient(80% 70% at 50% 30%, hsl(34 70% 84% / 0.5), transparent 72%);
+}
+.lp .hero__stage {
+  position: relative;
+  z-index: 1;
+  max-width: 72rem;
+  margin-inline: auto;
+  min-height: clamp(26rem, 52vh, 36rem);
+  display: grid;
+  place-items: center;
+}
+
+/* floating cards sit behind the headline; a radial mask fades them out of the
+   centre so they never crowd the type. Hidden entirely on small screens. */
+.lp .hero__float {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(52% 46% at 50% 46%, transparent 32%, #000 70%);
+  mask-image: radial-gradient(52% 46% at 50% 46%, transparent 32%, #000 70%);
+}
+.lp .floaty {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
+  padding: 0.8rem 0.9rem;
+  width: max-content;
+  max-width: 15rem;
+}
+.lp .floaty__label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary-2);
+  margin-bottom: 0.3rem;
+}
+.lp .floaty__line {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.lp .floaty__sub {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.lp .floaty__stars {
+  color: var(--primary);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+}
+.lp .floaty__code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+}
+.lp .floaty--chip {
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--radius-pill);
+}
+.lp .floaty--chip .floaty__line {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.lp .floaty--pick {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.lp .floaty--pick .floaty__emoji {
+  font-size: 1.1rem;
+}
+/* mini game card — the product itself, mid-round */
+.lp .floaty--play {
+  width: 15rem;
+  max-width: 15rem;
+  padding: 0.95rem 1rem 1rem;
+}
+.lp .floaty__q {
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0.15rem 0 0.6rem;
+}
+.lp .floaty__opts {
+  display: grid;
+  gap: 0.35rem;
+}
+.lp .floaty__opt {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--body);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+}
+.lp .floaty__opt--pick {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.lp .floaty__timer {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary-2);
+  font-variant-numeric: tabular-nums;
+}
+.lp .floaty__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* positions — scattered, gently tilted (reference-style) */
+.lp .floaty--a {
+  top: 4%;
+  left: 1%;
+  transform: rotate(-5deg);
+}
+.lp .floaty--b {
+  top: 9%;
+  right: 2%;
+  transform: rotate(4deg);
+}
+.lp .floaty--c {
+  bottom: 8%;
+  left: 3%;
+  transform: rotate(-3deg);
+}
+.lp .floaty--d {
+  bottom: 6%;
+  right: 3%;
+  transform: rotate(5deg);
+}
+.lp .floaty--e {
+  top: 45%;
+  left: -2%;
+  transform: rotate(-7deg);
+}
+.lp .floaty--f {
+  top: 52%;
+  right: -1%;
+  transform: rotate(6deg);
+}
+
+/* centre column: pin, headline, one line, note pill */
+.lp .hero__center {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  max-width: 44rem;
+  padding-inline: 1rem;
+}
+.lp .hero__pin {
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: 0 auto 1.4rem;
+  color: var(--primary);
+}
+.lp .hero__pin svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 12px hsl(20 80% 45% / 0.28));
+}
+.lp .hero__title {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(2.9rem, 8.5vw, 6rem);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+.lp .hero__title em {
+  display: block;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+}
+.lp .hero__sub {
+  margin: 1.5rem auto 0;
+  max-width: 34rem;
+  font-size: 1.16rem;
+  line-height: 1.6;
+  color: var(--body);
+}
+.lp .hero__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.9rem;
+  padding: 0.5rem 1rem 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+.lp .hero__note::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px hsl(20 80% 51% / 0.18);
+}
+
+/* ── How It Works — numbered step strip ──────────────────────────────────── */
+.lp .how {
+  background: var(--surface);
+}
+.lp .steps {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+.lp .step {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.4rem 1.6rem;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+.lp .step:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.lp .step__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.lp .step__n {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lp .pill--step {
+  font-size: 0.62rem;
+  padding: 0.24rem 0.6rem;
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--border);
+}
+.lp .step__title {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1.16rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 0.6rem;
+}
+.lp .step__body {
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.lp .step__body b {
+  color: var(--primary-2);
+  font-weight: 700;
+}
+
+/* ── For restaurants — stat panel ────────────────────────────────────────── */
+.lp .forres {
+  background: var(--bg);
+}
+.lp .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.75rem, 4vw, 3.25rem);
+}
+.lp .panel__head {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1.25rem 2.5rem;
+  align-items: end;
+  margin-bottom: clamp(1.75rem, 3.5vw, 2.75rem);
+}
+.lp .panel__headline .pill {
+  margin-bottom: 1.1rem;
+}
+.lp .panel__lead {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--muted);
+  justify-self: start;
+}
+.lp .stats {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+.lp .stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.4rem;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+.lp .stat:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.lp .stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 1.1rem;
+  color: var(--primary);
+  background: hsl(20 80% 51% / 0.09);
+  border: 1px solid hsl(20 80% 51% / 0.16);
+  border-radius: var(--radius);
+}
+.lp .stat__icon svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+.lp .stat__num {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(2.1rem, 3.4vw, 2.65rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.lp .stat__label {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--primary-2);
+}
+.lp .stat__body {
+  margin-top: 0.7rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── Testimonials ────────────────────────────────────────────────────────── */
+.lp .quotes {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 1.1rem;
+}
+.lp .quote {
+  border-radius: var(--radius-lg);
+  padding: clamp(1.5rem, 3vw, 2.1rem);
+  border: 1px solid transparent;
+}
+.lp .quote--peach {
+  background: var(--peach);
+  border-color: var(--peach-line);
+}
+.lp .quote--sage {
+  background: var(--sage);
+  border-color: var(--sage-line);
+}
+.lp .quote__text {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.12rem;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.lp .quote__who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+}
+.lp .quote__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #fff;
+  flex: none;
+}
+.lp .quote--peach .quote__avatar {
+  background: linear-gradient(135deg, var(--brand), var(--primary-2));
+}
+.lp .quote--sage .quote__avatar {
+  background: linear-gradient(135deg, #5fa27f, #2f5744);
+}
+.lp .quote__name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.lp .quote__role {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* ── CTA (dark rounded block) ────────────────────────────────────────────── */
+.lp .cta {
+  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(4rem, 8vw, 7rem);
+}
+.lp .cta__block {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: radial-gradient(120% 130% at 50% 0%, var(--dark-2), var(--dark) 68%);
+  border-radius: var(--radius-lg);
+  padding: clamp(3rem, 7vw, 5.5rem) clamp(1.5rem, 5vw, 3rem);
+  box-shadow: var(--shadow-lg);
+}
+.lp .cta__block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(40% 60% at 50% 120%, hsl(20 80% 51% / 0.32), transparent 70%);
+}
+.lp .cta__block > * {
+  position: relative;
+}
+.lp .cta__block .pill {
+  margin-bottom: 1.4rem;
+}
+.lp .cta__title {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(2.1rem, 4.8vw, 3.35rem);
+  line-height: 1.03;
+  letter-spacing: -0.035em;
+  color: var(--on-dark);
+  max-width: 20ch;
+  margin-inline: auto;
+}
+.lp .cta__body {
+  max-width: 34rem;
+  margin: 1.2rem auto 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--on-dark-muted);
+}
+.lp .cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: center;
+  margin-top: 2.1rem;
+}
+.lp .cta__fine {
+  margin-top: 1.4rem;
+  font-size: 0.85rem;
+  color: var(--on-dark-muted);
+}
+
+/* ── Footer (light, minimal single row) ──────────────────────────────────── */
+.lp .footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.lp .footer__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding-block: clamp(1.75rem, 3vw, 2.5rem);
+}
+.lp .footer__word {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.lp .footer__links {
+  display: flex;
+  gap: 1.75rem;
+}
+.lp .footer__links a {
+  font-size: 0.92rem;
+  color: var(--body);
+  font-weight: 500;
+  transition: color 0.18s var(--ease);
+}
+.lp .footer__links a:hover {
+  color: var(--primary-2);
+}
+.lp .footer__copy {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* ── Reveal on scroll ────────────────────────────────────────────────────── */
+/* Gated on `.lp--js`, added by an inline script before first paint (page.tsx).
+   Without JS the class never lands, so `.reveal` keeps its natural visibility
+   and no content is ever hidden — the animation is pure enhancement. */
+.lp--js .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.64s var(--ease),
+    transform 0.64s var(--ease);
+}
+.lp--js .reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Focus ───────────────────────────────────────────────────────────────── */
+.lp :focus-visible {
+  outline: 2.5px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 64rem) {
+  .lp .steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lp .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 60rem) {
+  /* the floating hero collapses to a clean centred stack */
+  .lp .hero__float {
+    display: none;
+  }
+  .lp .hero__stage {
+    min-height: 0;
+  }
+  .lp .panel__head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+}
+@media (max-width: 52rem) {
+  .lp .nav__links {
+    display: none;
+  }
+  .lp .nav__actions .btn,
+  .lp .nav__refer {
+    display: none;
+  }
+  .lp .nav__toggle {
+    display: inline-flex;
+  }
+}
+@media (max-width: 40rem) {
+  .lp .steps,
+  .lp .stats,
+  .lp .quotes {
+    grid-template-columns: 1fr;
+  }
+  .lp .footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .lp .cta__actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lp *,
+  .lp *::before,
+  .lp *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .lp .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* hide the mobile menu when the [hidden] attribute is present (belt & braces) */
+.lp [hidden] {
+  display: none !important;
+}
