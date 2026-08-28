@@ -22,6 +22,8 @@ export const en = {
     none: '—',
     offline: "You're offline. We'll pick up where you left off.",
     genericError: "Something went wrong at our end. Your table's fine — try again.",
+    notFoundHeading: "We couldn't find that page.",
+    notFoundBody: 'It may have been moved, or the link may be expired.',
   },
 
   signin: {
@@ -362,6 +364,14 @@ export const en = {
     closed: {
       heading: 'Nothing running right now',
       body: "The kitchen's not taking games at the moment. Enjoy your meal.",
+    },
+    notFound: {
+      heading: "That link isn't working here.",
+      body: 'It may have expired or been replaced. Ask your server to scan the table code again.',
+    },
+    error: {
+      heading: 'The phone lost its thread.',
+      body: 'Nothing is lost — your table knows where you were. Try again.',
     },
   },
 

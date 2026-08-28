@@ -544,45 +544,8 @@ export default function LandingPage() {
           <div className="footer__row">
             <span className="footer__copy">&copy; 2026 {BRAND.name}. All rights reserved.</span>
             <nav className="footer__links" aria-label="Footer">
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Service</a>
-              <a href="#">Contact</a>
+              <Link href="/refer">Refer a Restaurant</Link>
             </nav>
-            <div className="footer__social">
-              <a className="footer__social-btn" href="#" aria-label="Instagram">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
-                  <circle cx="12" cy="12" r="4.2" />
-                  <line x1="17.4" y1="6.6" x2="17.41" y2="6.6" />
-                </svg>
-              </a>
-              <span className="footer__social-sep" aria-hidden="true" />
-              <a className="footer__social-btn" href="#" aria-label="LinkedIn">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="2.5" y="2.5" width="19" height="19" rx="4.5" />
-                  <circle cx="8.1" cy="8.9" r="1.2" fill="currentColor" stroke="none" />
-                  <path d="M8.1 11.4v5.6" />
-                  <path d="M12.3 17v-5.6" />
-                  <path d="M12.3 13.6a2.35 2.35 0 0 1 4.7 0V17" />
-                </svg>
-              </a>
-            </div>
           </div>
         </div>
       </footer>
