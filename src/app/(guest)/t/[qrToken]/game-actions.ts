@@ -7,7 +7,6 @@ import { guestPaysPaise } from '@/lib/money'
 import { decideAndWriteAward, previewTopPrize } from '@/lib/prize-award'
 import { recordEvent } from '@/lib/events'
 import {
-  earnedLifeActions,
   getMenuForGame,
   markPairShown,
   openOrResumeTableRun,
@@ -419,13 +418,4 @@ export async function claimPrize(qrToken: string): Promise<{ ok: boolean; code?:
     purpose: { kind: 'GAME', mechanic: 'BEAT_THE_KITCHEN', rung: state.currentRung },
   })
   return award ? { ok: true, code: award.code ?? undefined } : { ok: true }
-}
-
-/** What the spent-device screen still has to offer (§4.5). */
-export async function remainingLifeActions(tableRunId: string, venueId: string) {
-  const config = await getVenueConfig(venueId)
-  const earned = await earnedLifeActions(tableRunId)
-  const ladder = toLadderConfig(config)
-
-  return { earned, ladder }
 }

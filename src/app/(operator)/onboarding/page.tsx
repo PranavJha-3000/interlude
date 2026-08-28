@@ -5,6 +5,7 @@ import { formatPaise } from '@/lib/money'
 import { publicBaseUrl } from '@/lib/base-url'
 import { ONBOARDING_ORDER, type OnboardingStepName } from '@/lib/venue-setup'
 import { en } from '@/strings/en'
+import { miniGames } from '@/strings/mini-games'
 import type { Mechanic } from '@/core/prize-engine'
 import {
   advanceStep,
@@ -55,8 +56,8 @@ const GAME_LABEL: Record<Mechanic, string> = {
   BEAT_THE_KITCHEN: en.dash.games.beatTheKitchen,
   KITCHEN_ROUND: en.dash.games.kitchenRound,
   MYSTERY_PLATE: en.dash.games.mysteryPlate,
-  SECRET_RECIPE: 'Secret Recipe',
-  MYSTERY_CUSTOMER: 'Mystery Customer',
+  SECRET_RECIPE: miniGames.secretRecipe.title,
+  MYSTERY_CUSTOMER: miniGames.mysteryCustomer.title,
 }
 
 const INPUT = 'mt-2 min-h-14 w-full rounded-xl border border-line bg-paper px-4 text-lg'

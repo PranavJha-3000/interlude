@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { en } from '@/strings/en'
+import { miniGames } from '@/strings/mini-games'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { listVenueGames } from '@/lib/service'
 import { MECHANICS, type Mechanic } from '@/core/prize-engine'
@@ -98,8 +99,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 function nameOf(mechanic: Mechanic): string {
   if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlate
   if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRound
-  if (mechanic === 'SECRET_RECIPE') return 'Secret Recipe'
-  if (mechanic === 'MYSTERY_CUSTOMER') return 'Mystery Customer'
+  if (mechanic === 'SECRET_RECIPE') return miniGames.secretRecipe.title
+  if (mechanic === 'MYSTERY_CUSTOMER') return miniGames.mysteryCustomer.title
   return en.dash.games.beatTheKitchen
 }
 

@@ -11,12 +11,6 @@ import { BRAND } from '@/brand'
  *    (PLATFORM.md §7) — the guest wins on skill, or buys at a fixed price.
  */
 export const en = {
-  // The three-game picker (`PLAY WHILE YOU WAIT`). One heading, shared by
-  // every enabled game's entry point.
-  selector: {
-    heading: 'Play while you wait',
-  },
-
   common: {
     continue: 'Continue',
     back: 'Back',
@@ -28,68 +22,6 @@ export const en = {
     none: '—',
     offline: "You're offline. We'll pick up where you left off.",
     genericError: "Something went wrong at our end. Your table's fine — try again.",
-  },
-
-  landing: {
-    eyebrow: BRAND.name,
-    heading: 'It knows what not to give away.',
-    body: 'A skill game on the guest’s own phone, lasting exactly as long as their food does. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
-    reassurance:
-      'Your tables already have QR codes — this replaces what they open. No app for your guests, no new hardware.',
-    forGuests:
-      'Your guest scans a code on the table and plays for as long as their food takes — a slow kitchen is a longer game, not a worse wait. They climb a ladder of dishes off your own menu, and keep the rung they reach.',
-    forYou:
-      'You control the menu, the prizes, the discount depth, and a kill switch for when the kitchen is slammed.',
-    honesty:
-      'On night one the dashboard shows an app-side estimate of net contribution. Upload a bill export and it is replaced by the measured attach-rate delta against same-night control tables.',
-    cta: 'Get started',
-
-    /**
-     * The clearing panel (UI-SPEC.md §6, REVAMP-BRIEF.md Part 6): the most
-     * characteristic thing the product does, doing it — `decidePrizePool`
-     * runs live on every render over a demonstration menu, and the reasons on
-     * the card are the engine's own strings, not marketing copy.
-     *
-     * The menu is a demonstration by necessity, not laziness: a real venue's
-     * pool on a public page would publish that customer's menu, food costs
-     * and margin fences (PLATFORM.md §7 tenancy). `stamp` says so on the card
-     * itself — the computation is real, the restaurant is not claimed to be.
-     */
-    decisionCard: {
-      stamp: 'Example',
-      title: 'Tonight’s pool, decided at 6:40pm',
-      clearedHeading: 'Cleared',
-      clearedNote: 'Winnable tonight',
-      refusedHeading: 'Refused',
-      refusedNote: 'And the reason, in writing',
-      footnote:
-        'Every line above is a row the engine wrote before service, with the reason attached. You can read it back the next morning and argue with it.',
-    },
-
-    /** Four steps, because the fifth would be the one they abandon. */
-    stepsHeading: 'What setup actually looks like',
-    steps: [
-      {
-        n: '01',
-        title: 'Import your menu',
-        body: 'A photo, a PDF or a CSV. You check every line before anything is saved.',
-      },
-      {
-        n: '02',
-        title: 'Set your margin floors',
-        body: 'Deepest discount, spend per service, items that are never on the table.',
-      },
-      {
-        n: '03',
-        title: 'Print the QR tents',
-        body: 'One per table. Half stay blank — that is the control group, and it is how the number stays honest.',
-      },
-      {
-        n: '04',
-        title: 'Go live',
-        body: 'Open a service. The kitchen keeps its veto and a kill switch the whole night.',
-      },
-    ],
   },
 
   signin: {
