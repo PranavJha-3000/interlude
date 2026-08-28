@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import { BRAND } from '@/brand'
-import { en } from '@/strings/en'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
-import { signOut } from './signin/actions'
 import { operatorFontVars } from '../fonts'
+import { OperatorNav } from './OperatorNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,42 +35,7 @@ export default async function OperatorLayout({ children }: { children: React.Rea
             {BRAND.name}
           </Link>
 
-          {operator && (
-            <>
-              <Link href="/dash" className="text-sm">
-                {en.dash.heading}
-              </Link>
-              <Link href="/dash/activity" className="text-sm">
-                {en.dash.activity.heading}
-              </Link>
-              <Link href="/dash/menu" className="text-sm">
-                {en.dash.menuNav}
-              </Link>
-              <Link href="/dash/prizes" className="text-sm">
-                {en.dash.prizesNav}
-              </Link>
-              <Link href="/dash/games" className="text-sm">
-                {en.dash.gamesNav}
-              </Link>
-              <Link href="/dash/import" className="text-sm">
-                {en.dash.importNav}
-              </Link>
-              <Link href="/dash/feedback" className="text-sm">
-                {en.dash.feedbackNav}
-              </Link>
-              <Link href="/dash/settings" className="text-sm">
-                {en.dash.settingsNav}
-              </Link>
-              <Link href="/tents" className="text-sm">
-                {en.dash.tents}
-              </Link>
-              <form action={signOut} className="ml-auto">
-                <button type="submit" className="text-sm text-muted">
-                  {en.signin.signOut}
-                </button>
-              </form>
-            </>
-          )}
+          <OperatorNav signedIn={Boolean(operator)} />
         </nav>
       </header>
       {children}
