@@ -60,16 +60,20 @@ export default function LandingPage() {
         never added and every section stays visible — the animation is pure
         enhancement, never a prerequisite for reading the page.
 
+        This is a React 19 inline <script> rendered with the source as `children`
+        (per react.dev/reference/react-dom/components/script), the supported form
+        for an inline script. Do NOT use `dangerouslySetInnerHTML` on <script>:
+        React 19 emits "Scripts inside React components are never executed when
+        rendering on the client" for that form. Passing the code as children lets
+        React render and execute this once from the server HTML, before paint and
+        before hydration — so the pre-paint guarantee holds.
+
         The script mutates this div's own className, so its server HTML and
         post-script client DOM differ by exactly ` lp--js`. That is a deliberate
         difference, not a bug, so the element opts out of hydration diffing —
         the flag stays on this one node and does not affect its children.
       */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `document.currentScript.parentElement.classList.add('lp--js')`,
-        }}
-      />
+      <script>{`document.currentScript.parentElement.classList.add('lp--js')`}</script>
 
       <a className="skip-link" href="#how">
         Skip to content
