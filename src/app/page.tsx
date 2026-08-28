@@ -11,7 +11,7 @@ import './landing.css'
  * Warm cream ground, terracotta accent, soft rounded cards. Headlines are a
  * heavy Plus Jakarta Sans grotesk; Fraunces italic appears exactly once, on
  * the hero's accent word, as the single serif touch. The hero is a centred
- * headline floating over product-UI cards and a warm wash; below it a numbered
+ * headline over a field of abstract floating placeholders and a warm wash; below it a numbered
  * "how it works" strip, a "for restaurants" stat panel, two testimonials, a
  * dark CTA, and a minimal footer.
  *
@@ -33,6 +33,7 @@ const fraunces = Fraunces({
 })
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
+  style: ['normal', 'italic'],
   display: 'swap',
   variable: '--font-jakarta',
 })
@@ -42,13 +43,17 @@ const jakarta = Plus_Jakarta_Sans({
 // overrides that back to indexable.
 export const metadata: Metadata = {
   title: `${BRAND.name} — Merchandising wait times`,
-  description: `${BRAND.name} turns the minutes between ordering and eating into menu discovery — a quick, playful moment at the table that gets guests to order more and leave happier. No app, no login. Onboarding pilot restaurants now.`,
+  description: `${BRAND.name} turns the minutes between ordering and eating into menu discovery a quick, playful moment at the table that gets guests to order more and leave happier. No app, no login. Onboarding pilot restaurants now.`,
   robots: { index: true, follow: true },
 }
 
 export default function LandingPage() {
   return (
-    <div id="top" className={`lp ${fraunces.variable} ${jakarta.variable}`} suppressHydrationWarning>
+    <div
+      id="top"
+      className={`lp ${fraunces.variable} ${jakarta.variable}`}
+      suppressHydrationWarning
+    >
       {/*
         Add the JS-ready class before first paint, so `.reveal` sections start
         hidden ONLY when JS is present to reveal them. Without JS the class is
@@ -77,11 +82,6 @@ export default function LandingPage() {
             {BRAND.name}
             <span className="nav__beta">beta</span>
           </a>
-
-          <nav className="nav__links" aria-label="Primary">
-            <a href="#how">How it works</a>
-            <a href="#forres">For restaurants</a>
-          </nav>
 
           <div className="nav__actions">
             <Link className="nav__refer" href="/refer">
@@ -124,70 +124,157 @@ export default function LandingPage() {
       <main>
         {/* ───────────────────────────  HERO  ─────────────────────────── */}
         <section className="hero">
-          <div className="hero__stage container">
-            {/* Decorative product surfaces floating behind the headline. Masked
-                out of the centre and hidden below 60rem — purely atmospheric. */}
-            <div className="hero__float" aria-hidden="true">
-              <div className="floaty floaty--a">
-                <span className="floaty__label">Guest review</span>
-                <span className="floaty__stars">★★★★★</span>
-                <p className="floaty__line">&ldquo;Tried the dessert I saw in the game.&rdquo;</p>
-              </div>
-
-              <div className="floaty floaty--play floaty--b">
-                <div className="floaty__head">
-                  <span className="floaty__label">Beat the kitchen</span>
-                  <span className="floaty__timer">0:23</span>
-                </div>
-                <p className="floaty__q">Tonight&rsquo;s chef&rsquo;s pick?</p>
-                <div className="floaty__opts">
-                  <span className="floaty__opt floaty__opt--pick">Truffle fries</span>
-                  <span className="floaty__opt">Garlic bread</span>
-                </div>
-              </div>
-
-              <div className="floaty floaty--c">
-                <span className="floaty__label">Reward unlocked</span>
-                <p className="floaty__code">FRIES-7Q</p>
-                <p className="floaty__sub">Show your server</p>
-              </div>
-
-              <div className="floaty floaty--pick floaty--d">
-                <span className="floaty__emoji">🍰</span>
-                <div>
-                  <span className="floaty__label">Added to order</span>
-                  <p className="floaty__line">Tiramisu · ₹280</p>
-                </div>
-              </div>
-
-              <div className="floaty floaty--chip floaty--e">
-                <p className="floaty__line">+ 3 items discovered</p>
-              </div>
-
-              <div className="floaty floaty--chip floaty--f">
-                <p className="floaty__line">★ 4.9 this week</p>
+          {/* Product moment field — miniature, brand-true glimpses of what the
+              product does (the Beat the Kitchen round, a reward ticket, a
+              chef's pick, order and discovery pings) holding the reference's
+              asymmetric scatter. aria-hidden, pointer-events:none, masked
+              away from the headline, and hidden entirely below 60rem. */}
+          <div className="hero__float" aria-hidden="true">
+            <div className="ph ph--a">
+              <div className="ph__card ph__card--media">
+                <span className="ph__eyebrow">Play while you wait</span>
+                <p className="ph__q">Which sells more here?</p>
+                <span className="ph__chips">
+                  <span className="ph__chip ph__chip--pick">Butter chicken</span>
+                  <span className="ph__chip">Paneer tikka</span>
+                </span>
+                <span className="ph__timer">0:23</span>
               </div>
             </div>
 
-            {/* The thesis: a centred two-tone headline over the wash. */}
+            <div className="ph ph--b">
+              <div className="ph__card">
+                <span className="ph__glyph">🍰</span>
+                <span className="ph__text">
+                  <span className="ph__label">Added to order</span>
+                  <span className="ph__sub">Tiramisu · ₹280</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="ph ph--c">
+              <div className="ph__card">
+                <span className="ph__glyph">✨</span>
+                <span className="ph__text">
+                  <span className="ph__label">Discovered tonight</span>
+                  <span className="ph__sub">+3 dishes</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="ph ph--d">
+              <div className="ph__card ph__card--media">
+                <span className="ph__eyebrow">Reward unlocked</span>
+                <span className="ph__code">FRIES-7Q</span>
+                <span className="ph__caption">Show your server</span>
+              </div>
+            </div>
+
+            <div className="ph ph--e">
+              <div className="ph__card ph__card--media">
+                <span className="ph__eyebrow">Chef&apos;s pick</span>
+                <span className="ph__art">🍨</span>
+                <span className="ph__dish">Tiramisu · ₹280</span>
+                <span className="ph__add">+ Add to order</span>
+              </div>
+            </div>
+
+            <div className="ph ph--f">
+              <div className="ph__card">
+                <span className="ph__glyph">🔍</span>
+                <span className="ph__text">
+                  <span className="ph__label">Secret Recipe</span>
+                  <span className="ph__sub">Round won</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="ph ph--g">
+              <div className="ph__card">
+                <span className="ph__glyph">🎮</span>
+                <span className="ph__text">
+                  <span className="ph__label">Beat the Kitchen</span>
+                  <span className="ph__sub">0:23 on the clock</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="ph ph--h">
+              <div className="ph__card ph__card--stack">
+                <span className="ph__row">
+                  <span className="ph__glyph">🔥</span>
+                  <span className="ph__text">
+                    <span className="ph__label">Beat the Kitchen</span>
+                    <span className="ph__sub">Table 12 on a streak</span>
+                  </span>
+                </span>
+                <span className="ph__row">
+                  <span className="ph__glyph">🎁</span>
+                  <span className="ph__text">
+                    <span className="ph__label">Reward claimed</span>
+                    <span className="ph__sub">Free fries</span>
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div className="ph ph--i">
+              <div className="ph__card">
+                <span className="ph__glyph">📱</span>
+                <span className="ph__text">
+                  <span className="ph__label">Scan · Play · Claim</span>
+                  <span className="ph__sub">{BRAND.tagline}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="hero__stage container">
+            {/* The thesis — pin, two-tone headline, one line, pilot badge. */}
             <div className="hero__center">
-              <span className="hero__pin" aria-hidden="true">
+              <span className="hero__pin reveal" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C7.9 2 4.5 5.4 4.5 9.5c0 5.3 6.3 11.4 7 12.1.3.3.7.3 1 0 .7-.7 7-6.8 7-12.1C19.5 5.4 16.1 2 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z" />
                 </svg>
+                <span className="hero__rings">
+                  <i />
+                  <i />
+                </span>
               </span>
-              <h1 className="hero__title">
+              <h1 className="hero__title reveal" data-reveal-delay="1">
                 <em>Merchandising</em>
                 wait times
                 <span className="dot" aria-hidden="true">
                   .
                 </span>
               </h1>
-              <p className="hero__sub">
-                {BRAND.name} turns the time between order and arrival into a playful, menu-driven
-                experience &mdash; so guests discover more, order more, and leave happier.
+              <p className="hero__sub reveal" data-reveal-delay="2">
+                {/* One string child, not expression-adjacent text: the SWC build
+                    drops a space following an expression container, which fused
+                    the brand into the first word ("Interludeturns"). */}
+                {`${BRAND.name} turns the time between order and arrival into a playful, menu-driven experience — so guests discover more, order more, and leave happier.`}
               </p>
-              <p className="hero__note">Now taking pilot restaurants</p>
+              <p className="hero__note reveal" data-reveal-delay="3">
+                Now taking pilot restaurants
+              </p>
+              <a
+                className="hero__scroll reveal"
+                data-reveal-delay="4"
+                href="#how"
+                aria-label="Scroll to how it works"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 5v14m0 0 6-6m-6 6-6-6" />
+                </svg>
+              </a>
             </div>
           </div>
         </section>
@@ -225,9 +312,9 @@ export default function LandingPage() {
                 </div>
                 <h3 className="step__title">Explore while they wait</h3>
                 <p className="step__body">
-                  Guests discover menu highlights, chef picks, and off-menu gems through a
-                  quick, playful game &mdash; with rewards to win and little moments of delight
-                  along the way.
+                  Guests discover menu highlights, chef picks, and off-menu gems through a quick,
+                  playful game &mdash; with rewards to win and little moments of delight along the
+                  way.
                 </p>
               </li>
               <li className="step reveal" data-reveal-delay="2">
@@ -410,42 +497,93 @@ export default function LandingPage() {
 
         {/* ────────────────────────────  CTA  ───────────────────────────── */}
         <section className="cta">
-          <div className="container">
-            <div className="cta__block reveal">
-              <span className="pill pill--on-dark">For restaurants &amp; F&amp;B operators</span>
-              <h2 className="cta__title">Ready to turn the wait into revenue?</h2>
-              <p className="cta__body">
-                Join a handful of pilot restaurants transforming dead wait-time into their most
-                profitable moment.
-              </p>
-              <div className="cta__actions">
-                <Link className="btn btn--primary btn--lg" href="/signup">
-                  Get Started
-                </Link>
-                <a className="btn btn--on-dark btn--lg" href="#how">
-                  See how it works
-                </a>
-              </div>
-              <p className="cta__fine">
-                No setup fee. No long-term contract. Just happy, spending guests.
-              </p>
+          <div className="container cta__inner reveal">
+            <h2 className="cta__title">
+              Ready to turn the wait into <em>revenue?</em>
+            </h2>
+            <p className="cta__body">
+              Join a handful of pilot restaurants transforming dead wait-time into their most
+              profitable moment.
+            </p>
+            <div className="cta__actions">
+              <Link className="btn btn--primary btn--lg" href="/signup">
+                Get Started Now
+                <svg
+                  className="btn__arrow"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14m0 0-6-6m6 6-6 6" />
+                </svg>
+              </Link>
+              <Link className="btn btn--on-dark btn--lg" href="/refer">
+                Refer a Restaurant
+              </Link>
             </div>
+            <p className="cta__fine">No setup fee. Just happy, spending guests.</p>
           </div>
         </section>
       </main>
 
       {/* ───────────────────────────  FOOTER  ─────────────────────────── */}
       <footer className="footer">
-        <div className="container footer__inner">
-          <span className="footer__word">{BRAND.name}</span>
-          <nav className="footer__links" aria-label="Footer">
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
-            <a href="#">Contact</a>
-          </nav>
-          <span className="footer__copy">
-            &copy; 2026 {BRAND.name}. All rights reserved.
-          </span>
+        <div className="container">
+          <div className="footer__divider" aria-hidden="true" />
+          <div className="footer__brand">
+            <p className="footer__word">
+              {BRAND.name}
+              <span className="nav__beta">beta</span>
+            </p>
+            <p className="footer__tag">Revenue from Dead Zones.</p>
+          </div>
+          <div className="footer__row">
+            <span className="footer__copy">&copy; 2026 {BRAND.name}. All rights reserved.</span>
+            <nav className="footer__links" aria-label="Footer">
+              <a href="#">Privacy Policy</a>
+              <a href="#">Terms of Service</a>
+              <a href="#">Contact</a>
+            </nav>
+            <div className="footer__social">
+              <a className="footer__social-btn" href="#" aria-label="Instagram">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
+                  <circle cx="12" cy="12" r="4.2" />
+                  <line x1="17.4" y1="6.6" x2="17.41" y2="6.6" />
+                </svg>
+              </a>
+              <span className="footer__social-sep" aria-hidden="true" />
+              <a className="footer__social-btn" href="#" aria-label="LinkedIn">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="4.5" />
+                  <circle cx="8.1" cy="8.9" r="1.2" fill="currentColor" stroke="none" />
+                  <path d="M8.1 11.4v5.6" />
+                  <path d="M12.3 17v-5.6" />
+                  <path d="M12.3 13.6a2.35 2.35 0 0 1 4.7 0V17" />
+                </svg>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
 
