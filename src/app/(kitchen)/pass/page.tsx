@@ -17,6 +17,7 @@ import { decidePrizePool } from '@/core/prize-engine'
 import { parseRankingWeights } from '@/lib/prize-config'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
 import { setKitchenLoad, toggleKillSwitch, toggleVeto } from './actions'
+import { SubmitButton } from '../../(staff)/SubmitButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,7 +143,7 @@ export default async function PassPage() {
                   {/* The active state is a filled block with dark text —
                       readable by fill area and position alone; the colour is
                       confirmation, never the only carrier (Part 4). */}
-                  <button
+                  <SubmitButton
                     type="submit"
                     aria-pressed={on}
                     className={`transition-state min-h-32 w-full rounded-2xl px-3 py-4 text-left ${
@@ -161,7 +162,7 @@ export default async function PassPage() {
                     >
                       {help}
                     </span>
-                  </button>
+                  </SubmitButton>
                 </form>
               )
             })}
@@ -192,7 +193,7 @@ export default async function PassPage() {
                   <li key={itemId}>
                     <form action={toggleVeto}>
                       <input type="hidden" name="menuItemId" value={itemId} />
-                      <button
+                      <SubmitButton
                         type="submit"
                         aria-pressed={isVetoed}
                         className={`transition-state flex min-h-16 w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left ${
@@ -223,7 +224,7 @@ export default async function PassPage() {
                         >
                           {isVetoed ? en.pass.pool.vetoed : en.pass.pool.inPool}
                         </span>
-                      </button>
+                      </SubmitButton>
                     </form>
                   </li>
                 )
@@ -241,7 +242,7 @@ export default async function PassPage() {
         {service && (
           <section className="sticky bottom-0 mt-14 bg-staff-ground pt-3 pb-4">
             <form action={toggleKillSwitch}>
-              <button
+              <SubmitButton
                 type="submit"
                 aria-pressed={killed}
                 className={`transition-state min-h-16 w-full rounded-2xl border-2 text-base font-semibold tracking-wide ${
@@ -251,7 +252,7 @@ export default async function PassPage() {
                 }`}
               >
                 {killed ? en.pass.kill.on : en.pass.kill.off}
-              </button>
+              </SubmitButton>
               <p className="mt-2 text-xs text-staff-muted">
                 {killed ? en.pass.kill.onNote : en.pass.kill.offNote}
               </p>
