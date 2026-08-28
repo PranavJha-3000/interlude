@@ -61,7 +61,7 @@ const GAME_LABEL: Record<Mechanic, string> = {
 }
 
 const INPUT = 'mt-2 min-h-14 w-full rounded-xl border border-line bg-paper px-4 text-lg'
-const BUTTON = 'mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper'
+const BUTTON = 'mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper active:scale-[0.99]'
 
 export default async function OnboardingPage({
   searchParams,

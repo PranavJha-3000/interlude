@@ -61,7 +61,7 @@ export default async function SignInPage({
 
         <button
           type="submit"
-          className="mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper"
+          className="mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper active:scale-[0.99]"
         >
           {en.signin.submit}
         </button>
