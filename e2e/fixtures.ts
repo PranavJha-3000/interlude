@@ -307,6 +307,22 @@ export async function signInWithPassword(
 }
 
 /**
+ * Signs out through the operator nav.
+ *
+ * The nav is grouped now, and on the mobile viewport this suite runs at, the
+ * Sign out control lives in the drawer one tap behind "Open menu". Opening the
+ * drawer first is not a test concession — it is the same journey a real
+ * operator makes. The visibility check keeps the helper honest on a desktop
+ * viewport, where Sign out sits in the strip and no drawer exists.
+ */
+export async function signOutViaNav(page: Page): Promise<void> {
+  const menuButton = page.getByRole('button', { name: 'Open menu' })
+  if (await menuButton.isVisible()) await menuButton.click()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.waitForLoadState('networkidle')
+}
+
+/**
  * Creates an operator through the real signup form and returns the address.
  *
  * The stamp keeps addresses unique across runs: signup is refused for an

@@ -2,9 +2,9 @@
 
 /* Progressive enhancement for the landing page — the JS twin of the old
    landing/main.js. The page is fully readable and usable without any of this:
-   markup carries the content, and reveals only activate once `.lp--js` is set
-   (see page.tsx's inline pre-paint script and landing.css). This island adds
-   three behaviours and renders nothing itself.
+   markup carries the content, and reveals activate under
+   `@media (scripting: enabled)` in landing.css (no script, no JS class). This
+   island adds three behaviours and renders nothing itself.
 
    It attaches by data-attribute (`[data-nav]`, `[data-nav-toggle]`,
    `[data-nav-mobile]`) so the server-rendered markup stays the source of

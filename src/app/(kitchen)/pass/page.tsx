@@ -171,11 +171,18 @@ export default async function PassPage() {
 
         {/* ── Tonight's pool: one list, the row is the toggle. ─────────────── */}
         <section className="mt-10">
-          <div className="mb-3 flex items-baseline justify-between">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold tracking-wide text-staff-muted uppercase">
               {en.pass.pool.heading}
+              {/* The veto count reads in the heading — a chef glancing over
+                  should see how much of the menu is theirs to give. */}
+              {vetoedItems.length > 0 && (
+                <span className="ml-2 font-normal tracking-normal text-staff-ink normal-case">
+                  {en.pass.pool.vetoedCount(vetoedItems.length)}
+                </span>
+              )}
             </h2>
-            <p className="text-xs text-staff-muted">{en.pass.pool.hint}</p>
+            <p className="shrink-0 text-xs text-staff-muted">{en.pass.pool.hint}</p>
           </div>
 
           {!gameOn ? (
@@ -242,10 +249,13 @@ export default async function PassPage() {
         {service && (
           <section className="sticky bottom-0 mt-14 bg-staff-ground pt-3 pb-4">
             <form action={toggleKillSwitch}>
+              {/* Bigger and louder than it was, still bordered rather than
+                  filled while armed: an emergency control earns its size from
+                  being found in a hurry, not from shouting while idle. */}
               <SubmitButton
                 type="submit"
                 aria-pressed={killed}
-                className={`transition-state min-h-16 w-full rounded-2xl border-2 text-base font-semibold tracking-wide ${
+                className={`transition-state min-h-20 w-full rounded-2xl border-2 text-lg font-bold tracking-widest uppercase ${
                   killed
                     ? 'border-load-red bg-load-red text-staff-ground'
                     : 'border-load-red/40 text-load-red'

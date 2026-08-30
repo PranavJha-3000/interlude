@@ -49,31 +49,13 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div
-      id="top"
-      className={`lp ${fraunces.variable} ${jakarta.variable}`}
-      suppressHydrationWarning
-    >
-      {/*
-        Add the JS-ready class before first paint, so `.reveal` sections start
-        hidden ONLY when JS is present to reveal them. Without JS the class is
-        never added and every section stays visible — the animation is pure
-        enhancement, never a prerequisite for reading the page.
-
-        This is a React 19 inline <script> rendered with the source as `children`
-        (per react.dev/reference/react-dom/components/script), the supported form
-        for an inline script. Do NOT use `dangerouslySetInnerHTML` on <script>:
-        React 19 emits "Scripts inside React components are never executed when
-        rendering on the client" for that form. Passing the code as children lets
-        React render and execute this once from the server HTML, before paint and
-        before hydration — so the pre-paint guarantee holds.
-
-        The script mutates this div's own className, so its server HTML and
-        post-script client DOM differ by exactly ` lp--js`. That is a deliberate
-        difference, not a bug, so the element opts out of hydration diffing —
-        the flag stays on this one node and does not affect its children.
-      */}
-      <script>{`document.currentScript.parentElement.classList.add('lp--js')`}</script>
+    <div id="top" className={`lp ${fraunces.variable} ${jakarta.variable}`}>
+      {/* The `.ph` and `.reveal` entrance effects are gated on JS by
+          `@media (scripting: enabled)` in landing.css — not by an inline
+          <script> in this tree. React never executes a `<script>` element it
+          re-creates on the client (client-side navigations), so a script-added
+          class cannot survive an SPA visit; the CSS media query applies before
+          first paint and degrades to visible content without JS. */}
 
       <a className="skip-link" href="#how">
         Skip to content

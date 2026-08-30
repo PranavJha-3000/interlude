@@ -531,7 +531,7 @@ export default async function PrizesPage({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
       <h1 className="mb-2 text-xs tracking-widest text-muted uppercase">
         {en.dash.prizes.heading}
       </h1>

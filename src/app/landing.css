@@ -492,10 +492,16 @@ html:has(.lp)::-webkit-scrollbar {
   transform: rotate(var(--tilt, 0deg));
 }
 /* entrance is opacity-only (the tilt owns the transform), staged per card,
-   and gated on .lp--js so a no-JS load simply shows the field. */
-.lp--js .ph {
-  opacity: 0;
-  animation: ph-in 0.9s var(--ease) var(--in-del, 0.4s) forwards;
+   and gated on `@media (scripting: enabled)` so a no-JS load — or a browser
+   without the scripting media feature — simply shows the field. The gate
+   lives in CSS rather than an inline <script>: React never executes a
+   <script> element it re-creates on the client (SPA navigations), while this
+   media query applies before first paint and keeps working across them. */
+@media (scripting: enabled) {
+  .lp .ph {
+    opacity: 0;
+    animation: ph-in 0.9s var(--ease) var(--in-del, 0.4s) forwards;
+  }
 }
 @keyframes ph-in {
   to {
@@ -1222,19 +1228,22 @@ html:has(.lp)::-webkit-scrollbar {
 }
 
 /* ── Reveal on scroll ────────────────────────────────────────────────────── */
-/* Gated on `.lp--js`, added by an inline script before first paint (page.tsx).
-   Without JS the class never lands, so `.reveal` keeps its natural visibility
-   and no content is ever hidden — the animation is pure enhancement. */
-.lp--js .reveal {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity 0.64s var(--ease),
-    transform 0.64s var(--ease);
-}
-.lp--js .reveal.is-in {
-  opacity: 1;
-  transform: none;
+/* Gated on `@media (scripting: enabled)` — see the `.ph` block for why the
+   gate is CSS, not a script-added class. Without JS the media query never
+   matches, so `.reveal` keeps its natural visibility and no content is ever
+   hidden — the animation is pure enhancement. */
+@media (scripting: enabled) {
+  .lp .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.64s var(--ease),
+      transform 0.64s var(--ease);
+  }
+  .lp .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── Focus ───────────────────────────────────────────────────────────────── */

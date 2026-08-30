@@ -1,33 +1,42 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { formatPaise } from '@/lib/money'
 import { readStaffSession } from '@/lib/staff-session'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
-import { getOpenService } from '@/lib/service'
+import { getConcededSoFarPaise, getEnabledGames, getOpenService } from '@/lib/service'
 import { getDashboardData } from '@/lib/dashboard'
+import { startService } from './actions'
+import { SubmitButton } from '../../(staff)/SubmitButton'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * The owner dashboard (§9.4).
+ * The owner dashboard (§9.4) — the command center.
  *
  * Leads with one number — **net contribution in rupees**, in the mono, at
- * display size. Not plays, not scans, not engagement. An operator does not
- * renew because people had fun; he renews because the night was worth more than
- * it cost.
+ * display size — and orders the rest the way an operator needs it: whether
+ * tonight is running, the compact counts beside the headline, the service
+ * card, quick links into Manage, then the refusal log as hero and the ledger.
+ * Not plays, not scans, not engagement: an operator does not renew because
+ * people had fun; he renews because the night was worth more than it cost.
  *
- * Three rules here are the spec's, not preferences:
+ * Rules here that are the spec's, not preferences:
  *
  * - **No accent anywhere on this screen.** Money is not a promotion, so a
  *   positive figure stays `ink` and stays in the mono. Only a negative figure
  *   earns the loss colour and the display face — the one time this screen is
- *   allowed to raise its voice.
+ *   allowed to raise its voice. Start Service is `bg-ink` for the same reason.
  * - **The tiers are told apart by label and a dashed underline, never by
  *   colour,** and are never merged or averaged into one figure.
  * - **The refusal log reads louder than the acceptance.** That inversion is the
  *   product: the pitch is restraint, so what the engine refused is the
  *   interesting column and is the one set in full ink.
+ * - **Every figure is real.** The compact row relabels counts the dashboard
+ *   already computed; the activity preview reads the event log; the budget
+ *   line is the same conceded total the engine fences against. Nothing is
+ *   invented for the layout's sake (PLATFORM.md §10).
  */
 export default async function DashPage() {
   // Staff lose access to /dash — a server must never be shown a metric
@@ -48,21 +57,46 @@ export default async function DashPage() {
 
   // Half-finished setup goes back to where it stopped. The cursor lives on the
   // venue row rather than in the browser, so this is the same screen on the
-  // phone they abandoned it on and the laptop they came back to.
+  // phone they abandoned it on and the laptop they came back to. The timezone
+  // rides along: the status line stamps its time in the venue's own clock,
+  // never the server's.
   const setup = await db.venue.findUnique({
     where: { id: venueId },
-    select: { onboardingStep: true },
+    select: { onboardingStep: true, timezone: true },
   })
   if (setup && setup.onboardingStep !== 'DONE') redirect('/onboarding')
+  const tz = setup?.timezone ?? 'Asia/Kolkata'
 
   const service = await getOpenService(venueId)
   const target =
     service ?? (await db.service.findFirst({ where: { venueId }, orderBy: { startedAt: 'desc' } }))
 
+  // Games and the depth cap are venue state, not service state — the service
+  // card shows them whether or not tonight has started.
+  const [enabledGames, configRow] = await Promise.all([
+    getEnabledGames(venueId),
+    db.venueConfig.findUnique({ where: { venueId }, select: { depthCapPerServicePaise: true } }),
+  ])
+  const concededPaise = target ? await getConcededSoFarPaise(target.id) : null
+
+  const serviceStatus = service
+    ? en.dash.service.running(clockTime(service.startedAt.getTime(), tz))
+    : en.dash.empty
+
   if (!target) {
+    // A venue that has never run a service. The card and the quick links are
+    // the whole screen — there is no number to show, and a row of zeros would
+    // be a lie told to fill space.
     return (
       <Shell>
-        <p className="text-lg text-muted">{en.dash.empty}</p>
+        <ServiceCard
+          status={serviceStatus}
+          running={false}
+          killed={false}
+          games={enabledGames.map(mechanicLabel)}
+          tablesEngaged={null}
+        />
+        <QuickActions />
       </Shell>
     )
   }
@@ -74,52 +108,81 @@ export default async function DashPage() {
 
   return (
     <Shell>
-      {/* One number, large, in the mono. The tier chip sits beside it, so the
-          figure is never read without knowing what produced it. */}
-      <section>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <p className="text-sm tracking-wide text-muted uppercase">{en.dash.tier1.headline}</p>
-          <span className="border-b border-dashed border-ink-warm text-xs tracking-wide text-ink-warm uppercase">
-            {posBacked ? en.dash.tier.posBacked : en.dash.tier.appEstimate}
-          </span>
-        </div>
+      {/* ── 1 · Context ────────────────────────────────────────────────────
+          Which night this is, and whether it is running. The command center's
+          first line answers the operator's first question. */}
+      <p className="text-lg">{serviceStatus}</p>
 
-        {/* The face is conditional, not stacked: `font-mono font-display` in
-            one class list leaves the winner to stylesheet order. A positive
-            figure is the instrument (mono, tabular); a negative one earns the
-            display face and the loss colour — the one time this screen raises
-            its voice. */}
-        <p
-          className={`mt-1 text-6xl ${
-            negative
-              ? 'font-display text-loss'
-              : 'font-mono font-semibold text-ink tabular-nums'
-          }`}
-        >
-          {formatPaise(money.netContributionPaise)}
-        </p>
+      {/* ── 2 · The command row ───────────────────────────────────────────
+          One number, large, in the mono. The tier chip sits beside it, so the
+          figure is never read without knowing what produced it. Beside it, the
+          compact counts — each a relabel of a figure this page already
+          computed, in the priority the owner reads them: tables, rewards,
+          add-ons. */}
+      <section className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div>
+          <div className="flex flex-wrap items-baseline gap-3">
+            <p className="text-sm tracking-wide text-muted uppercase">{en.dash.tier1.headline}</p>
+            <span className="border-b border-dashed border-ink-warm text-xs tracking-wide text-ink-warm uppercase">
+              {posBacked ? en.dash.tier.posBacked : en.dash.tier.appEstimate}
+            </span>
+          </div>
 
-        {/* What the figure can and cannot see, in plain language, with a link
-            to edit the assumption behind it. */}
-        <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
-          {posBacked ? en.dash.tier.posCaveat : en.dash.tier.appCaveat}{' '}
-          <a href="/dash/prizes" className="underline underline-offset-2">
-            {en.dash.tier.editAssumption}
-          </a>
-        </p>
+          {/* The face is conditional, not stacked: `font-mono font-display` in
+              one class list leaves the winner to stylesheet order. A positive
+              figure is the instrument (mono, tabular); a negative one earns the
+              display face and the loss colour — the one time this screen raises
+              its voice. */}
+          <p
+            className={`mt-1 text-6xl ${
+              negative ? 'font-display text-loss' : 'font-mono font-semibold text-ink tabular-nums'
+            }`}
+          >
+            {formatPaise(money.netContributionPaise)}
+          </p>
 
-        {/* A negative night is a trade the operator made, not an error — so it
-            is explained rather than hidden, and the explanation points at the
-            log that shows the decision. */}
-        {data.negativeReason && (
-          <p className="mt-4 max-w-prose rounded-xl border border-line bg-warm p-4 text-sm leading-relaxed">
-            {data.negativeReason}{' '}
-            <a href="#refusals" className="underline underline-offset-2">
-              {en.dash.refusals.link}
+          {/* What the figure can and cannot see, in plain language, with a link
+              to edit the assumption behind it. */}
+          <p className="mt-4 max-w-prose text-sm leading-relaxed text-muted">
+            {posBacked ? en.dash.tier.posCaveat : en.dash.tier.appCaveat}{' '}
+            <a href="/dash/prizes" className="underline underline-offset-2">
+              {en.dash.tier.editAssumption}
             </a>
           </p>
-        )}
+
+          {/* A negative night is a trade the operator made, not an error — so it
+              is explained rather than hidden, and the explanation points at the
+              log that shows the decision. */}
+          {data.negativeReason && (
+            <p className="mt-4 max-w-prose rounded-xl border border-line bg-warm p-4 text-sm leading-relaxed">
+              {data.negativeReason}{' '}
+              <a href="#refusals" className="underline underline-offset-2">
+                {en.dash.refusals.link}
+              </a>
+            </p>
+          )}
+        </div>
+
+        <div className="grid content-start gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <Stat label={en.dash.metrics.tablesEngaged} value={String(data.metrics.runsOpened)} />
+          <Stat label={en.dash.metrics.rewardsClaimed} value={String(money.awardCount)} />
+          <Stat label={en.dash.metrics.addOns} value={String(money.addOnCount)} />
+        </div>
       </section>
+
+      {/* ── 3 · Tonight's service card ────────────────────────────────────
+          The operational section: is tonight running, what is on, and how far
+          it has reached — with the one action this state calls for. */}
+      <ServiceCard
+        status={serviceStatus}
+        running={Boolean(service)}
+        killed={service?.killedAt !== null && service?.killedAt !== undefined}
+        games={enabledGames.map(mechanicLabel)}
+        tablesEngaged={data.metrics.runsOpened}
+      />
+
+      {/* ── 4 · Quick actions ───────────────────────────────────────────── */}
+      <QuickActions />
 
       {/* ── The refusal log — the hero, not a panel at the bottom (Part 6).
           What the engine refused is the product argument rendered as layout:
@@ -167,14 +230,16 @@ export default async function DashPage() {
         </div>
       </section>
 
-      <section className="mt-10 grid grid-cols-2 gap-3">
+      {/* The money behind the headline. "Prizes redeemed" moved up into the
+          compact row next to the headline — this grid is only what money is
+          made of, so the same count does not appear twice on one screen. */}
+      <section className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label={en.dash.tier1.addOnGross} value={formatPaise(money.addOnGrossPaise)} />
         <Stat
           label={en.dash.tier1.addOnContribution}
           value={formatPaise(money.addOnContributionPaise)}
         />
         <Stat label={en.dash.tier1.prizeCost} value={formatPaise(money.prizeCostPaise)} />
-        <Stat label={en.dash.tier1.redemptions} value={String(money.awardCount)} />
       </section>
 
       {/* The other tier, always visible, never averaged with the headline. */}
@@ -262,6 +327,54 @@ export default async function DashPage() {
         </section>
       )}
 
+      {/* ── 5 · Previews ────────────────────────────────────────────────────
+          The night's event log, named for a reader who has never seen the
+          schema, beside the budget the engine is actually spending against —
+          the same conceded total the cap fences. Both read-only; both already
+          computed. */}
+      <section className="mt-10 grid gap-10 lg:grid-cols-2">
+        <div>
+          <h2 className="text-sm tracking-wide text-muted uppercase">{en.dash.recent.heading}</h2>
+          {data.recent.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">{en.dash.recent.empty}</p>
+          ) : (
+            <ul className="mt-3">
+              {data.recent.map((e, i) => (
+                <li
+                  key={`${e.atMs}-${i}`}
+                  className="flex items-baseline justify-between gap-4 border-b border-line py-2 text-sm"
+                >
+                  <span>{en.dash.recent.eventLabels[e.type] ?? e.type}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
+                    {clockTime(e.atMs, tz)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-sm tracking-wide text-muted uppercase">
+            {en.dash.recent.budgetLabel}
+          </h2>
+          {concededPaise === null || !configRow ? (
+            <p className="mt-3 text-sm text-muted">{en.common.none}</p>
+          ) : (
+            <>
+              <p className="mt-3 font-mono text-3xl tabular-nums">
+                {formatPaise(concededPaise)}
+                <span className="text-lg text-muted">
+                  {' '}
+                  / {formatPaise(configRow.depthCapPerServicePaise)}
+                </span>
+              </p>
+              <p className="mt-2 text-sm text-muted">{en.dash.recent.budgetNote}</p>
+            </>
+          )}
+        </div>
+      </section>
+
       <details className="mt-10">
         <summary className="cursor-pointer text-sm text-muted">
           {en.dash.engagement.heading}
@@ -318,7 +431,9 @@ export default async function DashPage() {
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Stat
             label={en.dash.reviewFunnel.openRate}
-            value={data.review.openRatePct === null ? en.common.none : `${data.review.openRatePct}%`}
+            value={
+              data.review.openRatePct === null ? en.common.none : `${data.review.openRatePct}%`
+            }
           />
           <Stat
             label={en.dash.reviewFunnel.handOffRate}
@@ -338,8 +453,8 @@ export default async function DashPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 py-10">
-      <h1 className="mb-8 text-xs tracking-widest text-muted uppercase">{en.dash.heading}</h1>
+    <main className="mx-auto min-h-dvh w-full max-w-6xl px-6 py-10">
+      <h1 className="mb-6 text-xs tracking-widest text-muted uppercase">{en.dash.heading}</h1>
       {children}
     </main>
   )
@@ -351,5 +466,131 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="text-xs tracking-wide text-muted uppercase">{label}</p>
       <p className="mt-1 font-mono text-2xl tabular-nums">{value}</p>
     </div>
+  )
+}
+
+/** The venue's enabled mechanics, named as the games page names them. */
+function mechanicLabel(mechanic: string): string {
+  if (mechanic === 'BEAT_THE_KITCHEN') return en.dash.games.beatTheKitchen
+  if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRound
+  if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlate
+  return mechanic
+}
+
+/** A wall-clock time in the venue's own timezone — the only clock it knows. */
+function clockTime(atMs: number, timezone: string): string {
+  return new Date(atMs).toLocaleTimeString('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/**
+ * Tonight's service card: the operational section of the command center. It
+ * shows the state and offers the one action the state calls for — Start
+ * Service when idle, View Tonight when running. The Start button is ink, not
+ * accent: money owns the accent ledger on this screen, and a control is not
+ * money.
+ */
+function ServiceCard({
+  status,
+  running,
+  killed,
+  games,
+  tablesEngaged,
+}: {
+  status: string
+  running: boolean
+  killed: boolean
+  games: string[]
+  tablesEngaged: number | null
+}) {
+  return (
+    <section className="mt-10 rounded-2xl border border-line bg-warm p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-lg font-medium">{status}</p>
+        {running ? (
+          <Link
+            href="/dash/activity"
+            className="rounded-xl border border-ink px-4 py-2.5 text-sm font-medium transition-state hover:bg-ink hover:text-paper"
+          >
+            {en.dash.service.viewTonight}
+          </Link>
+        ) : (
+          <form action={startService}>
+            <SubmitButton
+              type="submit"
+              className="min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition-state active:bg-ink-warm"
+            >
+              {en.floor.service.start}
+            </SubmitButton>
+          </form>
+        )}
+      </div>
+
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs tracking-wide text-muted uppercase">
+            {en.dash.service.gamesLabel}
+          </dt>
+          <dd className="mt-1 text-sm">
+            {games.length === 0 ? (
+              <span className="text-muted">{en.dash.service.noGames}</span>
+            ) : (
+              games.join(' · ')
+            )}
+          </dd>
+        </div>
+        {tablesEngaged !== null && (
+          <div>
+            <dt className="text-xs tracking-wide text-muted uppercase">
+              {en.dash.service.tablesEngaged}
+            </dt>
+            <dd className="mt-1 font-mono text-sm tabular-nums">{tablesEngaged}</dd>
+          </div>
+        )}
+      </dl>
+
+      {/* The chef's emergency stop is state the owner must not discover later:
+          a night with prizes stopped reads differently in the morning. */}
+      {killed && (
+        <p className="mt-4 rounded-xl border border-line bg-paper px-3 py-2 text-sm">
+          {en.dash.service.stopped}
+        </p>
+      )}
+    </section>
+  )
+}
+
+/**
+ * The subordinate links into Manage. The nav already carries every page; this
+ * row exists because the dashboard is where an operator lands and thinks
+ * "menu" — four taps saved is four taps earned.
+ */
+function QuickActions() {
+  const links = [
+    { href: '/dash/menu', label: en.dash.menuNav },
+    { href: '/dash/games', label: en.dash.gamesNav },
+    { href: '/dash/prizes', label: en.dash.prizesNav },
+    { href: '/dash/import', label: en.dash.importNav },
+  ]
+  return (
+    <section className="mt-10">
+      <h2 className="text-xs tracking-widest text-muted uppercase">
+        {en.dash.quickActions.heading}
+      </h2>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="rounded-xl border border-line px-4 py-2.5 text-sm transition-state hover:border-ink-warm"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }

@@ -105,8 +105,10 @@ test('a spent service budget empties the pool, with the cap as the reason', asyn
   // exactly what PLATFORM.md §5 exists to prevent. Asserting the engine's
   // literal string rather than a loose /cap/i, because this page also carries
   // form labels containing "cap" that would match whether or not it worked.
+  // The empty-pool message renders once per enabled mechanic, so take the
+  // first — the point is that the pool is empty, not how many blocks say so.
   await expect(page.getByText('Service prize budget spent').first()).toBeVisible()
-  await expect(page.getByText(en.dash.prizes.pool.empty)).toBeVisible()
+  await expect(page.getByText(en.dash.prizes.pool.empty).first()).toBeVisible()
 })
 
 test.afterAll(async () => {
