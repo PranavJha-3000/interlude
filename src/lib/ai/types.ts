@@ -42,6 +42,6 @@ export type ExtractResult = { ok: true; draft: MenuDraft } | { ok: false; reason
 
 export interface AiAdapter {
   /** Which adapter this is — surfaced in errors, never in guest copy. */
-  readonly name: 'claude' | 'mock'
+  readonly name: 'gemini' | 'mock'
   extractMenu(upload: AiUpload): Promise<ExtractResult>
 }

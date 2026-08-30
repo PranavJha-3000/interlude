@@ -181,12 +181,12 @@ export function checkDeploymentEnv(env: Env): EnvProblem[] {
       'Set to "mock" on a deployment. Menu extraction would return the test ' +
         "fixture instead of reading the operator's own menu."
     )
-  } else if (missing(env.ANTHROPIC_API_KEY)) {
+  } else if (missing(env.GEMINI_API_KEY)) {
     // Degrades by design (PLATFORM.md §6a): photo and PDF reading go away, CSV
     // and typed entry still work, so a venue can still onboard. Degraded is
     // not an outage — say so and let the deploy through.
     warn(
-      'ANTHROPIC_API_KEY',
+      'GEMINI_API_KEY',
       'Not set. Menu reading from a photo or PDF is unavailable; CSV upload and ' +
         'typed entry still work, so onboarding degrades rather than breaking.'
     )

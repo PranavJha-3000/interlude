@@ -22,27 +22,25 @@ const rawDraft = z.object({
   warnings: z.array(z.string()).default([]),
 })
 
-/** The JSON schema the model is constrained to. Mirrors `rawDraft`. */
-export const MENU_DRAFT_SCHEMA = {
-  type: 'object',
+/** The Gemini JSON schema the model is constrained to. Mirrors `rawDraft`. */
+export const GEMINI_MENU_SCHEMA = {
+  type: 'OBJECT',
   properties: {
     items: {
-      type: 'array',
+      type: 'ARRAY',
       items: {
-        type: 'object',
+        type: 'OBJECT',
         properties: {
-          name: { type: 'string' },
-          category: { type: 'string' },
-          priceRupees: { type: 'number' },
+          name: { type: 'STRING' },
+          category: { type: 'STRING' },
+          priceRupees: { type: 'NUMBER' },
         },
         required: ['name', 'category', 'priceRupees'],
-        additionalProperties: false,
       },
     },
-    warnings: { type: 'array', items: { type: 'string' } },
+    warnings: { type: 'ARRAY', items: { type: 'STRING' } },
   },
   required: ['items', 'warnings'],
-  additionalProperties: false,
 } as const
 
 /** Sanity ceiling for a single menu item, in rupees. Above this is a misread. */

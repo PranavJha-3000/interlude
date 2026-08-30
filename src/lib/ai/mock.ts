@@ -22,7 +22,7 @@ const FIXTURE: ExtractResult = {
       { name: 'Tiramisu', category: 'desserts', priceRupees: 299 },
       { name: 'Masala Chai', category: 'beverages', priceRupees: 60 },
     ],
-    warnings: ['This is the mock extractor — set ANTHROPIC_API_KEY to read a real menu.'],
+    warnings: ['This is the mock extractor — set GEMINI_API_KEY to read a real menu.'],
   },
 }
 

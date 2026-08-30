@@ -176,8 +176,8 @@ interface PosAdapter {
 
 **The rule: AI reads and drafts; a person confirms; it never decides.**
 
-Lives in `src/lib/ai/` behind an adapter with an Anthropic Claude implementation (`ClaudeAiAdapter`)
-and a deterministic `MockAiAdapter` for tests/dev (no API key required). **Import-banned from `core/`**
+Lives in `src/lib/ai/` behind an adapter with a Google Gemini implementation (`geminiAdapter`)
+and a deterministic `mockAdapter` for tests/dev (no API key required). **Import-banned from `core/`**
 by ESLint rules and architectural invariants.
 
 ```ts
@@ -348,7 +348,7 @@ src/
     mechanics/                  # prep-estimate.ts, phone.ts, hash.ts, redemption-code.ts
     review/                     # prompt.ts, link.ts
   lib/                          # I/O, database, external integrations
-    ai/                         # Claude adapter, mock adapter, menu parser
+    ai/                         # Gemini adapter, mock adapter, menu parser
     pos/                        # Manual adapter, CSV import, mock adapter
     deploy-env.ts               # Boot-time & build-time environment verification
     operator-auth.ts            # Magic link operator auth
@@ -373,7 +373,7 @@ scripts/
 - Operator dashboard & forms: None (on-demand).
 - All polling pauses automatically when the browser tab is hidden.
 
-**Stack:** Next.js 16 App Router · TypeScript strict · PostgreSQL + Prisma 7 · Tailwind CSS 4 · Resend · Anthropic Claude SDK · Vitest + Playwright.
+**Stack:** Next.js 16 App Router · TypeScript strict · PostgreSQL + Prisma 7 · Tailwind CSS 4 · Resend · Google Gemini API · Vitest + Playwright.
 
 ---
 
@@ -396,7 +396,7 @@ a native mobile app · multiplayer of any kind (table-vs-table, beat-the-house, 
 | Pilot structure | **Settled: 4–6 venues, one weekend.** | Single venue cannot yield statistical rate/delta significance; pooled script evaluates pilot |
 | Shipped mechanic | **Settled: Beat the Kitchen.** | Single-player higher-or-lower sales volume comparisons on venue's own menu; climb and mystery plate retired |
 | Operator auth | **Settled: Email + Password (primary), Magic link (secondary).** | Passwords avoid unverified email domain delivery failures during launch; scrypt hashing + IP throttling |
-| AI integration | **Settled: Reads & drafts, never decides.** | `lib/ai/` port with Claude and Mock adapters; import-banned from `core/`; photo/PDF menu extraction, report narration, review drafting |
+| AI integration | **Settled: Reads & drafts, never decides.** | `lib/ai/` port with Gemini and Mock adapters; import-banned from `core/`; photo/PDF menu extraction, report narration, review drafting |
 | Food cost source | **Settled: Operator category %, never AI.** | Food cost derived from operator category estimate; AI extraction strictly forbidden |
 | Unit of play | **Settled: TableRun.** | Table is the unit; multiple device sessions share run and inherit streak |
 | Unit of assignment | **Settled: Service.** | Service-level counterbalanced LIVE vs CONTROL nights prevent table-to-table cross-contamination |

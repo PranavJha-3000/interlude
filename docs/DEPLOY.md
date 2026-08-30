@@ -20,7 +20,7 @@ You need four accounts. Three are free at this scale.
 | **Neon Postgres**, region `ap-southeast-1` (Singapore) | The functions are pinned to `sin1`; a database in another region adds a round trip to every poll | Yes |
 | **Vercel** | Hosting and Cron | Yes |
 | **Resend**, with a **verified sending domain** | Operator sign-in. Until a domain is verified Resend delivers only to the address that owns the account, which means only you can sign in | Yes |
-| **Anthropic API key** | Menu extraction from a photo or PDF | No — CSV and typed entry still work, and the deploy is allowed through with a warning |
+| **Google AI (Gemini) API key** | Menu extraction from a photo or PDF | No — CSV and typed entry still work, and the deploy is allowed through with a warning |
 
 ---
 
@@ -86,8 +86,8 @@ NEXT_PUBLIC_BASE_URL  https://your-final-domain          ← https, never localh
 RESEND_API_KEY        re_...
 EMAIL_FROM            Interlude <signin@your-verified-domain>
 CRON_SECRET           64 hex chars from step 3
-ANTHROPIC_API_KEY     sk-ant-...   (optional — omit and menu photo/PDF reading is unavailable)
-AI_MODEL              claude-haiku-4-5   (optional; this is the default)
+GEMINI_API_KEY        AIza...   (optional — omit and menu photo/PDF reading is unavailable)
+AI_MODEL              gemini-2.5-flash   (optional; this is the default)
 ```
 
 **Do not set `EMAIL_TRANSPORT` or `AI_TRANSPORT`.** Both are test waivers and `check-env` refuses a
