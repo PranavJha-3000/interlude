@@ -51,6 +51,7 @@ model Venue {
   posTableMap PosTableMap[]
   history     HistoricalService[]
   menuDraft   MenuImportDraft?
+  aiDrafts    AiContentDraft[]
 }
 
 /// Every number here is seeded from the business doc's Appendix B estimate and
@@ -491,6 +492,38 @@ model MenuImportDraft {
   createdAt DateTime @default(now())
 }
 
+/// One AI-generated draft awaiting an operator's decision (PLATFORM.md §6a).
+///
+/// The whole point of this row is the same as `MenuImportDraft`'s: **an AI
+/// output is a draft, never data.** Every kind arrives here in DRAFT and
+/// reaches production only through an explicit approve:
+///
+/// - ITEM_DESCRIPTION → `MenuItem.aiDescription`
+/// - SECRET_RECIPE    → `VenueGame.data.combos` (ingredient ids only)
+/// - MYSTERY_CUSTOMER → `VenueGame.data` budgets/cravings
+/// - GAME_COPY, WEEKLY_NARRATION → displayed once approved; no other write.
+///
+/// `data` is validated by `lib/ai/parse.ts` before it is ever written, so a
+/// hallucinated item id or an invented figure cannot survive to this table.
+model AiContentDraft {
+  id        String         @id @default(cuid())
+  venueId   String
+  venue     Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  kind      AiDraftKind
+  /// The row this draft would change — a `MenuItem` id for ITEM_DESCRIPTION.
+  /// Null for venue-wide drafts. Every write that follows the reference is
+  /// re-scoped by `venueId`, so a refId alone can never cross venues.
+  refId     String?
+  /// The validated draft payload. Shape depends on `kind`.
+  data      Json
+  status    AiDraftStatus  @default(DRAFT)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([venueId, kind, status])
+  @@index([venueId, refId, kind])
+}
+
 /// First-party feedback, delivered to the owner (§7.2).
 ///
 /// **Structurally separate from `ReviewPrompt` and it must stay that way.**
@@ -573,6 +606,9 @@ model MenuItem {
   /// A missing photo is a typographic card of the same size and weight, never
   /// a broken image and never a placeholder icon (§10 degradation).
   photoUrl    String?
+  /// The operator-approved display description. Written only when an AI
+  /// content draft is approved — the model never writes here directly (§6a).
+  aiDescription String?
 
   vetoes        ChefVeto[]
   awards        Award[]
@@ -1150,6 +1186,29 @@ enum Mechanic {
   /// Mystery Customer — build a meal against a deterministic brief drawn from
   /// the venue's own menu prices and categories.
   MYSTERY_CUSTOMER
+}
+
+/// What an `AiContentDraft` row is for. Draft-generation only — there is no
+/// kind that decides an outcome, prices a prize or touches a business rule.
+enum AiDraftKind {
+  /// A playful one-line description for a menu item (`refId` = item id).
+  ITEM_DESCRIPTION
+  /// A candidate Secret Recipe combination over real menu items.
+  SECRET_RECIPE
+  /// A candidate Mystery Customer persona drawn from menu attributes.
+  MYSTERY_CUSTOMER
+  /// Intro/prompt/discovery copy for one of the games.
+  GAME_COPY
+  /// ~3 sentences narrating the week's already-computed figures.
+  WEEKLY_NARRATION
+}
+
+/// Draft → (approved | rejected) is an operator decision, made on an operator
+/// screen. Nothing in the codebase may move a row to APPROVED on its own.
+enum AiDraftStatus {
+  DRAFT
+  APPROVED
+  REJECTED
 }
 
 enum Outcome {

@@ -4,7 +4,29 @@ import { geminiAdapter } from './gemini'
 import { mockAdapter } from './mock'
 import type { AiAdapter } from './types'
 
-export type { AiAdapter, AiUpload, ExtractResult, MenuDraft, MenuDraftItem } from './types'
+export type {
+  AiAdapter,
+  AiUpload,
+  DescribeItemDraft,
+  DescribeItemsResult,
+  ExtractResult,
+  GameCopyDraft,
+  GameCopyInput,
+  GameCopyResult,
+  GameKind,
+  MenuDraft,
+  MenuDraftItem,
+  MenuModifier,
+  MenuItemForAI,
+  MysteryCustomerCandidate,
+  MysteryCustomerGenResult,
+  MysteryCustomerGenerationInput,
+  NarrationResult,
+  SecretRecipeCandidate,
+  SecretRecipeGenResult,
+  SecretRecipeGenerationInput,
+  WeeklyMetrics,
+} from './types'
 
 /**
  * Which adapter serves this process — the `email.ts` pattern, applied to AI.

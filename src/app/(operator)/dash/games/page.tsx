@@ -1,10 +1,26 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { en } from '@/strings/en'
 import { miniGames } from '@/strings/mini-games'
+import { db } from '@/lib/db'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { listVenueGames } from '@/lib/service'
 import { MECHANICS, type Mechanic } from '@/core/prize-engine'
-import { toggleGame } from './actions'
+import {
+  gameCopyDraftViews,
+  mysteryCustomerDraftViews,
+  secretRecipeDraftViews,
+} from '@/lib/ai-drafts'
+import { GamesAiAssist } from '../../game-ai-assist'
+import {
+  approveGameDraft,
+  editGameDraft,
+  generateGameCopyForVenue,
+  generateMysteryCustomerDraftsForVenue,
+  generateSecretRecipeDraftsForVenue,
+  rejectGameDraft,
+  toggleGame,
+} from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,8 +30,15 @@ export const dynamic = 'force-dynamic'
  * Turning one off stops new rounds offering it; a round already in progress
  * finishes on the rules it started under, because the mechanic is written to the
  * `Play` row at the start and the award is decided from that.
+ *
+ * The AI Assist panel drafts combinations, personas and copy from the venue's
+ * own menu. Nothing is live until approved (PLATFORM.md §6a).
  */
-export default async function GamesPage() {
+export default async function GamesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; aiOk?: string; edit?: string; kind?: string }>
+}) {
   // Venue-less is a signed-in state, not a signed-out one — signup and sign-in
   // are the same request, so a first-time operator holds a valid session and no
   // venue yet.
@@ -47,9 +70,44 @@ export default async function GamesPage() {
   ]
   const allOff = games.every((g) => !g.enabled)
 
+  const params = await searchParams
+  const editId = params.edit
+  const editKind =
+    params.kind === 'SECRET_RECIPE' ||
+    params.kind === 'MYSTERY_CUSTOMER' ||
+    params.kind === 'GAME_COPY'
+      ? params.kind
+      : null
+
+  const [secretDrafts, mysteryDrafts, copyDrafts, menu] = await Promise.all([
+    secretRecipeDraftViews(operator.venueId),
+    mysteryCustomerDraftViews(operator.venueId),
+    gameCopyDraftViews(operator.venueId),
+    db.menuItem.findMany({
+      where: { venueId: operator.venueId },
+      select: { id: true, name: true },
+    }),
+  ])
+  const itemNames = new Map(menu.map((m) => [m.id, m.name]))
+
+  const message =
+    params.error === 'ai_unavailable'
+      ? en.dash.aiAssist.unavailable
+      : params.error === 'ai_menu_changed'
+        ? en.dash.aiAssist.menuChanged
+        : params.error === 'ai_not_found'
+          ? en.dash.aiAssist.nothing
+          : params.error === 'ai_invalid'
+            ? en.dash.aiAssist.generic
+            : params.error
+              ? en.dash.aiAssist.failed
+              : undefined
+
   return (
     <Shell>
       <p className="mb-8 text-lg text-muted">{en.dash.games.body}</p>
+      {message && <p className="mb-4 text-sm text-bad">{message}</p>}
+      {params.aiOk && <p className="mb-4 text-sm">{en.dash.aiAssist.decided(Number(params.aiOk))}</p>}
 
       {allOff && (
         <p className="mb-6 rounded-2xl border border-line bg-warm p-5 text-sm">
@@ -83,7 +141,98 @@ export default async function GamesPage() {
           </li>
         ))}
       </ul>
+
+      {/* ── AI Assist (§6a) — drafts only, approval required. ── */}
+      <GamesAiAssist
+        secretDrafts={secretDrafts}
+        mysteryDrafts={mysteryDrafts}
+        copyDrafts={copyDrafts}
+        itemNames={itemNames}
+        generateSecret={generateSecretRecipeDraftsForVenue}
+        generateMystery={generateMysteryCustomerDraftsForVenue}
+        generateCopy={generateGameCopyForVenue}
+        approve={approveGameDraft}
+        reject={rejectGameDraft}
+      />
+
+      {editId && editKind && (
+        <EditDraftForm id={editId} kind={editKind} action={editGameDraft} />
+      )}
     </Shell>
+  )
+}
+
+const INPUT = 'mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm'
+const SAVE = 'min-h-9 rounded-xl bg-ink px-4 text-xs font-semibold text-paper'
+const CANCEL = 'min-h-9 rounded-xl border border-line px-4 text-xs font-semibold leading-[2.25rem]'
+
+/** Inline operator edit form — the draft stays DRAFT until separately approved. */
+function EditDraftForm({
+  id,
+  kind,
+  action,
+}: {
+  id: string
+  kind: 'SECRET_RECIPE' | 'MYSTERY_CUSTOMER' | 'GAME_COPY'
+  action: (formData: FormData) => Promise<void>
+}) {
+  return (
+    <form action={action} className="mt-6 rounded-2xl border border-line bg-warm p-5">
+      <input type="hidden" name="draftId" value={id} />
+      <input type="hidden" name="kind" value={kind} />
+      {kind === 'SECRET_RECIPE' && (
+        <>
+          <label className="block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.discoveryName}
+          </label>
+          <input name="discoveryName" className={INPUT} />
+          <label className="mt-3 block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.revealCopy}
+          </label>
+          <input name="revealCopy" className={INPUT} />
+        </>
+      )}
+      {kind === 'MYSTERY_CUSTOMER' && (
+        <>
+          <label className="block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.scenario}
+          </label>
+          <input name="scenarioCopy" className={INPUT} />
+          <label className="mt-3 block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.budget} (₹)
+          </label>
+          <input name="budgetRupees" className={INPUT} />
+          <label className="mt-3 block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.craving} (comma-separated)
+          </label>
+          <input name="cravings" className={INPUT} />
+        </>
+      )}
+      {kind === 'GAME_COPY' && (
+        <>
+          <label className="block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.intro}
+          </label>
+          <input name="introCopy" className={INPUT} />
+          <label className="mt-3 block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.prompt}
+          </label>
+          <input name="promptCopy" className={INPUT} />
+          <label className="mt-3 block text-xs tracking-widest text-muted uppercase">
+            {en.dash.aiAssist.discovery}
+          </label>
+          <input name="discoveryCopy" className={INPUT} />
+        </>
+      )}
+      <div className="mt-3 flex gap-2">
+        <button type="submit" className={SAVE}>
+          {en.dash.aiAssist.save}
+        </button>
+        <Link href="/dash/games" className={CANCEL}>
+          {en.dash.aiAssist.cancel}
+        </Link>
+      </div>
+    </form>
   )
 }
 

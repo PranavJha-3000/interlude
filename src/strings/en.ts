@@ -908,6 +908,69 @@ export const en = {
       costOverPrice: 'Food cost is higher than the price. Check the numbers.',
       saved: 'Saved.',
     },
+
+    /**
+     * The AI Assist areas (PLATFORM.md §6a). Everything the model produces is
+     * a draft: labelled as one, editable, and live only once the operator
+     * approves it. The copy never says the AI decided anything, because it
+     * never did.
+     */
+    aiAssist: {
+      heading: 'AI Assist',
+      body: 'Drafts from the menu reader. Nothing here is live until you approve it.',
+      draftBadge: 'AI DRAFT',
+      approve: 'Approve',
+      edit: 'Edit',
+      reject: 'Reject',
+      save: 'Save',
+      cancel: 'Cancel',
+      unavailable:
+        'The AI reader is not configured on this deployment — CSV and typed entry still work.',
+      failed: 'The AI reader could not finish that. Try again in a moment.',
+      nothing: 'That draft is gone — it may have been decided from another screen.',
+      menuChanged: 'The menu changed since that draft was written. Generate again.',
+      generic: 'That draft could not be saved. Try again.',
+      decided: (n: number) => (n === 1 ? '1 draft ready to review.' : `${n} drafts ready to review.`),
+
+      menuBody:
+        'One playful line per dish, drafted from your active menu. Approve the ones you want on the card.',
+      menuGenerate: 'Generate descriptions',
+      approvedLabel: 'On the card:',
+      noItems: 'Add menu items first — descriptions are drafted from the active list.',
+
+      gamesBody:
+        'Candidate combinations, personas and game copy, built only from your active menu. Approving a combination adds it to the game; approving a persona adds its budget and cravings.',
+      gamesSecretCta: 'Draft Secret Recipe combinations',
+      gamesMysteryCta: 'Draft mystery customers',
+      copySecretCta: 'Draft Secret Recipe copy',
+      copyMysteryCta: 'Draft Mystery Customer copy',
+      secretHeading: 'Secret Recipe candidates',
+      mysteryHeading: 'Mystery customer candidates',
+      copyHeading: 'Game copy',
+      noGameCopy: 'No copy drafted yet.',
+      noSecretsYet: 'No combinations drafted yet.',
+      noPersonasYet: 'No personas drafted yet.',
+      copyFor: (game: string) =>
+        game === 'SECRET_RECIPE' ? 'Secret Recipe copy' : 'Mystery Customer copy',
+      discoveryName: 'Discovery name',
+      revealCopy: 'Reveal line',
+      items: 'Items',
+      reveals: 'Reveals',
+      budget: 'Budget',
+      craving: 'Cravings',
+      appetite: 'Dishes',
+      scenario: 'Scenario',
+      intro: 'Intro',
+      prompt: 'Prompt',
+      discovery: 'Discovery',
+
+      narrationHeading: 'Weekly narration',
+      narrationBody:
+        'Three sentences on this week’s own numbers. The AI may repeat them but never change them — anything it invents is refused before you see it.',
+      narrationGenerate: 'Narrate this week',
+      sentencesHint: 'One sentence per line, at most three.',
+      noServices: 'No services in the last week to narrate.',
+    },
   },
 
   /**

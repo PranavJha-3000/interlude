@@ -1,14 +1,21 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { en } from '@/strings/en'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { contributionPaise, formatPaise, paiseToRupeeInput } from '@/lib/money'
 import { getMenuDraft } from '@/lib/menu-draft'
+import { itemDescriptionDraftsByItem } from '@/lib/ai-drafts'
 import { MenuDraftGrid, MenuUploadForm } from '../../menu-upload-ui'
+import { AiDraftBadge, AiDraftActions } from '../../ai-assist-ui'
 import {
   addMenuItem,
+  approveMenuItemDescriptionDraft,
   confirmDashMenu,
   discardDashMenu,
+  editMenuItemDescriptionDraft,
+  generateMenuItemDescriptions,
+  rejectMenuItemDescriptionDraft,
   setMenuItemActive,
   updateMenuItem,
   uploadDashMenu,
@@ -23,6 +30,10 @@ export const dynamic = 'force-dynamic'
  *
  * No hard deletes anywhere on this screen: `Award` rows reference items, so an
  * item leaves service by deactivation and its history stays explicable.
+ *
+ * The AI Assist section drafts one playful line per active item. The model
+ * never writes to a `MenuItem` row; an approve action does, and only after
+ * the operator has decided (PLATFORM.md §6a).
  */
 
 const ERRORS: Record<string, string> = {
@@ -31,6 +42,12 @@ const ERRORS: Record<string, string> = {
   upload_failed: en.onboarding.menu.upload.failed,
   nothing_selected: en.onboarding.menu.upload.nothingSelected,
   missing_cost_pct: en.onboarding.menu.upload.missingCostPct,
+  ai_unavailable: en.dash.aiAssist.unavailable,
+  ai_failed: en.dash.aiAssist.failed,
+  ai_not_found: en.dash.aiAssist.nothing,
+  ai_item_gone: en.dash.aiAssist.menuChanged,
+  ai_menu_changed: en.dash.aiAssist.menuChanged,
+  ai_invalid: en.dash.aiAssist.generic,
 }
 
 const INPUT = 'mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base'
@@ -39,7 +56,7 @@ const LABEL = 'block text-xs tracking-widest text-muted uppercase'
 export default async function MenuPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; aiOk?: string; edit?: string }>
 }) {
   const operator = await getOperatorWithoutVenue()
   if (!operator) redirect('/signin')
@@ -50,7 +67,7 @@ export default async function MenuPage({
       </Shell>
     )
 
-  const { error } = await searchParams
+  const { error, aiOk, edit } = await searchParams
   const message = error ? ERRORS[error] : undefined
 
   const pending = await getMenuDraft(operator.venueId)
@@ -74,11 +91,13 @@ export default async function MenuPage({
   })
   const active = items.filter((i) => i.active)
   const inactive = items.filter((i) => !i.active)
+  const draftsByItem = await itemDescriptionDraftsByItem(operator.venueId)
 
   return (
     <Shell>
       <p className="mb-2 text-lg text-muted">{en.dash.menu.body}</p>
       {message && <p className="mb-4 text-sm text-bad">{message}</p>}
+      {aiOk && <p className="mb-4 text-sm">{en.dash.aiAssist.decided(Number(aiOk))}</p>}
       <p className="mb-8 font-mono text-sm text-muted">
         {en.dash.menu.count(active.length)}
         {inactive.length > 0 && ` · ${en.dash.menu.inactiveCount(inactive.length)}`}
@@ -89,6 +108,96 @@ export default async function MenuPage({
           {en.dash.menu.empty} {en.dash.menu.emptyHint}
         </p>
       )}
+
+      {/* ── AI Assist (§6a) — drafts only, approval required. ── */}
+      <section className="mt-10 rounded-2xl border border-line p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">{en.dash.aiAssist.heading}</h2>
+            <p className="mt-1 text-sm text-muted">{en.dash.aiAssist.menuBody}</p>
+          </div>
+          <form action={generateMenuItemDescriptions}>
+            <button
+              type="submit"
+              disabled={active.length === 0}
+              className="min-h-9 rounded-xl border border-line px-4 text-xs font-semibold disabled:opacity-60"
+            >
+              {en.dash.aiAssist.menuGenerate}
+            </button>
+          </form>
+        </div>
+
+        {active.length === 0 && (
+          <p className="mt-4 text-sm text-muted">{en.dash.aiAssist.noItems}</p>
+        )}
+
+        {active.filter((i) => draftsByItem.has(i.id)).length === 0 && active.length > 0 && (
+          <p className="mt-4 text-sm text-muted">
+            {en.dash.aiAssist.decided(0)} {en.dash.aiAssist.menuGenerate}
+          </p>
+        )}
+
+        <ul className="mt-4 grid gap-3">
+          {active
+            .filter((item) => draftsByItem.has(item.id))
+            .map((item) => {
+              const draft = draftsByItem.get(item.id)!
+              const approvedLine = item.aiDescription
+              return (
+              <li key={item.id} className="rounded-xl border border-line bg-warm p-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex-1 text-sm font-medium">{item.name}</span>
+                  {draft ? <AiDraftBadge /> : null}
+                </div>
+
+                {approvedLine && (
+                  <p className="mt-2 text-xs text-muted">
+                    {en.dash.aiAssist.approvedLabel} {approvedLine}
+                  </p>
+                )}
+
+                {draft && (
+                  <>
+                    {edit === draft.id ? (
+                      <form action={editMenuItemDescriptionDraft} className="mt-3">
+                        <input type="hidden" name="draftId" value={draft.id} />
+                        <textarea
+                          name="description"
+                          rows={2}
+                          defaultValue={draft.description}
+                          className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm"
+                        />
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            type="submit"
+                            className="min-h-9 rounded-xl bg-ink px-4 text-xs font-semibold text-paper"
+                          >
+                            {en.dash.aiAssist.save}
+                          </button>
+                          <Link
+                            href="/dash/menu"
+                            className="min-h-9 rounded-xl border border-line px-4 text-xs font-semibold leading-[2.25rem]"
+                          >
+                            {en.dash.aiAssist.cancel}
+                          </Link>
+                        </div>
+                      </form>
+                    ) : (
+                      <p className="mt-2 text-sm leading-relaxed text-ink">{draft.description}</p>
+                    )}
+                    <AiDraftActions
+                      draftId={draft.id}
+                      approveAction={approveMenuItemDescriptionDraft}
+                      rejectAction={rejectMenuItemDescriptionDraft}
+                      editHref={`/dash/menu?edit=${draft.id}`}
+                    />
+                  </>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
 
       <section className="rounded-2xl border border-line p-5">
         <h2 className="text-lg font-semibold">{en.dash.menu.addHeading}</h2>
@@ -106,6 +215,11 @@ export default async function MenuPage({
       <ul className="mt-8 grid gap-4">
         {active.map((item) => (
           <li key={item.id} className="rounded-2xl border border-line p-5">
+            {item.aiDescription && (
+              <p className="mb-3 text-sm text-muted">
+                {en.dash.aiAssist.approvedLabel} <span className="text-ink">{item.aiDescription}</span>
+              </p>
+            )}
             <form action={updateMenuItem}>
               <input type="hidden" name="menuItemId" value={item.id} />
               <ItemFields item={item} />

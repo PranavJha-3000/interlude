@@ -6,6 +6,12 @@ import { db } from '@/lib/db'
 import { requireOperator } from '@/lib/operator-session'
 import { parseRupeesToPaise } from '@/lib/money'
 import {
+  approveAiDraft,
+  editAiDraft,
+  generateItemDescriptionDrafts,
+  rejectAiDraft,
+} from '@/lib/ai-drafts'
+import {
   confirmMenuDraft,
   costPctFromForm,
   discardMenuDraft,
@@ -136,6 +142,68 @@ export async function discardDashMenu(): Promise<void> {
   const operator = await requireOperator()
   await discardMenuDraft(operator.venueId)
 
+  revalidatePath('/dash/menu')
+  redirect('/dash/menu')
+}
+
+// ── AI Assist (§6a) ──────────────────────────────────────────────────────────
+//
+// Draft descriptions for the operator's own active items. The venue comes from
+// the session; the draft ids on these forms are re-checked against it inside
+// `lib/ai-drafts`, so a draft from another venue is a refusal, not a write.
+
+/** Why an AI step failed, as a key the page's error map can speak. */
+function aiErrorKey(reason: string): string {
+  switch (reason) {
+    case 'AI_UNAVAILABLE':
+      return 'ai_unavailable'
+    case 'ITEM_GONE':
+      return 'ai_item_gone'
+    case 'MENU_CHANGED':
+      return 'ai_menu_changed'
+    case 'NOT_FOUND':
+    case 'NOT_DRAFT':
+      return 'ai_not_found'
+    case 'INVALID':
+      return 'ai_invalid'
+    default:
+      return 'ai_failed'
+  }
+}
+
+export async function generateMenuItemDescriptions(): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await generateItemDescriptionDrafts(operator.venueId)
+  revalidatePath('/dash/menu')
+  if (!result.ok) redirect(`/dash/menu?error=${aiErrorKey(result.reason)}`)
+  redirect(`/dash/menu?aiOk=${result.count}`)
+}
+
+export async function approveMenuItemDescriptionDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await approveAiDraft(String(formData.get('draftId') ?? ''), operator.venueId)
+  revalidatePath('/dash/menu')
+  if (!result.ok) redirect(`/dash/menu?error=${aiErrorKey(result.reason)}`)
+  redirect('/dash/menu')
+}
+
+export async function editMenuItemDescriptionDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await editAiDraft(String(formData.get('draftId') ?? ''), operator.venueId, {
+    description: String(formData.get('description') ?? ''),
+  })
+  revalidatePath('/dash/menu')
+  if (!result.ok) redirect(`/dash/menu?error=${aiErrorKey(result.reason)}`)
+  redirect('/dash/menu')
+}
+
+export async function rejectMenuItemDescriptionDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  await rejectAiDraft(String(formData.get('draftId') ?? ''), operator.venueId)
   revalidatePath('/dash/menu')
   redirect('/dash/menu')
 }

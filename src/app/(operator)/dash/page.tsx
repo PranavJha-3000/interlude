@@ -7,7 +7,15 @@ import { readStaffSession } from '@/lib/staff-session'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getConcededSoFarPaise, getEnabledGames, getOpenService } from '@/lib/service'
 import { getDashboardData } from '@/lib/dashboard'
+import { narrationDraftViews } from '@/lib/ai-drafts'
+import { NarrationCard } from '../ai-assist-ui'
 import { startService } from './actions'
+import {
+  approveNarrationDraft,
+  editNarrationDraft,
+  generateNarration,
+  rejectNarrationDraft,
+} from './ai-actions'
 import { SubmitButton } from '../../(staff)/SubmitButton'
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +46,11 @@ export const dynamic = 'force-dynamic'
  *   line is the same conceded total the engine fences against. Nothing is
  *   invented for the layout's sake (PLATFORM.md §10).
  */
-export default async function DashPage() {
+export default async function DashPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; edit?: string }>
+}) {
   // Staff lose access to /dash — a server must never be shown a metric
   // (PLATFORM.md §3). Only an operator's own session gets in; a staff session
   // that lands here is sent back to the floor, not shown a partial dashboard.
@@ -82,6 +94,21 @@ export default async function DashPage() {
   const serviceStatus = service
     ? en.dash.service.running(clockTime(service.startedAt.getTime(), tz))
     : en.dash.empty
+
+  const params = await searchParams
+  const narrationDrafts = await narrationDraftViews(venueId, ['DRAFT'])
+  const narrationMessage =
+    params.error === 'ai_unavailable'
+      ? en.dash.aiAssist.unavailable
+      : params.error === 'ai_no_services'
+        ? en.dash.aiAssist.noServices
+        : params.error === 'ai_not_found'
+          ? en.dash.aiAssist.nothing
+          : params.error === 'ai_invalid'
+            ? en.dash.aiAssist.generic
+            : params.error
+              ? en.dash.aiAssist.failed
+              : undefined
 
   if (!target) {
     // A venue that has never run a service. The card and the quick links are
@@ -447,6 +474,19 @@ export default async function DashPage() {
         {/* The honest limit, said on the screen rather than only in a doc. */}
         <p className="mt-3 text-xs text-muted">{en.dash.reviewFunnel.caveat}</p>
       </details>
+
+      {/* ── AI narration (§6a) — the week in the operator's own words. The AI
+          narrates only the figures this page computed; a narration that invents
+          one is refused before it reaches this card. ───────────────────── */}
+      {narrationMessage && <p className="mt-6 text-sm text-bad">{narrationMessage}</p>}
+      <NarrationCard
+        drafts={narrationDrafts}
+        generateAction={generateNarration}
+        approveAction={approveNarrationDraft}
+        rejectAction={rejectNarrationDraft}
+        editAction={editNarrationDraft}
+        editId={params.edit}
+      />
     </Shell>
   )
 }

@@ -1,11 +1,20 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requireOperator } from '@/lib/operator-session'
 import { setVenueGameEnabled } from '@/lib/service'
 import { MECHANICS } from '@/core/prize-engine'
 import { type MysteryCustomerData, type SecretRecipeData } from '@/lib/games-config'
+import {
+  approveAiDraft,
+  editAiDraft,
+  generateGameCopyDraft,
+  generateMysteryCustomerDrafts,
+  generateSecretRecipeDrafts,
+  rejectAiDraft,
+} from '@/lib/ai-drafts'
 
 /**
  * Turn one game on or off.
@@ -121,4 +130,108 @@ export async function saveGameConfig(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/dash/games')
+}
+
+// ── AI Assist (§6a) ──────────────────────────────────────────────────────────
+//
+// Draft generation for the two configurable games and the game copy. Venue
+// from the session; every draft action re-checks the draft id against the
+// venue inside `lib/ai-drafts`.
+
+function aiErrorKey(reason: string): string {
+  switch (reason) {
+    case 'AI_UNAVAILABLE':
+      return 'ai_unavailable'
+    case 'ITEM_GONE':
+    case 'MENU_CHANGED':
+      return 'ai_menu_changed'
+    case 'NOT_FOUND':
+    case 'NOT_DRAFT':
+      return 'ai_not_found'
+    case 'INVALID':
+      return 'ai_invalid'
+    default:
+      return 'ai_failed'
+  }
+}
+
+export async function generateSecretRecipeDraftsForVenue(): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await generateSecretRecipeDrafts(operator.venueId)
+  revalidatePath('/dash/games')
+  if (!result.ok) redirect(`/dash/games?error=${aiErrorKey(result.reason)}`)
+  redirect(`/dash/games?aiOk=${result.count}`)
+}
+
+export async function generateMysteryCustomerDraftsForVenue(): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await generateMysteryCustomerDrafts(operator.venueId)
+  revalidatePath('/dash/games')
+  if (!result.ok) redirect(`/dash/games?error=${aiErrorKey(result.reason)}`)
+  redirect(`/dash/games?aiOk=${result.count}`)
+}
+
+export async function generateGameCopyForVenue(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+  const game = String(formData.get('game') ?? '')
+  if (game !== 'SECRET_RECIPE' && game !== 'MYSTERY_CUSTOMER') return
+
+  const result = await generateGameCopyDraft(operator.venueId, game)
+  revalidatePath('/dash/games')
+  if (!result.ok) redirect(`/dash/games?error=${aiErrorKey(result.reason)}`)
+  redirect(`/dash/games?aiOk=${result.count}`)
+}
+
+export async function approveGameDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  const result = await approveAiDraft(String(formData.get('draftId') ?? ''), operator.venueId)
+  revalidatePath('/dash/games')
+  if (!result.ok) redirect(`/dash/games?error=${aiErrorKey(result.reason)}`)
+  redirect('/dash/games')
+}
+
+export async function rejectGameDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  await rejectAiDraft(String(formData.get('draftId') ?? ''), operator.venueId)
+  revalidatePath('/dash/games')
+  redirect('/dash/games')
+}
+
+export async function editGameDraft(formData: FormData): Promise<void> {
+  const operator = await requireOperator()
+
+  const kind = String(formData.get('kind') ?? '')
+  const draftId = String(formData.get('draftId') ?? '')
+  let patch: Record<string, unknown>
+  if (kind === 'SECRET_RECIPE') {
+    patch = {
+      discoveryName: String(formData.get('discoveryName') ?? ''),
+      revealCopy: String(formData.get('revealCopy') ?? ''),
+    }
+  } else if (kind === 'GAME_COPY') {
+    patch = {
+      introCopy: String(formData.get('introCopy') ?? ''),
+      promptCopy: String(formData.get('promptCopy') ?? ''),
+      discoveryCopy: String(formData.get('discoveryCopy') ?? ''),
+    }
+  } else {
+    const budgetRupees = String(formData.get('budgetRupees') ?? '')
+    const cravings = String(formData.get('cravings') ?? '')
+    patch = {
+      scenarioCopy: String(formData.get('scenarioCopy') ?? ''),
+      ...(budgetRupees.trim() !== '' ? { budgetRupees: Number(budgetRupees) } : {}),
+      ...(cravings.trim() !== ''
+        ? { cravings: cravings.split(',').map((c) => c.trim()).filter(Boolean) }
+        : {}),
+    }
+  }
+
+  const result = await editAiDraft(draftId, operator.venueId, patch)
+  revalidatePath('/dash/games')
+  if (!result.ok) redirect(`/dash/games?error=${aiErrorKey(result.reason)}`)
+  redirect('/dash/games')
 }
