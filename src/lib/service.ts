@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { armAt, type ArmRow } from '@/core/measurement/arm-assignment'
+import { armAt, planArmAssignments, type ArmRow } from '@/core/measurement/arm-assignment'
 import { MECHANICS, type Mechanic, type PrizeRuleInput } from '@/core/prize-engine'
 import { defaultVenueGames } from '@/lib/venue-setup'
 import { resolvePosAdapter } from '@/lib/pos'
@@ -23,6 +23,50 @@ export async function getOpenService(venueId: string) {
   return db.service.findFirst({
     where: { venueId, endedAt: null },
     orderBy: { startedAt: 'desc' },
+  })
+}
+
+/**
+ * Opens a service and records the alternating arm split in one transaction.
+ *
+ * The assignment has to exist before the first guest scans, or the first few
+ * tables would be unenrolled and silently excluded from the night's
+ * comparison.
+ *
+ * One write, two doors: the floor console and the dashboard's service card
+ * both start the night through this, so the arm split is planned identically
+ * no matter who opens it. The body is the floor console's original
+ * `openService`, relocated verbatim — not a second implementation beside it.
+ */
+export async function openServiceFor(venueId: string): Promise<void> {
+  const existing = await getOpenService(venueId)
+  if (existing) return
+
+  const tables = await db.table.findMany({
+    where: { venueId, active: true },
+    select: { id: true, label: true },
+  })
+  if (tables.length === 0) return
+
+  // Alternate which arm leads, so the same tables are not always treatment.
+  const previous = await db.service.count({ where: { venueId } })
+  const plan = planArmAssignments(tables, previous % 2 === 0 ? 'TREATMENT' : 'CONTROL')
+
+  await db.$transaction(async (tx) => {
+    const service = await tx.service.create({
+      data: {
+        venueId,
+        name: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      },
+    })
+    await tx.tableArmAssignment.createMany({
+      data: plan.map((p) => ({
+        serviceId: service.id,
+        tableId: p.tableId,
+        arm: p.arm,
+        reason: p.reason,
+      })),
+    })
   })
 }
 

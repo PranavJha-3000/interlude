@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { db, signInWithPassword, signUpWithPassword } from './fixtures'
+import { db, signInWithPassword, signOutViaNav, signUpWithPassword } from './fixtures'
 import { defaultVenueGames } from '../src/lib/venue-setup'
 
 /**
@@ -130,8 +130,7 @@ test('setup resumes where it stopped, on a different session', async ({ page }) 
   await expect(page.locator('main')).toContainText('How many tables?')
 
   // Walk away mid-wizard.
-  await page.getByRole('button', { name: 'Sign out' }).click()
-  await page.waitForLoadState('networkidle')
+  await signOutViaNav(page)
   await page.context().clearCookies()
 
   await signInWithPassword(page, email, PASSWORD)
@@ -240,8 +239,7 @@ test('a second venue cannot take a name that is already set up', async ({ page }
   await signUpWithPassword(page, PASSWORD, 'onboarding-e2e-first')
   await fillDetails(page, name)
   await expect(page.locator('main')).toContainText('How many tables?')
-  await page.getByRole('button', { name: 'Sign out' }).click()
-  await page.waitForLoadState('networkidle')
+  await signOutViaNav(page)
 
   await signUpWithPassword(page, PASSWORD, 'onboarding-e2e-second')
   await fillDetails(page, name)

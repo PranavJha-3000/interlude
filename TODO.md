@@ -1,7 +1,7 @@
 # TODO
 
 ## NOW
-- [ ] **Deploy to Vercel (Item 8)**: Configure Vercel project, set production env vars (`DATABASE_URL` pooled, `DIRECT_URL` unpooled, `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `ANTHROPIC_API_KEY`), build command `npm run check:env && prisma generate && prisma migrate deploy && next build`, region `sin1`. See [docs/DEPLOY.md](docs/DEPLOY.md).
+- [ ] **Deploy to Vercel (Item 8)**: Configure Vercel project, set production env vars (`DATABASE_URL` pooled, `DIRECT_URL` unpooled, `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `GEMINI_API_KEY`), build command `npm run check:env && prisma generate && prisma migrate deploy && next build`, region `sin1`. See [docs/DEPLOY.md](docs/DEPLOY.md).
 - [ ] **Validate POS bill import with live export**: Run `/dash/import` against a real pilot-venue POS export file (not fixture data) and verify `PosTableMap` resolution.
 
 ## NEXT
@@ -13,7 +13,7 @@
 - **Game mechanics**: Three V1 games on one shared spine (selector → game → result → claim through `decideAndWriteAward`). Beat the Kitchen (`core/game/pairing.ts`, `core/game/run.ts`) stays the canonical table-level `TableRun` game; Secret Recipe (`core/games/secret-recipe.ts`) discovers menu combinations configured per venue in `VenueGame.data`; Mystery Customer (`core/games/mystery-customer.ts`) builds a meal against a deterministic budget/craving brief drawn from menu prices and categories. No chance, no AI decisions, no game-specific reward path.
 - **Prize engine**: Pure deterministic `decidePrizePool` (`core/prize-engine/`) with operator `PrizeRule`s, hero/veto/RED/budget depth cap fences, and audit reasons.
 - **Operator surfaces**: `/signup`, 6-step `/onboarding`, `/dash` (net contribution ₹ headline, refusal log, menu management, prize rules, CSV bill import, private feedback, event activity, game toggles, settings), and printable `/tents`.
-- **Menu upload**: Photo/PDF extraction via Claude AI adapter (`src/lib/ai/`) into draft grid with operator confirmation; deterministic CSV parsing.
+- **Menu upload**: Photo/PDF extraction via Gemini AI adapter (`src/lib/ai/`) into draft grid with operator confirmation; deterministic CSV parsing.
 - **Guest surfaces**: `/v/[venueToken]` (table picker) → `/t/[qrToken]` (consent, table run, play, extra life, prize claim), `/t/[qrToken]/review` (Google hand-off), `/t/[qrToken]/phone` (loyalty stamp), `/t/[qrToken]/feedback` (private feedback).
 - **Staff & Pass surfaces**: `/floor/[venueSlug]` (order fire with party size + courses, add-on tickets, code redemptions), `/pass` (kitchen load, vetoes, emergency kill switch).
 - **Measurement & Tenancy**: Service-level arm assignment (`ServiceArmAssignment`), append-only event log (`Event`), multi-tenant session isolation (`requireOperator()`), salted per-venue phone hashing (`GuestIdentity`), pooled CLI (`scripts/pilot-report.mts`).

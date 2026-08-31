@@ -63,6 +63,13 @@ describe('fileToDraft', () => {
   const spyAdapter = (): AiAdapter & { extractMenu: ReturnType<typeof vi.fn> } => ({
     name: 'mock',
     extractMenu: vi.fn(async () => ({ ok: true as const, draft: { items: [], warnings: [] } })),
+    // The draft-generation capabilities are out of scope here — fileToDraft
+    // only ever calls extractMenu. Stubs keep the spy honest about that.
+    describeItems: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
+    generateSecretRecipes: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
+    generateMysteryCustomers: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
+    generateGameCopy: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
+    narrateReport: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
   })
 
   it('CSV never touches the adapter — zero AI calls, asserted', async () => {

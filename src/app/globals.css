@@ -77,6 +77,10 @@
    * accent by design, so a loss can never be mistaken for a button. */
   --color-bad: #b01e1e;
 
+  /* Light-surface success — e.g. "/dash/settings" linked/saved notices. The
+   * same pair as `bad`: a calm, saturated green that clears AA on cotton. */
+  --color-good: #166534;
+
   /* Dark staff surfaces — /floor and /pass only. Near-neutral iron, so the
    * load hues do not have to fight a warm undertone. */
   --color-staff-ground: #161210;

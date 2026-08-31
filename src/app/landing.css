@@ -3,9 +3,10 @@
    Warm cream ground, terracotta accent, soft rounded cards. Headlines are a
    heavy Plus Jakarta Sans grotesk; Fraunces italic is used for a single
    accent word in the hero (the one serif touch), matching the reference:
-   a centered, floating-card hero over an orange wash, a numbered "how it
+   a centered hero over an orange wash and a floating field of abstract
+   placeholder cards, a numbered "how it
    works" strip, a "for restaurants" panel of stat cards, two testimonials,
-   a dark CTA block, and a light footer.
+   a full-width dark CTA + footer band.
 
    Every rule is scoped under `.lp`. This page shares one <html>/<body> with
    the operator, guest, staff and kitchen surfaces, and Next keeps the CSS of
@@ -24,6 +25,17 @@ html {
   html {
     scroll-behavior: auto;
   }
+}
+
+/* The landing reads as an app screen, not a document — the visible scrollbar
+   chrome is the one thing the reference design does not have. Scrolling still
+   works by wheel, touch and keyboard; :has() scopes this to pages actually
+   rendering .lp so the auth/app surfaces keep their normal scrollbars. */
+html:has(.lp) {
+  scrollbar-width: none;
+}
+html:has(.lp)::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Root: tokens + base, all on the wrapper ─────────────────────────────── */
@@ -206,12 +218,6 @@ html {
   border: 1px solid hsl(20 80% 51% / 0.2);
   border-radius: var(--radius-pill);
 }
-.lp .pill--on-dark {
-  color: var(--on-dark);
-  background: hsl(30 40% 90% / 0.1);
-  border-color: hsl(30 40% 90% / 0.24);
-}
-
 /* Section headline is the heavy grotesk, dark, with a tight track. */
 .lp .section-title {
   font-family: var(--font-body);
@@ -268,12 +274,16 @@ html {
 .lp .btn--primary {
   background: var(--primary);
   color: #fff;
-  box-shadow: 0 1px 2px hsl(20 80% 30% / 0.3), 0 6px 16px hsl(20 80% 40% / 0.28);
+  box-shadow:
+    0 1px 2px hsl(20 80% 30% / 0.3),
+    0 6px 16px hsl(20 80% 40% / 0.28);
 }
 .lp .btn--primary:hover {
   background: var(--primary-2);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px hsl(20 80% 30% / 0.32), 0 10px 22px hsl(20 80% 40% / 0.32);
+  box-shadow:
+    0 2px 4px hsl(20 80% 30% / 0.32),
+    0 10px 22px hsl(20 80% 40% / 0.32);
 }
 .lp .btn--primary:active {
   transform: translateY(0);
@@ -325,6 +335,9 @@ html {
   box-shadow: var(--shadow-sm);
 }
 .lp .nav__inner {
+  /* full-bleed like the reference — brand and actions hug the viewport edges */
+  max-width: none;
+  padding-inline: clamp(1.25rem, 2.2vw, 2.5rem);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -343,45 +356,15 @@ html {
   color: var(--ink);
 }
 .lp .nav__beta {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--primary-2);
-  background: hsl(20 80% 51% / 0.12);
-  border: 1px solid hsl(20 80% 51% / 0.24);
-  padding: 0.14rem 0.42rem;
+  color: hsl(152 42% 22%);
+  background: hsl(150 45% 86%);
+  border: 1px solid hsl(150 30% 68% / 0.7);
+  padding: 0.22rem 0.55rem;
   border-radius: var(--radius-pill);
-}
-.lp .nav__links {
-  display: flex;
-  gap: 2rem;
-  margin-inline: auto;
-}
-.lp .nav__links a {
-  font-weight: 500;
-  font-size: 0.95rem;
-  color: var(--body);
-  position: relative;
-  padding: 0.25rem 0;
-  transition: color 0.18s var(--ease);
-}
-.lp .nav__links a::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 100%;
-  bottom: 0;
-  height: 2px;
-  background: var(--primary);
-  border-radius: 2px;
-  transition: right 0.22s var(--ease);
-}
-.lp .nav__links a:hover {
-  color: var(--ink);
-}
-.lp .nav__links a:hover::after {
-  right: 0;
 }
 .lp .nav__actions {
   display: flex;
@@ -389,14 +372,27 @@ html {
   gap: 0.6rem;
 }
 .lp .nav__refer {
+  display: inline-flex;
+  align-items: center;
   font-weight: 600;
-  font-size: 0.92rem;
-  color: var(--body);
-  padding: 0.4rem 0.5rem;
-  transition: color 0.18s var(--ease);
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--primary-2);
+  background: hsl(45 65% 98% / 0.85);
+  border: 1px solid hsl(20 80% 51% / 0.42);
+  padding: 0.56rem 1.05rem;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition:
+    color 0.18s var(--ease),
+    background-color 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    transform 0.18s var(--ease);
 }
 .lp .nav__refer:hover {
-  color: var(--primary-2);
+  background: var(--card);
+  border-color: hsl(20 80% 51% / 0.8);
+  transform: translateY(-1px);
 }
 .lp .nav__toggle {
   display: none;
@@ -448,11 +444,11 @@ html {
   margin-top: 0.6rem;
 }
 
-/* ── Hero — centered headline over floating product cards ─────────────────── */
+/* ── Hero — centered headline over a field of abstract placeholders ───────── */
 .lp .hero {
   position: relative;
   padding-top: clamp(7.5rem, 12vw, 10.5rem);
-  padding-bottom: clamp(3.5rem, 7vw, 6rem);
+  padding-bottom: clamp(4rem, 8vw, 7rem);
   overflow: hidden;
 }
 /* warm wash that pools behind the headline, exactly like the reference */
@@ -463,161 +459,281 @@ html {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(46% 42% at 50% 44%, hsl(22 88% 58% / 0.22), transparent 70%),
-    radial-gradient(80% 70% at 50% 30%, hsl(34 70% 84% / 0.5), transparent 72%);
+    radial-gradient(44% 40% at 50% 42%, hsl(20 85% 60% / 0.16), transparent 70%),
+    radial-gradient(85% 75% at 50% 32%, hsl(34 70% 87% / 0.55), transparent 74%);
 }
 .lp .hero__stage {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 72rem;
   margin-inline: auto;
-  min-height: clamp(26rem, 52vh, 36rem);
+  min-height: clamp(30rem, 58vh, 40rem);
   display: grid;
   place-items: center;
 }
 
-/* floating cards sit behind the headline; a radial mask fades them out of the
-   centre so they never crowd the type. Hidden entirely on small screens. */
+/* floating placeholder field — abstract, content-free stand-ins (media slabs,
+   comment skeletons) that hold the reference's asymmetric scatter. Purely
+   atmospheric: aria-hidden + pointer-events:none in markup, a radial mask
+   fades whatever drifts near the headline, and the whole field folds away
+   below 60rem. The cards are translucent warm cream with skeleton bars and
+   circles — they read as "media and conversation will live here", never as
+   data, and never as grey developer loaders. */
 .lp .hero__float {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  -webkit-mask-image: radial-gradient(52% 46% at 50% 46%, transparent 32%, #000 70%);
-  mask-image: radial-gradient(52% 46% at 50% 46%, transparent 32%, #000 70%);
+  -webkit-mask-image: radial-gradient(46% 42% at 50% 46%, transparent 30%, #000 68%);
+  mask-image: radial-gradient(46% 42% at 50% 46%, transparent 30%, #000 68%);
 }
-.lp .floaty {
+.lp .ph {
   position: absolute;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-float);
-  padding: 0.8rem 0.9rem;
-  width: max-content;
-  max-width: 15rem;
+  transform: rotate(var(--tilt, 0deg));
 }
-.lp .floaty__label {
-  display: block;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--primary-2);
-  margin-bottom: 0.3rem;
+/* entrance is opacity-only (the tilt owns the transform), staged per card,
+   and gated on `@media (scripting: enabled)` so a no-JS load — or a browser
+   without the scripting media feature — simply shows the field. The gate
+   lives in CSS rather than an inline <script>: React never executes a
+   <script> element it re-creates on the client (SPA navigations), while this
+   media query applies before first paint and keeps working across them. */
+@media (scripting: enabled) {
+  .lp .ph {
+    opacity: 0;
+    animation: ph-in 0.9s var(--ease) var(--in-del, 0.4s) forwards;
+  }
 }
-.lp .floaty__line {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.3;
+@keyframes ph-in {
+  to {
+    opacity: 1;
+  }
 }
-.lp .floaty__sub {
-  margin-top: 0.15rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-.lp .floaty__stars {
-  color: var(--primary);
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-}
-.lp .floaty__code {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.14em;
-  color: var(--ink);
-}
-.lp .floaty--chip {
-  padding: 0.5rem 0.8rem;
-  border-radius: var(--radius-pill);
-}
-.lp .floaty--chip .floaty__line {
-  font-size: 0.82rem;
-  white-space: nowrap;
-}
-.lp .floaty--pick {
+/* the visible card — translucent warm cream, hairline border, fog-soft shadow */
+.lp .ph__card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 14.5rem;
+  padding: 0.85rem 0.95rem;
+  background: hsl(42 60% 97% / 0.62);
+  border: 1px solid hsl(33 40% 80% / 0.5);
+  border-radius: 1.1rem;
+  box-shadow:
+    0 18px 40px hsl(24 32% 30% / 0.08),
+    0 2px 8px hsl(24 32% 30% / 0.05);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: ph-bob var(--bob-dur, 7s) ease-in-out var(--bob-del, 0s) infinite alternate;
+}
+@keyframes ph-bob {
+  from {
+    transform: translateY(-0.35rem);
+  }
+  to {
+    transform: translateY(0.35rem);
+  }
+}
+/* tall product-screen slab: eyebrow, one message, a supporting chip */
+.lp .ph__card--media {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.55rem;
+  width: var(--media-w, 10.5rem);
+  aspect-ratio: 4 / 7;
+  padding: 1rem 0.95rem;
+  background: hsl(28 30% 88% / 0.55);
 }
-.lp .floaty--pick .floaty__emoji {
-  font-size: 1.1rem;
+.lp .ph__eyebrow {
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(20 70% 40% / 0.8);
 }
-/* mini game card — the product itself, mid-round */
-.lp .floaty--play {
-  width: 15rem;
-  max-width: 15rem;
-  padding: 0.95rem 1rem 1rem;
-}
-.lp .floaty__q {
+.lp .ph__q {
+  font-size: 0.82rem;
   font-weight: 700;
-  font-size: 0.92rem;
-  line-height: 1.25;
-  color: var(--ink);
-  margin: 0.15rem 0 0.6rem;
+  line-height: 1.3;
+  color: hsl(24 35% 25% / 0.8);
 }
-.lp .floaty__opts {
+.lp .ph__chips {
   display: grid;
   gap: 0.35rem;
+  width: 100%;
+  margin-top: 0.15rem;
 }
-.lp .floaty__opt {
-  padding: 0.4rem 0.6rem;
-  font-size: 0.78rem;
+.lp .ph__chip {
+  padding: 0.34rem 0.55rem;
+  font-size: 0.66rem;
   font-weight: 600;
-  color: var(--body);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 0.55rem;
+  text-align: center;
+  color: hsl(24 25% 35% / 0.7);
+  background: hsl(40 60% 97% / 0.55);
+  border: 1px solid hsl(33 40% 78% / 0.5);
+  border-radius: 999px;
 }
-.lp .floaty__opt--pick {
-  color: #fff;
-  background: var(--primary);
-  border-color: var(--primary);
+.lp .ph__chip--pick {
+  color: hsl(40 60% 97% / 0.95);
+  background: hsl(20 75% 51% / 0.85);
+  border-color: transparent;
 }
-.lp .floaty__timer {
+.lp .ph__timer {
+  margin-top: auto;
   font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: hsl(20 70% 40% / 0.7);
+}
+.lp .ph__code {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: hsl(24 35% 25% / 0.85);
+}
+.lp .ph__caption {
+  margin-top: auto;
+  font-size: 0.64rem;
+  color: hsl(24 25% 35% / 0.6);
+}
+.lp .ph__art {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  width: 100%;
+  border-radius: 0.85rem;
+  font-size: 2.4rem;
+  background: radial-gradient(80% 70% at 50% 35%, hsl(32 70% 88% / 0.9), hsl(24 45% 78% / 0.6));
+}
+.lp .ph__dish {
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--primary-2);
-  font-variant-numeric: tabular-nums;
+  color: hsl(24 35% 25% / 0.8);
 }
-.lp .floaty__head {
+.lp .ph__add {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: hsl(40 60% 97% / 0.95);
+  background: hsl(20 75% 51% / 0.85);
+  border-radius: 999px;
+}
+/* comment-style card: emoji glyph + a label and its one-line detail */
+.lp .ph__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  background: hsl(31 28% 82% / 0.7);
+}
+.lp .ph__text {
+  display: grid;
+  gap: 0.12rem;
+  padding-top: 0.14rem;
+}
+.lp .ph__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: hsl(24 35% 25% / 0.78);
+}
+.lp .ph__sub {
+  font-size: 0.66rem;
+  white-space: nowrap;
+  color: hsl(24 25% 35% / 0.6);
+}
+/* two-row activity card (bottom centre-right) */
+.lp .ph__card--stack {
+  display: grid;
+  gap: 0.85rem;
+  width: 16.5rem;
+}
+.lp .ph__row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.lp .ph__row .ph__text {
+  padding-top: 0.05rem;
 }
 
-/* positions — scattered, gently tilted (reference-style) */
-.lp .floaty--a {
-  top: 4%;
-  left: 1%;
-  transform: rotate(-5deg);
+/* positions — the reference's asymmetric scatter; each card gets its own
+   tilt, drift period and entrance delay via the custom properties above */
+.lp .ph--a {
+  left: 4%;
+  top: 16%;
+  --tilt: -1.5deg;
+  --media-w: 11rem;
+  --bob-dur: 8s;
+  --in-del: 0.5s;
 }
-.lp .floaty--b {
-  top: 9%;
-  right: 2%;
-  transform: rotate(4deg);
+.lp .ph--b {
+  left: 24%;
+  top: 18%;
+  --tilt: -4deg;
+  --bob-dur: 6.5s;
+  --bob-del: -2s;
+  --in-del: 0.75s;
 }
-.lp .floaty--c {
+.lp .ph--c {
+  left: 51%;
+  top: clamp(5rem, 10%, 7rem);
+  --bob-dur: 7.5s;
+  --bob-del: -4s;
+  --in-del: 0.9s;
+}
+.lp .ph--d {
+  right: 19.5%;
+  top: 8.5%;
+  --tilt: 1deg;
+  --media-w: 9.5rem;
+  --bob-dur: 9s;
+  --bob-del: -1s;
+  --in-del: 0.65s;
+}
+.lp .ph--e {
+  right: 2.5%;
+  top: 15%;
+  --media-w: 11rem;
+  --bob-dur: 7s;
+  --bob-del: -3s;
+  --in-del: 0.8s;
+}
+.lp .ph--f {
+  left: 7%;
+  bottom: 17%;
+  --tilt: -3deg;
+  --bob-dur: 8.5s;
+  --bob-del: -5s;
+  --in-del: 0.95s;
+}
+.lp .ph--g {
+  left: 28.5%;
+  bottom: 13%;
+  --tilt: -2deg;
+  --bob-dur: 6.8s;
+  --bob-del: -2.5s;
+  --in-del: 1.05s;
+}
+.lp .ph--h {
+  left: 55%;
   bottom: 8%;
-  left: 3%;
-  transform: rotate(-3deg);
+  --tilt: 1.5deg;
+  --bob-dur: 7.8s;
+  --bob-del: -1.5s;
+  --in-del: 1.15s;
 }
-.lp .floaty--d {
-  bottom: 6%;
-  right: 3%;
-  transform: rotate(5deg);
-}
-.lp .floaty--e {
-  top: 45%;
-  left: -2%;
-  transform: rotate(-7deg);
-}
-.lp .floaty--f {
-  top: 52%;
-  right: -1%;
-  transform: rotate(6deg);
+.lp .ph--i {
+  right: 5%;
+  bottom: 10%;
+  --tilt: -1deg;
+  --bob-dur: 8.2s;
+  --bob-del: -6s;
+  --in-del: 1s;
 }
 
 /* centre column: pin, headline, one line, note pill */
@@ -629,15 +745,48 @@ html {
   padding-inline: 1rem;
 }
 .lp .hero__pin {
-  width: 2.6rem;
-  height: 2.6rem;
-  margin: 0 auto 1.4rem;
+  position: relative;
+  display: inline-block;
+  margin-bottom: 2.6rem;
   color: var(--primary);
 }
-.lp .hero__pin svg {
-  width: 100%;
-  height: 100%;
+.lp .hero__pin > svg {
+  display: block;
+  width: 2.35rem;
+  height: auto;
   filter: drop-shadow(0 6px 12px hsl(20 80% 45% / 0.28));
+}
+/* ripple pools under the pin — the reference locating mark, gently alive */
+.lp .hero__rings {
+  position: absolute;
+  left: 50%;
+  bottom: -0.95rem;
+  width: 4.6rem;
+  height: 1.5rem;
+  transform: translateX(-50%);
+}
+.lp .hero__rings i {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid hsl(20 80% 51% / 0.5);
+  border-radius: 50%;
+  animation: pin-ripple 2.8s cubic-bezier(0.2, 0, 0, 1) infinite;
+}
+.lp .hero__rings i:nth-child(2) {
+  animation-delay: 1.4s;
+}
+@keyframes pin-ripple {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.12);
+    opacity: 0;
+  }
 }
 .lp .hero__title {
   font-family: var(--font-body);
@@ -653,12 +802,13 @@ html {
   font-optical-sizing: auto;
   font-style: italic;
   font-weight: 500;
+  font-size: 1.06em;
   letter-spacing: -0.02em;
   color: var(--primary);
 }
 .lp .hero__sub {
   margin: 1.5rem auto 0;
-  max-width: 34rem;
+  max-width: 38rem;
   font-size: 1.16rem;
   line-height: 1.6;
   color: var(--body);
@@ -684,6 +834,31 @@ html {
   border-radius: 50%;
   background: var(--primary);
   box-shadow: 0 0 0 4px hsl(20 80% 51% / 0.18);
+}
+
+/* the one scroll cue — small, orange, breathing */
+.lp .hero__scroll {
+  display: flex;
+  width: max-content;
+  margin: 2.1rem auto 0;
+  color: var(--primary);
+  animation: scroll-bob 2.4s ease-in-out infinite;
+}
+.lp .hero__scroll svg {
+  width: 1.35rem;
+  height: auto;
+}
+.lp .hero__scroll:hover {
+  color: var(--primary-2);
+}
+@keyframes scroll-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(0.45rem);
+  }
 }
 
 /* ── How It Works — numbered step strip ──────────────────────────────────── */
@@ -895,115 +1070,180 @@ html {
   color: var(--muted);
 }
 
-/* ── CTA (dark rounded block) ────────────────────────────────────────────── */
+/* ── CTA + footer — one full-width dark band ─────────────────────────────── */
 .lp .cta {
-  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(4rem, 8vw, 7rem);
-}
-.lp .cta__block {
   position: relative;
-  overflow: hidden;
-  text-align: center;
-  background: radial-gradient(120% 130% at 50% 0%, var(--dark-2), var(--dark) 68%);
-  border-radius: var(--radius-lg);
-  padding: clamp(3rem, 7vw, 5.5rem) clamp(1.5rem, 5vw, 3rem);
-  box-shadow: var(--shadow-lg);
+  padding-block: clamp(4.5rem, 9vw, 7.5rem) clamp(4rem, 8vw, 6.5rem);
+  /* charcoal ground with a faint warm lift behind the headline */
+  background: radial-gradient(52% 36% at 50% 0%, hsl(22 45% 24% / 0.5), transparent 72%), #1d1712;
 }
-.lp .cta__block::before {
+/* the warm seam where the light page meets the dark band */
+.lp .cta::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto 0;
+  height: clamp(1.75rem, 3.5vw, 2.75rem);
+  background: linear-gradient(180deg, hsl(30 82% 80%), hsl(23 66% 56%));
   pointer-events: none;
-  background: radial-gradient(40% 60% at 50% 120%, hsl(20 80% 51% / 0.32), transparent 70%);
 }
-.lp .cta__block > * {
+.lp .cta__inner {
   position: relative;
-}
-.lp .cta__block .pill {
-  margin-bottom: 1.4rem;
+  text-align: center;
 }
 .lp .cta__title {
   font-family: var(--font-body);
   font-weight: 800;
-  font-size: clamp(2.1rem, 4.8vw, 3.35rem);
-  line-height: 1.03;
+  font-size: clamp(2.35rem, 6vw, 4.9rem);
+  line-height: 1.05;
   letter-spacing: -0.035em;
   color: var(--on-dark);
-  max-width: 20ch;
+  max-width: 11em;
   margin-inline: auto;
 }
+.lp .cta__title em {
+  font-style: italic;
+  color: var(--primary);
+}
 .lp .cta__body {
-  max-width: 34rem;
-  margin: 1.2rem auto 0;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  max-width: 38rem;
+  margin: 1.5rem auto 0;
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  line-height: 1.65;
   color: var(--on-dark-muted);
 }
 .lp .cta__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
+  gap: 1rem;
   justify-content: center;
-  margin-top: 2.1rem;
+  margin-top: 2.4rem;
+}
+/* the primary gets a soft orange halo on the dark ground */
+.lp .cta__actions .btn--primary {
+  box-shadow:
+    0 1px 2px hsl(20 80% 30% / 0.4),
+    0 10px 32px hsl(18 85% 45% / 0.45),
+    0 2px 10px hsl(18 85% 50% / 0.32);
+}
+.lp .cta__actions .btn--primary:hover {
+  box-shadow:
+    0 2px 4px hsl(20 80% 30% / 0.4),
+    0 14px 40px hsl(18 85% 48% / 0.5),
+    0 4px 14px hsl(18 85% 52% / 0.38);
+}
+.lp .btn__arrow {
+  width: 1.1rem;
+  height: auto;
 }
 .lp .cta__fine {
-  margin-top: 1.4rem;
-  font-size: 0.85rem;
+  margin-top: 1.6rem;
+  font-size: 0.88rem;
   color: var(--on-dark-muted);
 }
 
-/* ── Footer (light, minimal single row) ──────────────────────────────────── */
+/* ── Footer (dark, structured: divider / brand / bottom row) ─────────────── */
 .lp .footer {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  background: #1d1712;
+  padding-bottom: clamp(2rem, 4vw, 3rem);
 }
-.lp .footer__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem 2rem;
-  padding-block: clamp(1.75rem, 3vw, 2.5rem);
+.lp .footer__divider {
+  height: 1px;
+  background: hsl(30 25% 88% / 0.14);
+}
+.lp .footer__brand {
+  padding-top: clamp(2.25rem, 4vw, 3rem);
 }
 .lp .footer__word {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   font-family: var(--font-body);
   font-weight: 800;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   letter-spacing: -0.01em;
   text-transform: uppercase;
-  color: var(--ink);
+  color: var(--on-dark);
+}
+.lp .footer__word .nav__beta {
+  font-size: 0.68rem;
+  padding: 0.26rem 0.6rem;
+}
+.lp .footer__tag {
+  margin-top: 0.7rem;
+  font-size: 1rem;
+  color: var(--on-dark-muted);
+}
+.lp .footer__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding-top: clamp(1.75rem, 3.5vw, 2.5rem);
+}
+.lp .footer__copy {
+  font-size: 0.86rem;
+  color: var(--on-dark-muted);
 }
 .lp .footer__links {
   display: flex;
-  gap: 1.75rem;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
 }
 .lp .footer__links a {
   font-size: 0.92rem;
-  color: var(--body);
   font-weight: 500;
+  color: var(--on-dark-muted);
   transition: color 0.18s var(--ease);
 }
 .lp .footer__links a:hover {
-  color: var(--primary-2);
+  color: var(--on-dark);
 }
-.lp .footer__copy {
-  font-size: 0.82rem;
-  color: var(--muted);
+.lp .footer__social {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+.lp .footer__social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-dark-muted);
+  transition:
+    color 0.18s var(--ease),
+    transform 0.18s var(--ease);
+}
+.lp .footer__social-btn svg {
+  width: 1.45rem;
+  height: auto;
+}
+.lp .footer__social-btn:hover {
+  color: var(--on-dark);
+  transform: translateY(-1px);
+}
+.lp .footer__social-sep {
+  width: 1px;
+  height: 1.4rem;
+  background: hsl(30 25% 88% / 0.18);
 }
 
 /* ── Reveal on scroll ────────────────────────────────────────────────────── */
-/* Gated on `.lp--js`, added by an inline script before first paint (page.tsx).
-   Without JS the class never lands, so `.reveal` keeps its natural visibility
-   and no content is ever hidden — the animation is pure enhancement. */
-.lp--js .reveal {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity 0.64s var(--ease),
-    transform 0.64s var(--ease);
-}
-.lp--js .reveal.is-in {
-  opacity: 1;
-  transform: none;
+/* Gated on `@media (scripting: enabled)` — see the `.ph` block for why the
+   gate is CSS, not a script-added class. Without JS the media query never
+   matches, so `.reveal` keeps its natural visibility and no content is ever
+   hidden — the animation is pure enhancement. */
+@media (scripting: enabled) {
+  .lp .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.64s var(--ease),
+      transform 0.64s var(--ease);
+  }
+  .lp .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── Focus ───────────────────────────────────────────────────────────────── */
@@ -1014,6 +1254,18 @@ html {
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+/* Short laptops: compact the hero so the whole first screen fits without the
+   page needing a scroll to see the headline unit. */
+@media (max-height: 800px) {
+  .lp .hero {
+    padding-top: 6.5rem;
+    padding-bottom: 3.5rem;
+  }
+  .lp .hero__stage {
+    min-height: 26rem;
+  }
+}
+
 @media (max-width: 64rem) {
   .lp .steps {
     grid-template-columns: repeat(2, 1fr);
@@ -1036,9 +1288,6 @@ html {
   }
 }
 @media (max-width: 52rem) {
-  .lp .nav__links {
-    display: none;
-  }
   .lp .nav__actions .btn,
   .lp .nav__refer {
     display: none;
@@ -1053,12 +1302,15 @@ html {
   .lp .quotes {
     grid-template-columns: 1fr;
   }
-  .lp .footer__inner {
+  .lp .cta__actions .btn {
+    flex: 1 1 auto;
+  }
+  .lp .footer__row {
     flex-direction: column;
     align-items: flex-start;
   }
-  .lp .cta__actions .btn {
-    flex: 1 1 auto;
+  .lp .footer__social {
+    margin-left: 0;
   }
 }
 
@@ -1068,6 +1320,7 @@ html {
   .lp *::before,
   .lp *::after {
     animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
@@ -1163,7 +1416,9 @@ html {
   border-radius: var(--radius);
   padding: 0.8rem 1rem;
   width: 100%;
-  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  transition:
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
 .lp .rinput::placeholder {

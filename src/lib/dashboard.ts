@@ -47,6 +47,12 @@ export interface DashboardData {
     cleared: Array<{ item: string; why: string }>
     refused: Array<{ item: string; why: string }>
   }
+  /**
+   * The newest events of the service, newest first, for the dashboard's
+   * activity preview. Derived from the same read the metrics use, so the
+   * preview costs no second query and can never disagree with them.
+   */
+  recent: Array<{ atMs: number; type: string }>
 }
 
 export async function getDashboardData(venueId: string, serviceId: string): Promise<DashboardData> {
@@ -138,6 +144,13 @@ export async function getDashboardData(venueId: string, serviceId: string): Prom
 
   const totals = totalLedger(ledger)
 
+  // The activity preview's rows: the eight newest events, derived from the
+  // read above rather than a second query.
+  const recent = [...events]
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, 8)
+    .map((e) => ({ atMs: e.at.getTime(), type: e.type }))
+
   // ── Why a negative night went negative ───────────────────────────────────
   const minutesAtRed = minutesInState(
     loads.map((l) => ({ state: l.level, atMs: l.setAt.getTime() })),
@@ -183,6 +196,7 @@ export async function getDashboardData(venueId: string, serviceId: string): Prom
       attachRatePct: spend.attachRatePct,
     },
     pool: readPoolSnapshot(pool),
+    recent,
   }
 }
 

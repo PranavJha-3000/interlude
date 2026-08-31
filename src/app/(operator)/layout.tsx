@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import { BRAND } from '@/brand'
-import { en } from '@/strings/en'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
-import { signOut } from './signin/actions'
 import { operatorFontVars } from '../fonts'
+import { OperatorNav } from './OperatorNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,55 +11,31 @@ export default async function OperatorLayout({ children }: { children: React.Rea
   // same request, so a brand-new operator holds a valid session with no venue
   // yet. `getOperator` returns null for them, which would render the shell with
   // no nav and — worse — no way to sign out of a session they demonstrably have.
-  const operator = await getOperatorWithoutVenue()
+  //
+  // The lookup hits Postgres on every render of /signin and /signup too, and a
+  // landing visitor clicking "Get Started" or "Log In" has no stake in the
+  // session store yet — if the database is unreachable, those clicks must still
+  // land on their forms, not on a 500. Degrade to the signed-out shell; every
+  // surface that actually needs the session re-checks it and redirects itself.
+  let operator = null
+  try {
+    operator = await getOperatorWithoutVenue()
+  } catch {
+    operator = null
+  }
 
   return (
     <div className={`${operatorFontVars} surface-operator min-h-dvh`}>
       <header className="border-b border-line">
-        {/* flex-wrap is load-bearing: the nav outgrew a phone's width when menu,
-            prizes and bills arrived, and an overflowing nav swallows taps on
-            whatever ends up past the edge. */}
-        <nav className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-5 gap-y-2 px-6 py-4">
-          <Link href="/" className="text-xs tracking-widest text-muted uppercase">
+        {/* The drawer anchors to this nav (`relative`), and the shell width is
+            the operator surface's own — 1152px, wide enough for the command
+            center's metric row, stacking below md. */}
+        <nav className="relative mx-auto flex w-full max-w-6xl items-center gap-x-5 px-6 py-4">
+          <Link href="/" className="shrink-0 text-xs tracking-widest text-muted uppercase">
             {BRAND.name}
           </Link>
 
-          {operator && (
-            <>
-              <Link href="/dash" className="text-sm">
-                {en.dash.heading}
-              </Link>
-              <Link href="/dash/activity" className="text-sm">
-                {en.dash.activity.heading}
-              </Link>
-              <Link href="/dash/menu" className="text-sm">
-                {en.dash.menuNav}
-              </Link>
-              <Link href="/dash/prizes" className="text-sm">
-                {en.dash.prizesNav}
-              </Link>
-              <Link href="/dash/games" className="text-sm">
-                {en.dash.gamesNav}
-              </Link>
-              <Link href="/dash/import" className="text-sm">
-                {en.dash.importNav}
-              </Link>
-              <Link href="/dash/feedback" className="text-sm">
-                {en.dash.feedbackNav}
-              </Link>
-              <Link href="/dash/settings" className="text-sm">
-                {en.dash.settingsNav}
-              </Link>
-              <Link href="/tents" className="text-sm">
-                {en.dash.tents}
-              </Link>
-              <form action={signOut} className="ml-auto">
-                <button type="submit" className="text-sm text-muted">
-                  {en.signin.signOut}
-                </button>
-              </form>
-            </>
-          )}
+          <OperatorNav signedIn={Boolean(operator)} />
         </nav>
       </header>
       {children}

@@ -34,7 +34,7 @@ const GOOD: Record<string, string | undefined> = {
   NEXT_PUBLIC_BASE_URL: 'https://interlude.example.com',
   // RESEND_API_KEY, EMAIL_FROM, and CRON_SECRET are now optional (warning only).
   // Operator sign-in uses email+password and does not require Resend.
-  ANTHROPIC_API_KEY: 'sk-ant-test',
+  GEMINI_API_KEY: 'AIza-test',
 }
 
 function fatalNames(env: Record<string, string | undefined>): string[] {
@@ -133,12 +133,12 @@ describe('checkDeploymentEnv', () => {
     expect(fatalNames({ ...GOOD, CRON_SECRET: undefined })).not.toContain('CRON_SECRET')
   })
 
-  it('only warns about a missing ANTHROPIC_API_KEY, which degrades by design', () => {
+  it('only warns about a missing GEMINI_API_KEY, which degrades by design', () => {
     // Menu photo and PDF reading go away; CSV and typing still work, so a venue
     // can still onboard. That is a degraded mode, not an outage.
-    const problem = problemFor({ ...GOOD, ANTHROPIC_API_KEY: undefined }, 'ANTHROPIC_API_KEY')
+    const problem = problemFor({ ...GOOD, GEMINI_API_KEY: undefined }, 'GEMINI_API_KEY')
     expect(problem?.severity).toBe('warning')
-    expect(fatalNames({ ...GOOD, ANTHROPIC_API_KEY: undefined })).not.toContain('ANTHROPIC_API_KEY')
+    expect(fatalNames({ ...GOOD, GEMINI_API_KEY: undefined })).not.toContain('GEMINI_API_KEY')
   })
 
   it('refuses AI_TRANSPORT=mock on a deployment', () => {
@@ -196,7 +196,7 @@ describe('assertDeploymentEnv', () => {
 
   it('does not throw for warnings alone', () => {
     expect(() =>
-      assertDeploymentEnv({ ...GOOD, VERCEL_ENV: 'production', ANTHROPIC_API_KEY: undefined })
+      assertDeploymentEnv({ ...GOOD, VERCEL_ENV: 'production', GEMINI_API_KEY: undefined })
     ).not.toThrow()
   })
 })

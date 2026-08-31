@@ -11,12 +11,6 @@ import { BRAND } from '@/brand'
  *    (PLATFORM.md §7) — the guest wins on skill, or buys at a fixed price.
  */
 export const en = {
-  // The three-game picker (`PLAY WHILE YOU WAIT`). One heading, shared by
-  // every enabled game's entry point.
-  selector: {
-    heading: 'Play while you wait',
-  },
-
   common: {
     continue: 'Continue',
     back: 'Back',
@@ -28,68 +22,21 @@ export const en = {
     none: '—',
     offline: "You're offline. We'll pick up where you left off.",
     genericError: "Something went wrong at our end. Your table's fine — try again.",
+    notFoundHeading: "We couldn't find that page.",
+    notFoundBody: 'It may have been moved, or the link may be expired.',
   },
-
-  landing: {
-    eyebrow: BRAND.name,
-    heading: 'It knows what not to give away.',
-    body: 'A skill game on the guest’s own phone, lasting exactly as long as their food does. You set which items can be won and how deep the discount goes; the engine picks inside your fences and shows you why. No app for the guest, no signup, no account.',
-    reassurance:
-      'Your tables already have QR codes — this replaces what they open. No app for your guests, no new hardware.',
-    forGuests:
-      'Your guest scans a code on the table and plays for as long as their food takes — a slow kitchen is a longer game, not a worse wait. They climb a ladder of dishes off your own menu, and keep the rung they reach.',
-    forYou:
-      'You control the menu, the prizes, the discount depth, and a kill switch for when the kitchen is slammed.',
-    honesty:
-      'On night one the dashboard shows an app-side estimate of net contribution. Upload a bill export and it is replaced by the measured attach-rate delta against same-night control tables.',
-    cta: 'Get started',
-
-    /**
-     * The clearing panel (UI-SPEC.md §6, REVAMP-BRIEF.md Part 6): the most
-     * characteristic thing the product does, doing it — `decidePrizePool`
-     * runs live on every render over a demonstration menu, and the reasons on
-     * the card are the engine's own strings, not marketing copy.
-     *
-     * The menu is a demonstration by necessity, not laziness: a real venue's
-     * pool on a public page would publish that customer's menu, food costs
-     * and margin fences (PLATFORM.md §7 tenancy). `stamp` says so on the card
-     * itself — the computation is real, the restaurant is not claimed to be.
-     */
-    decisionCard: {
-      stamp: 'Example',
-      title: 'Tonight’s pool, decided at 6:40pm',
-      clearedHeading: 'Cleared',
-      clearedNote: 'Winnable tonight',
-      refusedHeading: 'Refused',
-      refusedNote: 'And the reason, in writing',
-      footnote:
-        'Every line above is a row the engine wrote before service, with the reason attached. You can read it back the next morning and argue with it.',
-    },
-
-    /** Four steps, because the fifth would be the one they abandon. */
-    stepsHeading: 'What setup actually looks like',
-    steps: [
-      {
-        n: '01',
-        title: 'Import your menu',
-        body: 'A photo, a PDF or a CSV. You check every line before anything is saved.',
-      },
-      {
-        n: '02',
-        title: 'Set your margin floors',
-        body: 'Deepest discount, spend per service, items that are never on the table.',
-      },
-      {
-        n: '03',
-        title: 'Print the QR tents',
-        body: 'One per table. Half stay blank — that is the control group, and it is how the number stays honest.',
-      },
-      {
-        n: '04',
-        title: 'Go live',
-        body: 'Open a service. The kitchen keeps its veto and a kill switch the whole night.',
-      },
-    ],
+  /**
+   * The signed-in operator nav (desktop strip and mobile drawer share these).
+   * Group labels only — the destination labels are the existing `dash.*Nav`
+   * strings, so a link reads the same wherever it renders.
+   */
+  nav: {
+    manage: 'Manage',
+    insights: 'Insights',
+    /** No dedicated performance page exists; the metrics live on the command center. */
+    performance: 'Performance',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
   },
 
   signin: {
@@ -431,6 +378,14 @@ export const en = {
       heading: 'Nothing running right now',
       body: "The kitchen's not taking games at the moment. Enjoy your meal.",
     },
+    notFound: {
+      heading: "That link isn't working here.",
+      body: 'It may have expired or been replaced. Ask your server to scan the table code again.',
+    },
+    error: {
+      heading: 'The phone lost its thread.',
+      body: 'Nothing is lost — your table knows where you were. Try again.',
+    },
   },
 
   /**
@@ -469,6 +424,11 @@ export const en = {
       fireDetail: 'Guests are waiting on the clock.',
       confirmAction: 'Confirm',
       ackAction: 'Ack',
+      // The one-glance task type. A server scanning the list should know what
+      // kind of row it is before reading the detail.
+      typeOrder: 'Order',
+      typeAddOn: 'Add-on',
+      typePrize: 'Prize',
     },
     service: {
       none: 'No service running.',
@@ -543,6 +503,7 @@ export const en = {
       empty: 'Nothing in the pool right now.',
       inPool: 'In pool',
       vetoed: 'Vetoed',
+      vetoedCount: (n: number) => `${n} vetoed`,
       fireMinutes: (m: number) => `${m} min fire`,
       noGames: 'No game is on. Nothing is being offered.',
     },
@@ -622,6 +583,55 @@ export const en = {
       engagedLabel: 'Scanned vs. control',
       engagedCaveat: 'Scanners choose to scan — treat as an upper bound.',
     },
+
+    /**
+     * The command center's service card and compact metric row. The metrics
+     * are relabels of figures the dashboard already computed — nothing here
+     * invents a number (PLATFORM.md §10).
+     */
+    service: {
+      running: (time: string) => `Running since ${time}`,
+      last: 'Last service',
+      viewTonight: 'View tonight',
+      gamesLabel: 'Games on',
+      noGames: 'No games on.',
+      tablesEngaged: 'Tables engaged',
+      stopped: 'Prizes are stopped for tonight — the kitchen’s emergency stop is on.',
+    },
+    metrics: {
+      tablesEngaged: 'Tables engaged',
+      rewardsClaimed: 'Rewards claimed',
+      addOns: 'Add-ons',
+    },
+    quickActions: {
+      heading: 'Quick actions',
+    },
+    recent: {
+      heading: 'Recent activity',
+      empty: 'Nothing recorded yet tonight.',
+      budgetLabel: 'Prize budget',
+      budgetNote: 'Conceded so far tonight, against the per-service prize cap.',
+      /** The event log, named for a reader who has never seen the schema. */
+      eventLabels: {
+        TENT_PRESENT: 'Tent recorded',
+        SESSION_OPEN: 'Table scanned',
+        CONSENT_GIVEN: 'Consent given',
+        RUN_START: 'Round started',
+        RUNG_REACHED: 'Rung reached',
+        RUN_END: 'Round ended',
+        DEVICE_SPENT: 'Second phone joined',
+        LIFE_EARNED: 'Extra life earned',
+        PRIZE_TAKEN: 'Prize taken',
+        AWARD_REDEEMED: 'Prize confirmed',
+        ADDON_REQUESTED: 'Add-on requested',
+        ADDON_CONFIRMED: 'Add-on confirmed',
+        ADDON_CANCELLED: 'Add-on cancelled',
+        REVIEW_SHOWN: 'Review offered',
+        REVIEW_OPENED: 'Review opened',
+        REVIEW_HANDED_OFF: 'Review handed to Google',
+      } as Record<string, string>,
+    },
+
     activity: {
       heading: 'Activity',
       empty: 'No scans yet this service.',
@@ -711,10 +721,10 @@ export const en = {
         placeholder: 'ChIJ…',
         help: 'Find it with Google’s Place ID Finder — search your restaurant’s name and copy the ID it shows. You can also paste a link that already has the ID in it.',
         finderLink: 'Open the Place ID Finder',
-        finderUrl:
-          'https://developers.google.com/maps/documentation/places/web-service/place-id',
+        finderUrl: 'https://developers.google.com/maps/documentation/places/web-service/place-id',
         linked: 'Linked. The review screen hands guests off to your page.',
-        notLinked: 'Not linked yet. Guests still see the review screen; it just can’t send them anywhere.',
+        notLinked:
+          'Not linked yet. Guests still see the review screen; it just can’t send them anywhere.',
         clearHint: 'Clear the field and save to unlink.',
         preview: 'Where guests are sent',
         errShortLink:
@@ -729,7 +739,8 @@ export const en = {
       fileLabel: 'End-of-day export (CSV)',
       submit: 'Import bills',
       columnsHeading: 'Which column is which',
-      columnsBody: 'Every point-of-sale names them differently. Set these once to match your export’s header row.',
+      columnsBody:
+        'Every point-of-sale names them differently. Set these once to match your export’s header row.',
       colExternalRef: 'Bill number column',
       colPosRef: 'Table column',
       colClosedAt: 'Close time column',
@@ -740,8 +751,10 @@ export const en = {
       colItemPrice: 'Item price column (optional)',
       result: (imported: number, duplicate: number, rejected: number, unattributed: number) =>
         `${imported} imported · ${duplicate} already imported · ${rejected} rejected rows · ${unattributed} outside any service`,
-      failed: 'That file could not be read as a bill export. Check the column names against the header row.',
-      noService: 'No service overlaps those bills. Open a service first, or check the close-time column.',
+      failed:
+        'That file could not be read as a bill export. Check the column names against the header row.',
+      noService:
+        'No service overlaps those bills. Open a service first, or check the close-time column.',
       unjoinedHeading: 'Bills with no table yet',
       unjoinedBody:
         'These imported, but their table reference isn’t mapped. Map each reference once and every bill carrying it joins — nothing is ever dropped.',
@@ -820,8 +833,7 @@ export const en = {
         visitsRequiredHelp:
           'Counted from the last reward, not from their first visit — so changing this never hands out a round of prizes to your regulars.',
         rewardMaxRupees: 'Most one reward may give away (₹)',
-        rewardMaxRupeesHelp:
-          'On top of your per-item and per-service caps, never instead of them.',
+        rewardMaxRupeesHelp: 'On top of your per-item and per-service caps, never instead of them.',
         expiryDays: 'Forget a guest after (days)',
         expiryDaysHelp:
           'A number nobody has used in this long is deleted on the Monday sweep. There is no reason to keep it.',
@@ -896,6 +908,69 @@ export const en = {
       costOverPrice: 'Food cost is higher than the price. Check the numbers.',
       saved: 'Saved.',
     },
+
+    /**
+     * The AI Assist areas (PLATFORM.md §6a). Everything the model produces is
+     * a draft: labelled as one, editable, and live only once the operator
+     * approves it. The copy never says the AI decided anything, because it
+     * never did.
+     */
+    aiAssist: {
+      heading: 'AI Assist',
+      body: 'Drafts from the menu reader. Nothing here is live until you approve it.',
+      draftBadge: 'AI DRAFT',
+      approve: 'Approve',
+      edit: 'Edit',
+      reject: 'Reject',
+      save: 'Save',
+      cancel: 'Cancel',
+      unavailable:
+        'The AI reader is not configured on this deployment — CSV and typed entry still work.',
+      failed: 'The AI reader could not finish that. Try again in a moment.',
+      nothing: 'That draft is gone — it may have been decided from another screen.',
+      menuChanged: 'The menu changed since that draft was written. Generate again.',
+      generic: 'That draft could not be saved. Try again.',
+      decided: (n: number) => (n === 1 ? '1 draft ready to review.' : `${n} drafts ready to review.`),
+
+      menuBody:
+        'One playful line per dish, drafted from your active menu. Approve the ones you want on the card.',
+      menuGenerate: 'Generate descriptions',
+      approvedLabel: 'On the card:',
+      noItems: 'Add menu items first — descriptions are drafted from the active list.',
+
+      gamesBody:
+        'Candidate combinations, personas and game copy, built only from your active menu. Approving a combination adds it to the game; approving a persona adds its budget and cravings.',
+      gamesSecretCta: 'Draft Secret Recipe combinations',
+      gamesMysteryCta: 'Draft mystery customers',
+      copySecretCta: 'Draft Secret Recipe copy',
+      copyMysteryCta: 'Draft Mystery Customer copy',
+      secretHeading: 'Secret Recipe candidates',
+      mysteryHeading: 'Mystery customer candidates',
+      copyHeading: 'Game copy',
+      noGameCopy: 'No copy drafted yet.',
+      noSecretsYet: 'No combinations drafted yet.',
+      noPersonasYet: 'No personas drafted yet.',
+      copyFor: (game: string) =>
+        game === 'SECRET_RECIPE' ? 'Secret Recipe copy' : 'Mystery Customer copy',
+      discoveryName: 'Discovery name',
+      revealCopy: 'Reveal line',
+      items: 'Items',
+      reveals: 'Reveals',
+      budget: 'Budget',
+      craving: 'Cravings',
+      appetite: 'Dishes',
+      scenario: 'Scenario',
+      intro: 'Intro',
+      prompt: 'Prompt',
+      discovery: 'Discovery',
+
+      narrationHeading: 'Weekly narration',
+      narrationBody:
+        'Three sentences on this week’s own numbers. The AI may repeat them but never change them — anything it invents is refused before you see it.',
+      narrationGenerate: 'Narrate this week',
+      sentencesHint: 'One sentence per line, at most three.',
+      noServices: 'No services in the last week to narrate.',
+    },
   },
 
   /**
@@ -908,8 +983,7 @@ export const en = {
   refer: {
     eyebrow: 'Refer a restaurant',
     heading: 'Know a kitchen that should run this?',
-    body:
-      'Send us a restaurant you think belongs on this platform. We call them ourselves — no drip campaign, no pitch deck — and your name goes down as the one who sent us.',
+    body: 'Send us a restaurant you think belongs on this platform. We call them ourselves — no drip campaign, no pitch deck — and your name goes down as the one who sent us.',
     fields: {
       restaurantLabel: 'Restaurant name',
       restaurantPlaceholder: 'e.g. Dilli Junction',
@@ -945,8 +1019,7 @@ export const en = {
     } as Record<string, string>,
     success: {
       heading: 'Thank you — the referral is ours now.',
-      body:
-        'We will ring them within two working days. If they come aboard, the record already shows you sent them.',
+      body: 'We will ring them within two working days. If they come aboard, the record already shows you sent them.',
       backHome: 'Back to the site',
     },
   },

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { readStaffSession, setStaffSessionCookie, verifyPin } from '@/lib/staff-session'
-import { getOpenService, getVenueConfig } from '@/lib/service'
+import { getOpenService, getVenueConfig, openServiceFor } from '@/lib/service'
 import { resolvePosAdapter } from '@/lib/pos'
 import { recordEvent } from '@/lib/events'
 import {
@@ -15,7 +15,6 @@ import {
   toLadderConfig,
 } from '@/lib/table-run'
 import { grantLife } from '@/core/game/run'
-import { planArmAssignments } from '@/core/measurement/arm-assignment'
 
 /**
  * Staff sign-in, scoped to the venue named in the path (`/floor/[venueSlug]`).
@@ -59,45 +58,15 @@ export async function signIn(venueSlug: string, formData: FormData): Promise<voi
 }
 
 /**
- * Opens a service and records the alternating arm split in one transaction.
- *
- * The assignment has to exist before the first guest scans, or the first few
- * tables would be unenrolled and silently excluded from the night's
- * comparison.
+ * Opens the night through the shared `openServiceFor` (lib/service.ts), so the
+ * dashboard's Start Service button and this tap plan the arm split through the
+ * same transaction.
  */
 export async function openService(): Promise<void> {
   const staff = await readStaffSession()
   if (!staff) return
 
-  const existing = await getOpenService(staff.venueId)
-  if (existing) return
-
-  const tables = await db.table.findMany({
-    where: { venueId: staff.venueId, active: true },
-    select: { id: true, label: true },
-  })
-  if (tables.length === 0) return
-
-  // Alternate which arm leads, so the same tables are not always treatment.
-  const previous = await db.service.count({ where: { venueId: staff.venueId } })
-  const plan = planArmAssignments(tables, previous % 2 === 0 ? 'TREATMENT' : 'CONTROL')
-
-  await db.$transaction(async (tx) => {
-    const service = await tx.service.create({
-      data: {
-        venueId: staff.venueId,
-        name: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      },
-    })
-    await tx.tableArmAssignment.createMany({
-      data: plan.map((p) => ({
-        serviceId: service.id,
-        tableId: p.tableId,
-        arm: p.arm,
-        reason: p.reason,
-      })),
-    })
-  })
+  await openServiceFor(staff.venueId)
 
   revalidatePath('/floor')
 }

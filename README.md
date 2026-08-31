@@ -20,7 +20,7 @@ npm ci
 Copy-Item .env.example .env
 ```
 
-Set at least `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, and `NEXT_PUBLIC_BASE_URL` in `.env`. For local development, email logs to the terminal when no Resend key is configured and menu extraction uses the deterministic mock when no Anthropic key is present.
+Set at least `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, and `NEXT_PUBLIC_BASE_URL` in `.env`. For local development, email logs to the terminal when no Resend key is configured and menu extraction uses the deterministic mock when no Gemini key is present.
 
 Create the local development schema and demo data:
 
@@ -75,7 +75,7 @@ For production-specific rules and the exact cron command, follow [the deployment
 
 ## Production deployment
 
-Vercel builds with `npm run check:env && prisma generate && prisma migrate deploy && next build`. Configure the production variables described in [docs/DEPLOY.md](docs/DEPLOY.md): pooled `DATABASE_URL`, unpooled `DIRECT_URL`, `SESSION_SECRET`, final `NEXT_PUBLIC_BASE_URL`, Resend credentials, and `CRON_SECRET`; `ANTHROPIC_API_KEY` is optional.
+Vercel builds with `npm run check:env && prisma generate && prisma migrate deploy && next build`. Configure the production variables described in [docs/DEPLOY.md](docs/DEPLOY.md): pooled `DATABASE_URL`, unpooled `DIRECT_URL`, `SESSION_SECRET`, final `NEXT_PUBLIC_BASE_URL`, Resend credentials, and `CRON_SECRET`; `GEMINI_API_KEY` is optional.
 
 The deployment is pinned to Singapore (`sin1`) to sit near the intended Neon database. Do not set `EMAIL_TRANSPORT` or `AI_TRANSPORT` in Vercel.
 

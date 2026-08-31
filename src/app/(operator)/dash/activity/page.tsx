@@ -47,7 +47,7 @@ export default async function ActivityPage() {
   const tz = venue.timezone
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
       <h1 className="text-xs tracking-widest text-muted uppercase">{en.dash.activity.heading}</h1>
       <p className="mt-2 text-lg tabular-nums">{en.dash.activity.funnel(funnel)}</p>
 
@@ -96,7 +96,7 @@ export default async function ActivityPage() {
 
 function Empty() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
       <h1 className="mb-8 text-xs tracking-widest text-muted uppercase">
         {en.dash.activity.heading}
       </h1>

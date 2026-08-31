@@ -5,6 +5,7 @@ import { readStaffSession } from '@/lib/staff-session'
 import { getArmRows, getKitchenLoad, getOpenService, getVenueConfig } from '@/lib/service'
 import { armAt } from '@/core/measurement/arm-assignment'
 import { Poller } from '@/app/(guest)/t/[qrToken]/Poller'
+import { SubmitButton } from '../SubmitButton'
 import {
   ackAddOn,
   closeService,
@@ -41,12 +42,12 @@ export default async function FloorPage() {
       <Shell venueName={null} clock={null}>
         <p className="text-lg text-staff-muted">{en.floor.service.none}</p>
         <form action={openService} className="mt-6">
-          <button
+          <SubmitButton
             type="submit"
             className="min-h-14 w-full rounded-xl bg-staff-ink px-5 text-lg font-semibold text-staff-ground"
           >
             {en.floor.service.start}
-          </button>
+          </SubmitButton>
         </form>
       </Shell>
     )
@@ -106,6 +107,8 @@ export default async function FloorPage() {
   // ── The one list: everything waiting, oldest first. ─────────────────────
   type Task = {
     key: string
+    /** The glanceable type — a server sorts the list with their eyes first. */
+    kind: 'order' | 'addon' | 'prize'
     tableLabel: string
     since: number
     body: React.ReactNode
@@ -117,12 +120,14 @@ export default async function FloorPage() {
       .filter((r) => !firedTableIds.has(r.table.id))
       .map((r) => ({
         key: `fire:${r.id}`,
+        kind: 'order' as const,
         tableLabel: r.table.label,
         since: r.openedAt.getTime(),
         body: <FireForm tableId={r.table.id} courses={courses} />,
       })),
     ...addOns.map((r) => ({
       key: `ack:${r.id}`,
+      kind: 'addon' as const,
       tableLabel: (r.tableRun ?? r.guestSession)?.table.label ?? en.common.none,
       since: r.requestedAt.getTime(),
       body: (
@@ -141,6 +146,7 @@ export default async function FloorPage() {
     })),
     ...awards.map((a) => ({
       key: `confirm:${a.id}`,
+      kind: 'prize' as const,
       tableLabel: a.tableRun?.table.label ?? en.common.none,
       since: a.createdAt.getTime(),
       body: (
@@ -192,7 +198,11 @@ export default async function FloorPage() {
         {(['GREEN', 'AMBER', 'RED'] as const).map((level) => {
           const on = load === level
           const bg =
-            level === 'GREEN' ? 'bg-load-green' : level === 'AMBER' ? 'bg-load-amber' : 'bg-load-red'
+            level === 'GREEN'
+              ? 'bg-load-green'
+              : level === 'AMBER'
+                ? 'bg-load-amber'
+                : 'bg-load-red'
           const label =
             level === 'GREEN'
               ? en.pass.load.green
@@ -229,10 +239,21 @@ export default async function FloorPage() {
                   i === 0 ? 'border border-staff-muted/50' : ''
                 }`}
               >
-                <div className="flex items-baseline justify-between">
-                  <span className="font-mono text-2xl font-semibold tabular-nums">
-                    {t.tableLabel}
-                  </span>
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <span className="font-mono text-2xl font-semibold tabular-nums">
+                      {t.tableLabel}
+                    </span>
+                    {/* The kind of row, readable before the detail is. No
+                        colour — position and the mono age carry urgency. */}
+                    <span className="shrink-0 rounded-full border border-staff-muted/40 px-2 py-0.5 text-xs tracking-wide text-staff-muted uppercase">
+                      {t.kind === 'order'
+                        ? en.floor.now.typeOrder
+                        : t.kind === 'addon'
+                          ? en.floor.now.typeAddOn
+                          : en.floor.now.typePrize}
+                    </span>
+                  </div>
                   <span
                     className={`font-mono text-sm tabular-nums ${
                       i === 0 ? 'text-staff-ink' : 'text-staff-muted'
@@ -304,7 +325,7 @@ export default async function FloorPage() {
                     <form key={m.id} action={recordAddOn}>
                       <input type="hidden" name="tableId" value={t.id} />
                       <input type="hidden" name="menuItemId" value={m.id} />
-                      <button
+                      <SubmitButton
                         type="submit"
                         className="transition-state flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-staff-muted/30 px-3 text-left text-sm active:border-staff-ink"
                       >
@@ -312,7 +333,7 @@ export default async function FloorPage() {
                         <span className="shrink-0 font-mono text-xs text-staff-muted tabular-nums">
                           {formatPaise(m.pricePaise)}
                         </span>
-                      </button>
+                      </SubmitButton>
                     </form>
                   ))}
                 </div>
@@ -324,20 +345,20 @@ export default async function FloorPage() {
 
       <div className="mt-10 flex gap-3 border-t border-staff-muted/20 pt-6">
         <form action={swapArms} className="flex-1">
-          <button
+          <SubmitButton
             type="submit"
             className="min-h-12 w-full rounded-lg border border-staff-muted/40 text-sm text-staff-muted"
           >
             {en.floor.service.swap}
-          </button>
+          </SubmitButton>
         </form>
         <form action={closeService} className="flex-1">
-          <button
+          <SubmitButton
             type="submit"
             className="min-h-12 w-full rounded-lg border border-staff-muted/40 text-sm text-staff-muted"
           >
             {en.floor.service.end}
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </Shell>
@@ -401,12 +422,12 @@ function FireForm({ tableId, courses }: { tableId: string; courses: string[] }) 
         </details>
       )}
 
-      <button
+      <SubmitButton
         type="submit"
         className="transition-state mt-2 min-h-11 w-full rounded-lg bg-staff-ink text-sm font-semibold text-staff-ground active:bg-staff-muted"
       >
         {en.floor.tables.fireOrder}
-      </button>
+      </SubmitButton>
     </form>
   )
 }
@@ -419,7 +440,7 @@ function FireForm({ tableId, courses }: { tableId: string; courses: string[] }) 
  */
 function TaskButton({ detail, action }: { detail: string; action: string }) {
   return (
-    <button
+    <SubmitButton
       type="submit"
       className="transition-state flex min-h-14 w-full items-center justify-between gap-4 rounded-lg bg-staff-ink px-4 text-left text-staff-ground"
     >
@@ -427,7 +448,7 @@ function TaskButton({ detail, action }: { detail: string; action: string }) {
       <span className="shrink-0 rounded-md bg-staff-ground/20 px-3 py-1.5 text-sm font-semibold">
         {action}
       </span>
-    </button>
+    </SubmitButton>
   )
 }
 

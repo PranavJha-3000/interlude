@@ -91,14 +91,19 @@ test('a venue-less operator keeps nav and sign-out, and is not bounced off activ
 
   // Signed in is signed in. The shell must not treat "no venue yet" as
   // "no session" — that leaves them with no way to sign out of a session
-  // they demonstrably have.
+  // they demonstrably have. The nav is grouped, so on this mobile viewport
+  // the drawer carries both the groups and the sign-out control.
+  await expect(page.getByRole('button', { name: 'Open menu' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open menu' }).click()
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Tonight' })).toBeVisible()
+  // Activity lives in the Insights group of the drawer.
   await expect(page.getByRole('link', { name: 'Activity' })).toBeVisible()
 
   await page.goto('/dash/activity')
   await expect(page).toHaveURL(/\/dash\/activity$/)
   await expect(page.locator('main')).toContainText('No service running')
+  await page.getByRole('button', { name: 'Open menu' }).click()
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
 
@@ -138,6 +143,9 @@ test('a signed-in operator can open the tent sheet from the nav', async ({ page 
   await page.goto(`/signin/verify?token=${encodeURIComponent(token)}`)
   await expect(page).toHaveURL(/\/dash$/)
 
+  // Tents is a Manage destination now; on this mobile viewport the Manage
+  // group lives in the drawer.
+  await page.getByRole('button', { name: 'Open menu' }).click()
   await page.getByRole('link', { name: 'Tents' }).click()
   await expect(page).toHaveURL(/\/tents$/)
   await expect(page.getByRole('heading', { name: 'Table tents' })).toBeVisible()

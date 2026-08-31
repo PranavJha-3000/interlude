@@ -69,7 +69,7 @@ export default async function TentsPage() {
   )
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10 print:m-0 print:max-w-none print:p-0">
+    <main className="mx-auto max-w-6xl px-6 py-10 print:m-0 print:max-w-none print:p-0">
       {/* Print geometry, not theme — the tent is a 105×148mm object and the
           sheet is A4. Screen keeps a responsive preview of the same markup. */}
       <style>{`

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { db, signInWithPassword, signUpWithPassword } from './fixtures'
+import { db, signInWithPassword, signOutViaNav, signUpWithPassword } from './fixtures'
 import { PASSWORD_MIN_LENGTH } from '../src/lib/password'
 
 /**
@@ -47,15 +47,16 @@ test('signing up lands in the wizard, with no venue yet', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/onboarding$/)
   await expect(page.locator('main')).toContainText('Tell us about the venue')
-  // Signed in is signed in, even before onboarding attaches a venue.
+  // Signed in is signed in, even before onboarding attaches a venue. The
+  // sign-out control lives in the drawer on this mobile viewport.
+  await page.getByRole('button', { name: 'Open menu' }).click()
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
 
 test('a new account can sign out and sign back in with the same password', async ({ page }) => {
   const email = await signUpWithPassword(page, GOOD_PASSWORD, 'round-trip')
 
-  await page.getByRole('button', { name: 'Sign out' }).click()
-  await page.waitForLoadState('networkidle')
+  await signOutViaNav(page)
 
   await signInWithPassword(page, email, GOOD_PASSWORD)
 
@@ -103,8 +104,7 @@ test('an operator who only ever had a magic link cannot be signed into with a gu
 
 test('signing up twice with one address is refused, and says so', async ({ page }) => {
   const email = await signUpWithPassword(page, GOOD_PASSWORD, 'duplicate')
-  await page.getByRole('button', { name: 'Sign out' }).click()
-  await page.waitForLoadState('networkidle')
+  await signOutViaNav(page)
 
   await page.goto('/signup')
   await page.getByLabel('Your email').fill(email)
