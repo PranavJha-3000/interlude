@@ -13,4 +13,8 @@ import type { Mechanic } from './types'
  * `defaultVenueGames()` — no migration and no backfill, which is what the
  * `VenueGame` schema comment promises.
  */
-export const MECHANICS = ['BEAT_THE_KITCHEN', 'SECRET_RECIPE', 'MYSTERY_CUSTOMER'] as const satisfies readonly Mechanic[]
+export const MECHANICS = [
+  'BEAT_THE_KITCHEN',
+  'SECRET_RECIPE',
+  'MYSTERY_CUSTOMER',
+] as const satisfies readonly Mechanic[]

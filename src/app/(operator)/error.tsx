@@ -19,7 +19,10 @@ export default function OperatorError({ reset }: { reset: () => void }) {
         >
           {en.common.retry}
         </button>
-        <Link href="/dash" className="min-h-14 rounded-xl border-2 border-line px-5 text-lg font-medium leading-[3.5rem]">
+        <Link
+          href="/dash"
+          className="min-h-14 rounded-xl border-2 border-line px-5 text-lg font-medium leading-[3.5rem]"
+        >
           {en.common.back} to dashboard
         </Link>
       </div>

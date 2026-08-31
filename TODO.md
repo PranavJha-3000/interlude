@@ -18,7 +18,7 @@
 - **Staff & Pass surfaces**: `/floor/[venueSlug]` (order fire with party size + courses, add-on tickets, code redemptions), `/pass` (kitchen load, vetoes, emergency kill switch).
 - **Measurement & Tenancy**: Service-level arm assignment (`ServiceArmAssignment`), append-only event log (`Event`), multi-tenant session isolation (`requireOperator()`), salted per-venue phone hashing (`GuestIdentity`), pooled CLI (`scripts/pilot-report.mts`).
 - **Deploy & Env verification**: `src/lib/deploy-env.ts` with `scripts/check-env.mts` build gate and `src/instrumentation.ts` boot check.
-- **Test suite**: 535 unit tests (41 files) and 84 Playwright E2E tests (17 specs) passing; production `next build` green.
+- **Test suite**: 577 unit tests (44 files) and 18 Playwright E2E specs passing; production `next build` green.
 
 ## RULES
 - `core/` must remain pure: no I/O, no DB, no clock, no AI, no network.

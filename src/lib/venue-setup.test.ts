@@ -133,7 +133,7 @@ describe('the games a venue is born with', () => {
     expect(new Set(orders).size).toBe(orders.length)
   })
 
-// `/dash/games` lists MECHANICS and `setVenueGameEnabled` upserts the row, so
+  // `/dash/games` lists MECHANICS and `setVenueGameEnabled` upserts the row, so
   // a mechanic missing from here would still be switchable — but it would be
   // born off, and a venue created after it shipped would not offer it until
   // someone noticed. The two lists have to stay in step.

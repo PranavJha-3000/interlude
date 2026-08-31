@@ -150,8 +150,7 @@ function narrateReportRequest(metrics: WeeklyMetrics): {
     ...(metrics.venueName.match(/\d+/g) ?? []),
   ]
 
-  const scan =
-    metrics.scanRatePct === null ? '' : `\n- Scan rate: ${metrics.scanRatePct}%`
+  const scan = metrics.scanRatePct === null ? '' : `\n- Scan rate: ${metrics.scanRatePct}%`
   if (metrics.scanRatePct !== null) figures.push(`${metrics.scanRatePct}%`)
   const caveat = metrics.estimateOnly
     ? 'app-side estimate (blind to cash tips and to what these tables would have ordered anyway)'
@@ -289,7 +288,10 @@ export function geminiAdapter(apiKey: string): AiAdapter {
         return { ok: false, reason: 'Add menu items with prices first.' }
       }
       const data = dataFrom(
-        await request(mysteryCustomersPrompt(venueName, menu, courseOrder), GEMINI_MYSTERY_CUSTOMER_SCHEMA)
+        await request(
+          mysteryCustomersPrompt(venueName, menu, courseOrder),
+          GEMINI_MYSTERY_CUSTOMER_SCHEMA
+        )
       )
       if (!data.ok) return data
       return parseMysteryCustomerCandidates(data.data)

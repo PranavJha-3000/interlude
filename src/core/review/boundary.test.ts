@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ESLint } from 'eslint'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { buildWriteReviewUrl } from './link'
 
 /**
@@ -75,6 +75,20 @@ describe('the review boundaries actually fire', () => {
     const [result] = await eslint.lintText(source, { filePath })
     return (result?.messages ?? []).map((m) => m.message)
   }
+
+  // The first lint in the process pays for loading the whole flat config —
+  // next's core-web-vitals and typescript presets and every parser they pull
+  // in — and on a cold, sync-backed checkout that cold start alone can exceed
+  // the probes' timeout. The failure mode is dishonest: the first assertion
+  // times out while the rest, running hot, pass in milliseconds, and a real
+  // boundary regression would be lost in the noise. One warm-up lint absorbs
+  // the cold start before any boundary is asserted.
+  beforeAll(async () => {
+    const eslint = new ESLint({ cwd: process.cwd() })
+    await eslint.lintText('export const warm = 1\n', {
+      filePath: join(process.cwd(), 'src', 'core', 'review', '__warmup.ts'),
+    })
+  }, 120_000)
 
   it('stops the review screen importing game state', async () => {
     const messages = await messagesFor(

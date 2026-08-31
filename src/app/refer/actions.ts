@@ -82,4 +82,3 @@ export async function submitReferral(formData: FormData): Promise<void> {
 
   redirect('/refer?submitted=1')
 }
-

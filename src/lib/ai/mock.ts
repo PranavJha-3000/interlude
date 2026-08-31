@@ -8,7 +8,6 @@ import type {
   MysteryCustomerGenResult,
   NarrationResult,
   SecretRecipeGenResult,
-  WeeklyMetrics,
 } from './types'
 import {
   parseDescribeItems,

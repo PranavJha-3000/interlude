@@ -20,15 +20,13 @@ try {
        FROM "Referral"
       ORDER BY "createdAt" DESC
       LIMIT $1`,
-    [limit],
+    [limit]
   )
 
   console.log(`${result.rowCount} referral(s), newest first:\n`)
   for (const r of result.rows) {
     console.log(`— ${r.restaurantName} · ${r.location}`)
-    console.log(
-      `  POC: ${r.pocName} (${r.pocRoleTitle}) — ${r.pocPhone}`,
-    )
+    console.log(`  POC: ${r.pocName} (${r.pocRoleTitle}) — ${r.pocPhone}`)
     console.log(`  Referred by: ${r.referrerName} — ${r.referrerContact}`)
     console.log(`  At: ${r.createdAt?.toISOString?.() ?? r.createdAt}\n`)
   }

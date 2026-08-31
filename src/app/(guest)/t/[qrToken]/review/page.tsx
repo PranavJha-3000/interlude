@@ -50,7 +50,13 @@ export default async function ReviewPage({ params }: { params: Promise<{ qrToken
 
   // `atBill: true` — reaching this screen is the table wrapping up. The
   // function exists so the condition has exactly one input.
-  if (!shouldShowReviewPrompt({ tableRunId: device.tableRunId, serviceId: scan.serviceId, atBill: true })) {
+  if (
+    !shouldShowReviewPrompt({
+      tableRunId: device.tableRunId,
+      serviceId: scan.serviceId,
+      atBill: true,
+    })
+  ) {
     redirect(`/t/${qrToken}`)
   }
 

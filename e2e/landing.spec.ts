@@ -6,7 +6,10 @@ test('the landing page offers one way in', async ({ page }) => {
 
   // The front door is for an owner who has no account yet, so the one way in is
   // signup. Signing in is a link from there, not the thing they are shown first.
-  await expect(page.getByRole('link', { name: 'Get started' }).first()).toHaveAttribute('href', '/signup')
+  await expect(page.getByRole('link', { name: 'Get started' }).first()).toHaveAttribute(
+    'href',
+    '/signup'
+  )
 })
 
 test('the landing page implies no draw, wheel or lottery', async ({ page }) => {
@@ -43,7 +46,10 @@ test('the landing does not overclaim in certification language', async ({ page }
 
 test('every CTA reaches a real surface', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Get started' }).first()).toHaveAttribute('href', '/signup')
+  await expect(page.getByRole('link', { name: 'Get started' }).first()).toHaveAttribute(
+    'href',
+    '/signup'
+  )
   await expect(page.getByRole('link', { name: 'Refer a Restaurant' }).first()).toHaveAttribute(
     'href',
     '/refer'

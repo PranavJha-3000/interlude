@@ -3,12 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireOperator } from '@/lib/operator-session'
-import {
-  approveAiDraft,
-  editAiDraft,
-  generateNarrationDraft,
-  rejectAiDraft,
-} from '@/lib/ai-drafts'
+import { approveAiDraft, editAiDraft, generateNarrationDraft, rejectAiDraft } from '@/lib/ai-drafts'
 
 /**
  * AI narration actions for the command center (PLATFORM.md §6a).

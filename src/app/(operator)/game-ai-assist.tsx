@@ -80,7 +80,7 @@ export function GamesAiAssist({
             )}
           </ul>
         </section>
-<section>
+        <section>
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
               {en.dash.aiAssist.mysteryHeading}
@@ -166,8 +166,7 @@ export function GamesAiAssist({
             >
               <div className="mt-2 grid gap-1 text-sm text-muted">
                 <p>
-                  <span className="text-xs uppercase">{en.dash.aiAssist.intro}</span>{' '}
-                  {d.introCopy}
+                  <span className="text-xs uppercase">{en.dash.aiAssist.intro}</span> {d.introCopy}
                 </p>
                 <p>
                   <span className="text-xs uppercase">{en.dash.aiAssist.prompt}</span>{' '}

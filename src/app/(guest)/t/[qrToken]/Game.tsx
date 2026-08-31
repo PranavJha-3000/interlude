@@ -497,9 +497,7 @@ function Outcome({
       {reason === 'ABANDONED' && (
         <p className="mt-2 text-sm text-muted">{en.guest.game.outOfPairs}</p>
       )}
-      {!arrived && !canTake && (
-        <p className="mt-8 text-base text-muted">{en.guest.game.enjoy}</p>
-      )}
+      {!arrived && !canTake && <p className="mt-8 text-base text-muted">{en.guest.game.enjoy}</p>}
 
       {offline && <p className="mt-4 text-sm text-loss">{en.common.offline}</p>}
 

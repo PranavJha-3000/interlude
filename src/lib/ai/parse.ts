@@ -17,11 +17,6 @@ import type {
  * fact — and none of it is saved until the operator confirms anyway.
  */
 
-const menuModifier = z.object({
-  name: z.string(),
-  priceDeltaRupees: z.number(),
-})
-
 const rawItem = z.object({
   name: z.string(),
   description: z.string().optional(),
@@ -110,11 +105,7 @@ export function parseMenuDraft(raw: unknown): { ok: true; draft: MenuDraft } | {
   return { ok: true, draft: { items, warnings } }
 }
 
-function sanitisedModifiers(
-  raw: unknown,
-  itemName: string,
-  warnings: string[]
-): MenuModifier[] {
+function sanitisedModifiers(raw: unknown, itemName: string, warnings: string[]): MenuModifier[] {
   const out: MenuModifier[] = []
   if (!Array.isArray(raw)) return out
   for (const m of raw.slice(0, 6)) {
@@ -155,7 +146,9 @@ export function extractJson(text: string): unknown {
 // that oversteps its figures all become a refusal rather than a row.
 
 /** Text → JSON, for models that wrap the payload in prose or fences. */
-export function jsonFromText(text: string | null): { ok: true; data: unknown } | { ok: false; reason: string } {
+export function jsonFromText(
+  text: string | null
+): { ok: true; data: unknown } | { ok: false; reason: string } {
   if (!text || text.trim() === '') return { ok: false, reason: 'The model returned nothing.' }
   const raw = extractJson(text)
   if (raw === null) return { ok: false, reason: 'The model returned something unreadable.' }
@@ -389,8 +382,14 @@ export function parseMysteryCustomerCandidates(
 
   for (const row of shaped.data.candidates.slice(0, MAX_CANDIDATES)) {
     const profileId = row.profileId.trim()
-    const cravings = row.cravings.map((c) => String(c).trim()).filter(Boolean).slice(0, 6)
-    const preferences = row.preferences.map((p) => String(p).trim()).filter(Boolean).slice(0, 6)
+    const cravings = row.cravings
+      .map((c) => String(c).trim())
+      .filter(Boolean)
+      .slice(0, 6)
+    const preferences = row.preferences
+      .map((p) => String(p).trim())
+      .filter(Boolean)
+      .slice(0, 6)
     const scenarioCopy = row.scenarioCopy.trim().slice(0, 360)
 
     if (!profileId || seenIds.has(profileId)) {
@@ -411,11 +410,7 @@ export function parseMysteryCustomerCandidates(
       warnings.push('Dropped a persona with no craving — the scorer needs one.')
       continue
     }
-    if (
-      !Number.isFinite(row.appetiteDishes) ||
-      row.appetiteDishes < 1 ||
-      row.appetiteDishes > 6
-    ) {
+    if (!Number.isFinite(row.appetiteDishes) || row.appetiteDishes < 1 || row.appetiteDishes > 6) {
       warnings.push('Dropped a persona whose appetite was not between 1 and 6 dishes.')
       continue
     }

@@ -256,4 +256,3 @@ export default async function ReferPage({ searchParams }: { searchParams: ReferS
     </div>
   )
 }
-

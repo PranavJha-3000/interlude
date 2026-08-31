@@ -3,7 +3,9 @@ import { csvToDraft, parseMenuCsv } from './menu-csv'
 
 describe('parseMenuCsv', () => {
   it('reads the basic shape', () => {
-    const result = parseMenuCsv('name,category,price\nButter Chicken,mains,520\nGarlic Naan,breads,90\n')
+    const result = parseMenuCsv(
+      'name,category,price\nButter Chicken,mains,520\nGarlic Naan,breads,90\n'
+    )
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.rows).toHaveLength(2)

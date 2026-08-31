@@ -45,11 +45,7 @@ const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 /** Categories a bill line must hit to count as an attach. */
 const ATTACH_CATEGORIES = new Set(['desserts', 'beverages'])
 
-async function countsFor(venue: {
-  id: string
-  slug: string
-  name: string
-}): Promise<VenueCounts> {
+async function countsFor(venue: { id: string; slug: string; name: string }): Promise<VenueCounts> {
   const services = await db.service.findMany({
     where: { venueId: venue.id, startedAt: { gte: since } },
     select: { id: true, arm: true },
@@ -194,7 +190,9 @@ const active = counts.filter((c) => c.runsStarted > 0 || c.tablesTented > 0)
 const report = pilotReport(active)
 
 const line = '─'.repeat(64)
-console.log(`\nPILOT REPORT — last ${days} day${days === 1 ? '' : 's'}, ${active.length} venue${active.length === 1 ? '' : 's'}`)
+console.log(
+  `\nPILOT REPORT — last ${days} day${days === 1 ? '' : 's'}, ${active.length} venue${active.length === 1 ? '' : 's'}`
+)
 // What went into the pool, always. A pooled rate whose membership is not
 // stated is a number nobody can check, including us.
 console.log(
@@ -229,7 +227,9 @@ for (const v of [...report.venues, report.pooled]) {
   console.log(`  Confirmed add-ons      ${v.confirmedAddOns}  (exact — every row a confirmed sale)`)
   console.log(`  Add-on gross           ${formatPaise(v.addOnGrossPaise)}`)
   console.log(`  Add-on contribution    ${formatPaise(v.addOnContributionPaise)}`)
-  console.log(`  Prize cost             ${formatPaise(v.prizeCostPaise)}  (${v.prizesClaimed} claimed)`)
+  console.log(
+    `  Prize cost             ${formatPaise(v.prizeCostPaise)}  (${v.prizesClaimed} claimed)`
+  )
   console.log(`  Net contribution       ${formatPaise(v.netContributionPaise)}`)
 }
 

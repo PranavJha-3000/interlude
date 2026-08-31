@@ -225,7 +225,12 @@ export async function editGameDraft(formData: FormData): Promise<void> {
       scenarioCopy: String(formData.get('scenarioCopy') ?? ''),
       ...(budgetRupees.trim() !== '' ? { budgetRupees: Number(budgetRupees) } : {}),
       ...(cravings.trim() !== ''
-        ? { cravings: cravings.split(',').map((c) => c.trim()).filter(Boolean) }
+        ? {
+            cravings: cravings
+              .split(',')
+              .map((c) => c.trim())
+              .filter(Boolean),
+          }
         : {}),
     }
   }

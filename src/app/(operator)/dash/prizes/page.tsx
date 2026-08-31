@@ -415,8 +415,16 @@ export default async function PrizesPage({
         <p className="mt-1 text-sm text-muted">{en.dash.prizes.weights.body}</p>
         <form action={updateWeights} className="mt-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field name="notSelling" label={en.dash.prizes.weights.notSelling} defaultValue={weights.notSelling} />
-            <Field name="slowMover" label={en.dash.prizes.weights.slowMover} defaultValue={weights.slowMover} />
+            <Field
+              name="notSelling"
+              label={en.dash.prizes.weights.notSelling}
+              defaultValue={weights.notSelling}
+            />
+            <Field
+              name="slowMover"
+              label={en.dash.prizes.weights.slowMover}
+              defaultValue={weights.slowMover}
+            />
             <Field
               name="fastMoverPenalty"
               label={en.dash.prizes.weights.fastMoverPenalty}

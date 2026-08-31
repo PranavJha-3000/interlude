@@ -45,7 +45,9 @@ interface ParsedItem {
   isHero: boolean
 }
 
-function parseItemForm(formData: FormData): { ok: true; item: ParsedItem } | { ok: false; error: string } {
+function parseItemForm(
+  formData: FormData
+): { ok: true; item: ParsedItem } | { ok: false; error: string } {
   const name = String(formData.get('name') ?? '').trim()
   const pricePaise = parseRupeesToPaise(String(formData.get('price') ?? ''))
   const foodCostPaise = parseRupeesToPaise(String(formData.get('cost') ?? ''))
@@ -62,7 +64,10 @@ function parseItemForm(formData: FormData): { ok: true; item: ParsedItem } | { o
     ok: true,
     item: {
       name,
-      category: String(formData.get('category') ?? 'mains').trim().toLowerCase() || 'mains',
+      category:
+        String(formData.get('category') ?? 'mains')
+          .trim()
+          .toLowerCase() || 'mains',
       pricePaise,
       foodCostPaise,
       marginTier: MARGIN_TIERS.find((t) => t === rawTier) ?? 'MID',

@@ -24,8 +24,7 @@ export interface LoyaltyRewardInput {
 }
 
 export type LoyaltyRewardResult =
-  | { chosen: PrizeEntry; reason: string }
-  | { chosen: null; reason: string }
+  { chosen: PrizeEntry; reason: string } | { chosen: null; reason: string }
 
 /** Local, as `core/measurement/weekly-report.ts` does it — `core/` does not
  *  reach into `lib/` for a formatter. */
