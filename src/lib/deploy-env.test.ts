@@ -31,7 +31,7 @@ const GOOD: Record<string, string | undefined> = {
   DIRECT_URL:
     'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=verify-full',
   SESSION_SECRET: 'a'.repeat(64),
-  NEXT_PUBLIC_BASE_URL: 'https://interlude.example.com',
+  APP_BASE_URL: 'https://interlude.example.com',
   // RESEND_API_KEY, EMAIL_FROM, and CRON_SECRET are now optional (warning only).
   // Operator sign-in uses email+password and does not require Resend.
   GEMINI_API_KEY: 'AIza-test',
@@ -89,17 +89,15 @@ describe('checkDeploymentEnv', () => {
     expect(fatalNames({ ...GOOD, SESSION_SECRET: 'short' })).toContain('SESSION_SECRET')
   })
 
-  it('refuses a NEXT_PUBLIC_BASE_URL pointing at localhost', () => {
+  it('refuses an APP_BASE_URL pointing at localhost', () => {
     // This one is printed. A tent sheet with a localhost QR is paper that has
     // to be thrown away and reprinted, and nobody notices until a guest scans.
-    expect(fatalNames({ ...GOOD, NEXT_PUBLIC_BASE_URL: 'http://localhost:3000' })).toContain(
-      'NEXT_PUBLIC_BASE_URL'
-    )
+    expect(fatalNames({ ...GOOD, APP_BASE_URL: 'http://localhost:3000' })).toContain('APP_BASE_URL')
   })
 
-  it('refuses a NEXT_PUBLIC_BASE_URL that is not https', () => {
-    expect(fatalNames({ ...GOOD, NEXT_PUBLIC_BASE_URL: 'http://interlude.example.com' })).toContain(
-      'NEXT_PUBLIC_BASE_URL'
+  it('refuses an APP_BASE_URL that is not https', () => {
+    expect(fatalNames({ ...GOOD, APP_BASE_URL: 'http://interlude.example.com' })).toContain(
+      'APP_BASE_URL'
     )
   })
 

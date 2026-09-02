@@ -26,7 +26,7 @@ You need four accounts. Three are free at this scale.
 
 ## 1. Decide the public origin first
 
-`NEXT_PUBLIC_BASE_URL` is inlined at build time and **printed onto the table tents**. Paper cannot
+`APP_BASE_URL` is rendered server-side into the table tents and onboarding QR. Paper cannot
 be redeployed. Settle the final domain before the first build, not after.
 
 If the pilot runs on a `*.vercel.app` domain, that is fine — but it must be the *production* alias,
@@ -82,13 +82,17 @@ All of these go in the Vercel project, scoped to Production (and Preview, if you
 DATABASE_URL          pooled Neon URL (hostname contains -pooler) + ?sslmode=verify-full
 DIRECT_URL            unpooled Neon URL + ?sslmode=verify-full
 SESSION_SECRET        64 hex chars from step 3
-NEXT_PUBLIC_BASE_URL  https://your-final-domain          ← https, never localhost
+APP_BASE_URL          https://your-final-domain          ← https, never localhost
 RESEND_API_KEY        re_...
 EMAIL_FROM            Interlude <signin@your-verified-domain>
 CRON_SECRET           64 hex chars from step 3
 GEMINI_API_KEY        AIza...   (optional — omit and menu photo/PDF reading is unavailable)
 AI_MODEL              gemini-2.5-flash   (optional; this is the default)
 ```
+
+`APP_BASE_URL` is intentionally **not** a `NEXT_PUBLIC_*` variable. The value ships into
+server-rendered pages only, never reaches the browser, and Vercel keeps it out of the client
+bundle. The QR is the only place this value lands, and that happens on the server.
 
 Both Postgres URLs carry `?sslmode=verify-full` explicitly. `require`, `prefer` and `verify-ca`
 are aliases for `verify-full` today, but `pg` v9 / `pg-connection-string` v3 adopt libpq semantics
@@ -157,7 +161,7 @@ Either way the checks are:
 - A **control** table must fail indistinguishably from a closed venue. If you can tell them apart,
   the experiment is contaminated.
 - Print a tent sheet from `/tents` and scan it **off paper**. This is where a wrong
-  `NEXT_PUBLIC_BASE_URL` finally shows up, and by then it is a stack of wasted paper.
+  `APP_BASE_URL` finally shows up, and by then it is a stack of wasted paper.
 - `/floor/<venueSlug>` and `/pass` on the staff phones, with venue PINs.
 
 ## 8. Verify the cron before Monday

@@ -9,7 +9,7 @@ import { getConcededSoFarPaise, getEnabledGames, getOpenService } from '@/lib/se
 import { getDashboardData } from '@/lib/dashboard'
 import { narrationDraftViews } from '@/lib/ai-drafts'
 import { NarrationCard } from '../ai-assist-ui'
-import { startService } from './actions'
+import { startService, endService } from './actions'
 import {
   approveNarrationDraft,
   editNarrationDraft,
@@ -17,6 +17,7 @@ import {
   rejectNarrationDraft,
 } from './ai-actions'
 import { SubmitButton } from '../../(staff)/SubmitButton'
+import { RunningSince } from './RunningSince'
 
 export const dynamic = 'force-dynamic'
 
@@ -116,8 +117,9 @@ export default async function DashPage({
     // be a lie told to fill space.
     return (
       <Shell>
+        <p className="text-lg">{serviceStatus}</p>
         <ServiceCard
-          status={serviceStatus}
+          status={null}
           running={false}
           killed={false}
           games={enabledGames.map(mechanicLabel)}
@@ -137,8 +139,18 @@ export default async function DashPage({
     <Shell>
       {/* ── 1 · Context ────────────────────────────────────────────────────
           Which night this is, and whether it is running. The command center's
-          first line answers the operator's first question. */}
-      <p className="text-lg">{serviceStatus}</p>
+          first line answers the operator's first question. The "running since"
+          figure ticks on the client (see RunningSince) so the line never
+          appears stuck. */}
+      <p className="text-lg">
+        {service ? (
+          <RunningSince startedAtMs={service.startedAt.getTime()} timezone={tz}>
+            {(since) => en.dash.service.running(since)}
+          </RunningSince>
+        ) : (
+          serviceStatus
+        )}
+      </p>
 
       {/* ── 2 · The command row ───────────────────────────────────────────
           One number, large, in the mono. The tier chip sits beside it, so the
@@ -201,7 +213,7 @@ export default async function DashPage({
           The operational section: is tonight running, what is on, and how far
           it has reached — with the one action this state calls for. */}
       <ServiceCard
-        status={serviceStatus}
+        status={service ? null : serviceStatus}
         running={Boolean(service)}
         killed={service?.killedAt !== null && service?.killedAt !== undefined}
         games={enabledGames.map(mechanicLabel)}
@@ -529,9 +541,10 @@ function clockTime(atMs: number, timezone: string): string {
 /**
  * Tonight's service card: the operational section of the command center. It
  * shows the state and offers the one action the state calls for — Start
- * Service when idle, View Tonight when running. The Start button is ink, not
+ * Service when idle, End Service when running. The Start button is ink, not
  * accent: money owns the accent ledger on this screen, and a control is not
- * money.
+ * money. End Service is a bordered, secondary control, also ink, with a
+ * confirm step so a misclick does not close a live night.
  */
 function ServiceCard({
   status,
@@ -540,7 +553,7 @@ function ServiceCard({
   games,
   tablesEngaged,
 }: {
-  status: string
+  status: string | null
   running: boolean
   killed: boolean
   games: string[]
@@ -549,14 +562,27 @@ function ServiceCard({
   return (
     <section className="mt-10 rounded-2xl border border-line bg-warm p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-lg font-medium">{status}</p>
+        {status !== null && <p className="text-lg font-medium">{status}</p>}
         {running ? (
-          <Link
-            href="/dash/activity"
-            className="rounded-xl border border-ink px-4 py-2.5 text-sm font-medium transition-state hover:bg-ink hover:text-paper"
-          >
-            {en.dash.service.viewTonight}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dash/activity"
+              className="rounded-xl border border-ink px-4 py-2.5 text-sm font-medium transition-state hover:bg-ink hover:text-paper"
+            >
+              {en.dash.service.viewTonight}
+            </Link>
+            <form action={endService}>
+              <SubmitButton
+                type="submit"
+                className="min-h-11 rounded-xl border-2 border-ink bg-paper px-4 text-sm font-semibold text-ink transition-state hover:bg-ink hover:text-paper"
+                onClick={(event) => {
+                  if (!window.confirm(en.dash.service.endConfirm)) event.preventDefault()
+                }}
+              >
+                {en.dash.service.end}
+              </SubmitButton>
+            </form>
+          </div>
         ) : (
           <form action={startService}>
             <SubmitButton

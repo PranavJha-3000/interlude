@@ -2,7 +2,7 @@
  * The boot-time environment check (TODO.md build item 8).
  *
  * Every variable already refuses at its own point of use — `db.ts` on
- * `DATABASE_URL`, `base-url.ts` on `NEXT_PUBLIC_BASE_URL`, `email.ts` on
+ * `DATABASE_URL`, `base-url.ts` on `APP_BASE_URL`, `email.ts` on
  * `RESEND_API_KEY`. Those refusals stay; they are the last line. This module is
  * the first line, and it exists because "throws at first use" and "fails at
  * boot" are not the same promise:
@@ -108,20 +108,23 @@ export function checkDeploymentEnv(env: Env): EnvProblem[] {
   }
 
   // --- Public origin -------------------------------------------------------
-  const base = env.NEXT_PUBLIC_BASE_URL
+  // The base URL the printed tents and onboarding QR encode. Server-rendered
+  // only, so it lives as a regular env var (not `NEXT_PUBLIC_*`) — there is
+  // nothing to expose, and we keep the slot.
+  const base = env.APP_BASE_URL
   if (missing(base)) {
-    fatal('NEXT_PUBLIC_BASE_URL', 'Not set. Every printed QR and sign-in link needs an origin.')
+    fatal('APP_BASE_URL', 'Not set. Every printed QR and sign-in link needs an origin.')
   } else if (/localhost|127\.0\.0\.1/.test(base!)) {
     // This one gets printed onto paper and put on a table. It cannot be
     // recalled, and nobody finds out until a guest scans it and gets nothing.
     fatal(
-      'NEXT_PUBLIC_BASE_URL',
+      'APP_BASE_URL',
       'Points at localhost. Table tents are printed from this — every QR would ' +
         "resolve to the scanning phone's own machine."
     )
   } else if (!base!.startsWith('https://')) {
     fatal(
-      'NEXT_PUBLIC_BASE_URL',
+      'APP_BASE_URL',
       'Not https. Session cookies are set `secure` in production and will not be ' +
         'sent over http, so no session survives a request.'
     )

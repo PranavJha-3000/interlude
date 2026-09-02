@@ -1,7 +1,7 @@
 # TODO
 
 ## NOW
-- [ ] **Deploy to Vercel (Item 8)**: Configure Vercel project, set production env vars (`DATABASE_URL` pooled, `DIRECT_URL` unpooled, `SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `GEMINI_API_KEY`), build command `npm run check:env && prisma generate && prisma migrate deploy && next build`, region `sin1`. See [docs/DEPLOY.md](docs/DEPLOY.md).
+- [ ] **Deploy to Vercel (Item 8)**: Configure Vercel project, set production env vars (`DATABASE_URL` pooled, `DIRECT_URL` unpooled, `SESSION_SECRET`, `APP_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `GEMINI_API_KEY`), build command `npm run check:env && prisma generate && prisma migrate deploy && next build`, region `sin1`. See [docs/DEPLOY.md](docs/DEPLOY.md).
 - [ ] **Validate POS bill import with live export**: Run `/dash/import` against a real pilot-venue POS export file (not fixture data) and verify `PosTableMap` resolution.
 
 ## NEXT

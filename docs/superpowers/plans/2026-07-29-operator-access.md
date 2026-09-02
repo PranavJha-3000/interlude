@@ -603,7 +603,7 @@ export async function requestLink(formData: FormData): Promise<void> {
   // nothing. Everything past this point returns the same screen either way.
   if (!looksLikeEmail(email)) redirect('/signin?error=invalid_email')
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  const base = process.env.APP_BASE_URL ?? 'http://localhost:3000'
   await requestMagicLink(email, base, Date.now())
 
   // Identical response whether the address is known, unknown, or rate-limited.

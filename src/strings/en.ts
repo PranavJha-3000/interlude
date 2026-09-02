@@ -133,7 +133,23 @@ export const en = {
         fileLabel: 'Menu file',
         submit: 'Read my menu',
         csvHint: 'CSV columns: name, category, price — and optionally cost. Prices in rupees.',
+        // The generic catch-all, kept for the case every specific check missed.
+        // Every other key in this block is a more useful version of the same
+        // sentence — the action maps specific reasons to specific keys, and the
+        // page renders the most helpful one.
         failed: 'That file could not be read. Try another photo, a CSV, or add items by hand.',
+        empty: 'That file looks empty. Pick a photo, a PDF, or a CSV with at least one row.',
+        tooLarge: 'That file is too large. The photo upload is capped at 8 MB — try a smaller one.',
+        unsupported:
+          'That file type isn’t supported. A photo (JPG/PNG), a PDF, or a CSV will all work.',
+        csvHeader:
+          'The CSV needs a header row. The first row must include at least "name" and "price".',
+        csvEmpty:
+          'No menu rows could be read from that CSV. Check the header and that the data is below it.',
+        aiUnavailable:
+          'Photo and PDF reading is not available right now. A CSV, or typing items in by hand, will still get you going.',
+        aiFailed: 'The menu reader could not read this file. Try a clearer photo, a CSV, or add items by hand.',
+        noItems: 'The menu reader didn’t find any items on that page. Try a different photo, or add items by hand.',
         draftHeading: 'Check what we read',
         draftBody:
           'Untick anything wrong, fix names and prices in place. Nothing is saved until you confirm.',
@@ -593,6 +609,8 @@ export const en = {
       running: (time: string) => `Running since ${time}`,
       last: 'Last service',
       viewTonight: 'View tonight',
+      end: 'End service',
+      endConfirm: 'End tonight? Tables can still scan, but the dashboard stops being live.',
       gamesLabel: 'Games on',
       noGames: 'No games on.',
       tablesEngaged: 'Tables engaged',
@@ -659,6 +677,18 @@ export const en = {
         claimedSessions: number
       }) =>
         `${f.tentedTables} tented · ${f.scannedTables} scanned · ${f.playedSessions} played · ${f.claimedSessions} claimed`,
+      // ── Granular activity (Insights) ────────────────────────────────────
+      summaryHeading: 'Summary',
+      timelineHeading: 'Scans this service',
+      timelineEmpty: 'No scans yet — the chart fills in as guests tap a QR.',
+      timelineAxis: (start: string, end: string) => `${start} – ${end}`,
+      mechanicHeading: 'What they played',
+      mechanicNone: 'No rounds played yet.',
+      addOnHeading: 'Add-ons',
+      addOnLine: (requested: number, confirmed: number) =>
+        `${confirmed} confirmed of ${requested} asked for`,
+      addOnTotal: (formatted: string) => `${formatted} worth`,
+      noAddOns: 'No add-ons asked for yet.',
     },
     games: {
       heading: 'Games',

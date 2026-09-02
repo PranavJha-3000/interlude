@@ -112,6 +112,33 @@ export async function setMenuItemActive(formData: FormData): Promise<void> {
   redirect('/dash/menu')
 }
 
+function uploadErrorKey(reason: string): string {
+  switch (reason) {
+    case 'EMPTY_FILE':
+      return 'empty'
+    case 'TOO_LARGE':
+      return 'too_large'
+    case 'UNSUPPORTED_TYPE':
+      return 'unsupported'
+    case 'CSV_NO_HEADER':
+      return 'csv_header'
+    case 'CSV_NO_ROWS':
+      return 'csv_empty'
+    case 'AI_UNAVAILABLE':
+      // Distinct from the AI Assist `ai_unavailable` key on purpose: both
+      // mean "no model wired in", but the menu copy names the menu reader.
+      return 'upload_ai_unavailable'
+    case 'AI_DECLINED':
+    case 'AI_UNREACHABLE':
+    case 'AI_INVALID':
+      return 'upload_ai_failed'
+    case 'NO_ITEMS':
+      return 'no_items'
+    default:
+      return 'upload_failed'
+  }
+}
+
 export async function uploadDashMenu(formData: FormData): Promise<void> {
   const operator = await requireOperator()
 
@@ -119,7 +146,7 @@ export async function uploadDashMenu(formData: FormData): Promise<void> {
   if (!(file instanceof File)) redirect('/dash/menu?error=upload_failed')
 
   const result = await uploadMenuFile(operator.venueId, file)
-  if (!result.ok) redirect('/dash/menu?error=upload_failed')
+  if (!result.ok) redirect(`/dash/menu?error=${uploadErrorKey(result.reason)}`)
 
   revalidatePath('/dash/menu')
   redirect('/dash/menu')

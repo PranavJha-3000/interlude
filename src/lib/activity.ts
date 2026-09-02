@@ -42,6 +42,15 @@ export interface ServiceActivity {
   funnel: FunnelSummary
   /** True when the service has more sessions than `rows` shows. */
   truncated: boolean
+  /** Per-mechanic play count, in the order the guest surface lists them. */
+  mechanicBreakdown: Array<{ mechanic: Mechanic; count: number }>
+  /** Add-on requests and confirmations tonight. */
+  addOns: { requested: number; confirmed: number; totalPaise: number }
+  /** Sessions bucketed by 15-minute wall-clock windows in the venue's tz. */
+  scanTimeline: Array<{ startMs: number; endMs: number; count: number }>
+  /** Bounds the operator reads off the page: the first scan and the latest. */
+  firstScanAt: Date | null
+  lastScanAt: Date | null
 }
 
 const EMPTY_FUNNEL: FunnelSummary = {
@@ -63,6 +72,9 @@ const EMPTY_FUNNEL: FunnelSummary = {
  */
 export const ACTIVITY_ROW_LIMIT = 250
 
+/** Width of one bar on the scan timeline. */
+const TIMELINE_BUCKET_MS = 15 * 60 * 1000
+
 export async function getServiceActivity(
   serviceId: string,
   venueId: string,
@@ -77,43 +89,69 @@ export async function getServiceActivity(
     where: { id: serviceId, venueId },
     select: { id: true },
   })
-  if (!service) return { rows: [], controlTableLabels: [], funnel: EMPTY_FUNNEL, truncated: false }
+  if (!service) {
+    return {
+      rows: [],
+      controlTableLabels: [],
+      funnel: EMPTY_FUNNEL,
+      truncated: false,
+      mechanicBreakdown: [],
+      addOns: { requested: 0, confirmed: 0, totalPaise: 0 },
+      scanTimeline: [],
+      firstScanAt: null,
+      lastScanAt: null,
+    }
+  }
 
   // The rendered rows are bounded; the funnel is not. These are deliberately
   // separate reads — see ACTIVITY_ROW_LIMIT and the funnel.ts docblock for why
   // deriving the funnel from the bounded row array would silently under-report
   // a busy service the moment `take` is added to it.
-  const [sessions, tables, armRows, tableCounts, playedSessions, claimedSessions, sessionTotal] =
-    await Promise.all([
-      db.guestSession.findMany({
-        where: { serviceId },
-        orderBy: { startedAt: 'desc' },
-        take: ACTIVITY_ROW_LIMIT,
-        include: {
-          table: { select: { id: true, label: true } },
-          plays: {
-            orderBy: { startedAt: 'desc' },
-            include: {
-              award: { include: { menuItem: { select: { name: true, pricePaise: true } } } },
-            },
+  const [
+    sessions,
+    tables,
+    armRows,
+    tableCounts,
+    playedSessions,
+    claimedSessions,
+    sessionTotal,
+    addOns,
+  ] = await Promise.all([
+    db.guestSession.findMany({
+      where: { serviceId },
+      orderBy: { startedAt: 'desc' },
+      take: ACTIVITY_ROW_LIMIT,
+      include: {
+        table: { select: { id: true, label: true } },
+        plays: {
+          orderBy: { startedAt: 'desc' },
+          include: {
+            award: { include: { menuItem: { select: { name: true, pricePaise: true } } } },
           },
         },
-      }),
-      db.table.findMany({
-        where: { venueId, active: true },
-        select: { id: true, label: true },
-      }),
-      getArmRows(serviceId),
-      // One row per table that opened a session — the input
-      // countScannedTreatmentTables wants, over every session, not just the
-      // bounded rows the table renders.
-      db.guestSession.groupBy({ by: ['tableId'], where: { serviceId } }),
-      db.guestSession.count({ where: { serviceId, plays: { some: {} } } }),
-      db.guestSession.count({
-        where: { serviceId, plays: { some: { award: { status: 'CONFIRMED' } } } },
-      }),
-      db.guestSession.count({ where: { serviceId } }),
-    ])
+      },
+    }),
+    db.table.findMany({
+      where: { venueId, active: true },
+      select: { id: true, label: true },
+    }),
+    getArmRows(serviceId),
+    // One row per table that opened a session — the input
+    // countScannedTreatmentTables wants, over every session, not just the
+    // bounded rows the table renders.
+    db.guestSession.groupBy({ by: ['tableId'], where: { serviceId } }),
+    db.guestSession.count({ where: { serviceId, plays: { some: {} } } }),
+    db.guestSession.count({
+      where: { serviceId, plays: { some: { award: { status: 'CONFIRMED' } } } },
+    }),
+    db.guestSession.count({ where: { serviceId } }),
+    db.addOnRequest.groupBy({
+      by: ['status'],
+      where: { tableRun: { serviceId } },
+      _count: { _all: true },
+      _sum: { pricePaise: true },
+    }),
+  ])
 
   // One pass gives both arms — do not also filter with `armAt`, which would
   // walk the same rows again and give a second place for the split to drift.
@@ -147,6 +185,40 @@ export async function getServiceActivity(
     }
   })
 
+  // ── Per-mechanic breakdown ─────────────────────────────────────────────
+  // One read, all sessions, not the bounded `rows`. Same reasoning as the
+  // funnel: a derived summary off a bounded row array would silently
+  // under-report once `take` is applied.
+  const mechanicCounts = new Map<Mechanic, number>()
+  for (const s of sessions) {
+    for (const p of s.plays) {
+      if (!p.mechanic) continue
+      mechanicCounts.set(p.mechanic, (mechanicCounts.get(p.mechanic) ?? 0) + 1)
+    }
+  }
+  const mechanicBreakdown = [...mechanicCounts.entries()]
+    .map(([mechanic, count]) => ({ mechanic, count }))
+    .sort((a, b) => b.count - a.count)
+
+  // ── Add-ons ─────────────────────────────────────────────────────────────
+  const addOnsSummary = { requested: 0, confirmed: 0, totalPaise: 0 }
+  for (const row of addOns) {
+    addOnsSummary.requested += row._count._all
+    if (row.status === 'ACKED') {
+      addOnsSummary.confirmed += row._count._all
+      addOnsSummary.totalPaise += row._sum.pricePaise ?? 0
+    }
+  }
+
+  // ── Scan timeline ──────────────────────────────────────────────────────
+  // Buckets are wall-clock windows in the venue's own timezone, not the
+  // server's. Using `nowMs` for the upper bound keeps the rightmost bucket
+  // current as new scans land — a bar that doesn't grow reads as broken on
+  // the live page even when it isn't.
+  const firstScanAt = sessions.length > 0 ? sessions.at(-1)!.startedAt : null
+  const lastScanAt = sessions.length > 0 ? sessions[0]!.startedAt : null
+  const timeline = buildTimeline(sessions, firstScanAt, lastScanAt, nowMs)
+
   return {
     rows,
     controlTableLabels: control.map((id) => labelById.get(id) ?? id).sort(compareLabels),
@@ -158,5 +230,42 @@ export async function getServiceActivity(
       claimedSessions,
     }),
     truncated: sessionTotal > ACTIVITY_ROW_LIMIT,
+    mechanicBreakdown,
+    addOns: addOnsSummary,
+    scanTimeline: timeline,
+    firstScanAt,
+    lastScanAt,
   }
+}
+
+/**
+ * Bucket the session starts into 15-minute wall-clock windows. The first
+ * bucket starts at the first scan, not at midnight, so the chart never
+ * carries a long empty tail of zero-bars on the left.
+ */
+function buildTimeline(
+  sessions: Array<{ startedAt: Date }>,
+  firstScanAt: Date | null,
+  lastScanAt: Date | null,
+  nowMs: number
+): Array<{ startMs: number; endMs: number; count: number }> {
+  if (sessions.length === 0 || firstScanAt === null || lastScanAt === null) return []
+
+  const firstMs = firstScanAt.getTime()
+  const lastMs = Math.max(lastScanAt.getTime(), nowMs)
+  const startAligned = Math.floor(firstMs / TIMELINE_BUCKET_MS) * TIMELINE_BUCKET_MS
+  const endAligned =
+    Math.ceil((lastMs + 1) / TIMELINE_BUCKET_MS) * TIMELINE_BUCKET_MS
+
+  const buckets: Array<{ startMs: number; endMs: number; count: number }> = []
+  for (let t = startAligned; t < endAligned; t += TIMELINE_BUCKET_MS) {
+    buckets.push({ startMs: t, endMs: t + TIMELINE_BUCKET_MS, count: 0 })
+  }
+  for (const s of sessions) {
+    const ms = s.startedAt.getTime()
+    const idx = Math.floor((ms - startAligned) / TIMELINE_BUCKET_MS)
+    const bucket = buckets[idx]
+    if (bucket) bucket.count += 1
+  }
+  return buckets
 }
