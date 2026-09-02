@@ -45,10 +45,13 @@ const ERRORS: Record<string, string> = {
   unsupported: en.onboarding.menu.upload.unsupported,
   csv_header: en.onboarding.menu.upload.csvHeader,
   csv_empty: en.onboarding.menu.upload.csvEmpty,
-  // The menu upload's two AI keys collide with the AI assist's, by design —
-  // both fail for the same reason (no model wired in), and "menu reader" is the
-  // clearer copy on a screen whose previous line was "upload a menu".
+  // The menu upload's AI keys are deliberately distinct from the AI Assist
+  // `ai_*` keys: both fail for the same reason (no model wired in), but "menu
+  // reader" is the clearer copy on a screen whose previous line was "upload
+  // a menu".
   upload_ai_unavailable: en.onboarding.menu.upload.aiUnavailable,
+  upload_ai_auth: en.onboarding.menu.upload.aiAuth,
+  upload_ai_quota: en.onboarding.menu.upload.aiQuota,
   upload_ai_failed: en.onboarding.menu.upload.aiFailed,
   no_items: en.onboarding.menu.upload.noItems,
   nothing_selected: en.onboarding.menu.upload.nothingSelected,

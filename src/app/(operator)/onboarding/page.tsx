@@ -53,6 +53,8 @@ const ERRORS: Record<string, string> = {
   csv_header: en.onboarding.menu.upload.csvHeader,
   csv_empty: en.onboarding.menu.upload.csvEmpty,
   upload_ai_unavailable: en.onboarding.menu.upload.aiUnavailable,
+  upload_ai_auth: en.onboarding.menu.upload.aiAuth,
+  upload_ai_quota: en.onboarding.menu.upload.aiQuota,
   upload_ai_failed: en.onboarding.menu.upload.aiFailed,
   no_items: en.onboarding.menu.upload.noItems,
   nothing_selected: en.onboarding.menu.upload.nothingSelected,

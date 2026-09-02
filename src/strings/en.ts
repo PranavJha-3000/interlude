@@ -148,6 +148,10 @@ export const en = {
           'No menu rows could be read from that CSV. Check the header and that the data is below it.',
         aiUnavailable:
           'Photo and PDF reading is not available right now. A CSV, or typing items in by hand, will still get you going.',
+        aiAuth:
+          'The menu reader rejected the API key (HTTP 401/403). Check GEMINI_API_KEY in your Vercel project’s environment variables, or use a CSV / add items by hand.',
+        aiQuota:
+          'The menu reader is rate-limited right now (HTTP 429). Wait a minute and try again, or use a CSV / add items by hand.',
         aiFailed: 'The menu reader could not read this file. Try a clearer photo, a CSV, or add items by hand.',
         noItems: 'The menu reader didn’t find any items on that page. Try a different photo, or add items by hand.',
         draftHeading: 'Check what we read',

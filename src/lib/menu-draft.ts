@@ -3,7 +3,14 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { getAiAdapter } from '@/lib/ai'
 import type { MenuDraft } from '@/lib/ai/types'
-import { confirmDraft, fileToDraft, isCsvUpload, type ConfirmRow } from '@/lib/menu-import'
+import {
+  classifyExtractFailure,
+  confirmDraft,
+  fileToDraft,
+  isCsvUpload,
+  type ConfirmRow,
+  type UploadFailureReason,
+} from '@/lib/menu-import'
 import { createMenuItems } from '@/lib/venue-setup'
 
 /**
@@ -17,18 +24,10 @@ import { createMenuItems } from '@/lib/venue-setup'
 /** 8MB — a phone photo of a menu. Bigger is almost certainly not a menu. */
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
-export type UploadFailureReason =
-  | 'EMPTY_FILE'
-  | 'TOO_LARGE'
-  | 'UNSUPPORTED_TYPE'
-  | 'CSV_NO_HEADER'
-  | 'CSV_NO_ROWS'
-  | 'AI_UNAVAILABLE'
-  | 'AI_DECLINED'
-  | 'AI_UNREACHABLE'
-  | 'AI_INVALID'
-  | 'NO_ITEMS'
-  | 'UNKNOWN'
+// Re-exported so callers can import the type and the classifier from one
+// place. The classifier itself lives in `menu-import.ts` so unit tests can
+// run it without pulling the Prisma client.
+export { classifyExtractFailure, type UploadFailureReason }
 
 export type UploadOutcome = { ok: true } | { ok: false; reason: UploadFailureReason; detail?: string }
 
@@ -125,22 +124,4 @@ export function costPctFromForm(formData: FormData): Record<string, number> {
     if (String(value).trim() !== '' && Number.isFinite(pct)) out[category] = pct
   }
   return out
-}
-
-/**
- * Collapse the menu-import failure surface — the CSV parser's own codes plus
- * the AI adapter's prose — to a small, stable set the action layer maps to
- * error keys the user can read. Detail (where the failure came from) is kept
- * separately so the support path can keep the original text.
- */
-export function classifyExtractFailure(reason: string): UploadFailureReason {
-  if (reason.includes('CSV needs a header')) return 'CSV_NO_HEADER'
-  if (reason.includes('No menu rows')) return 'CSV_NO_ROWS'
-  if (reason.startsWith('Upload a photo')) return 'UNSUPPORTED_TYPE'
-  if (reason.includes('Photo and PDF reading is not available')) return 'AI_UNAVAILABLE'
-  if (reason.includes('The menu reader declined')) return 'AI_DECLINED'
-  if (reason.includes('menu reader could not be reached')) return 'AI_UNREACHABLE'
-  if (reason.includes('returned something unreadable')) return 'AI_INVALID'
-  if (reason.includes('No menu items could be read')) return 'NO_ITEMS'
-  return 'UNKNOWN'
 }

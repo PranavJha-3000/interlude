@@ -128,6 +128,10 @@ function uploadErrorKey(reason: string): string {
       // Distinct from the AI Assist `ai_unavailable` key on purpose: both
       // mean "no model wired in", but the menu copy names the menu reader.
       return 'upload_ai_unavailable'
+    case 'AI_AUTH':
+      return 'upload_ai_auth'
+    case 'AI_QUOTA':
+      return 'upload_ai_quota'
     case 'AI_DECLINED':
     case 'AI_UNREACHABLE':
     case 'AI_INVALID':
