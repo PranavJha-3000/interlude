@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AiAdapter } from '@/lib/ai/types'
+import type { AiAdapter, MenuItemForAI } from '@/lib/ai/types'
 
 /**
  * The AI draft lifecycle (PLATFORM.md §6a): a draft is a row with status DRAFT
@@ -24,7 +24,7 @@ function resetStore() {
 const adapter: AiAdapter = {
   name: 'mock',
   extractMenu: vi.fn(async () => ({ ok: false as const, reason: 'not under test' })),
-  describeItems: vi.fn(async (menu) => ({
+  describeItems: vi.fn(async (menu: readonly MenuItemForAI[]) => ({
     ok: true as const,
     drafts: menu.map((m) => ({ itemId: m.id, description: `${m.name} — the line.` })),
     warnings: [],
@@ -99,9 +99,7 @@ const dbStub = {
     }),
     findFirst: vi.fn(async (args: { where: Record<string, unknown> }) => {
       return (
-        store.drafts.find((d) =>
-          Object.entries(args.where).every(([k, v]) => d[k] === v)
-        ) ?? null
+        store.drafts.find((d) => Object.entries(args.where).every(([k, v]) => d[k] === v)) ?? null
       )
     }),
     findMany: vi.fn(async () => store.drafts),
@@ -153,7 +151,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   resetStore()
   store.menuItems.push({ id: 'item-a', venueId: VENUE_A, name: 'Paneer', aiDescription: null })
-  store.menuItems.push({ id: 'item-b', venueId: VENUE_A, name: 'Butter Chicken', aiDescription: null })
+  store.menuItems.push({
+    id: 'item-b',
+    venueId: VENUE_A,
+    name: 'Butter Chicken',
+    aiDescription: null,
+  })
 })
 describe('generation', () => {
   it('writes item-description drafts as DRAFT, never straight to MenuItem', async () => {
@@ -244,7 +247,7 @@ describe('reject', () => {
 })
 
 describe('edit', () => {
-  it("updates the draft text but leaves it DRAFT until approval", async () => {
+  it('updates the draft text but leaves it DRAFT until approval', async () => {
     await generateItemDescriptionDrafts(VENUE_A)
     const first = store.drafts[0]!
     const result = await editAiDraft(String(first.id), VENUE_A, {

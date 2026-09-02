@@ -52,7 +52,8 @@ export function parseMenuCsv(text: string): CsvResult {
 
     const row: CsvRow = {
       name,
-      category: categoryCol === -1 ? 'mains' : (fields[categoryCol] ?? '').trim().toLowerCase() || 'mains',
+      category:
+        categoryCol === -1 ? 'mains' : (fields[categoryCol] ?? '').trim().toLowerCase() || 'mains',
       priceRupees: pricePaise / 100,
     }
 

@@ -119,9 +119,7 @@ test('the streak belongs to the table, so a second phone inherits it', async ({ 
 
   // The inherited standing, by its own copy — `Rung N` alone is ambiguous now
   // that the take-instead button also names the rung.
-  await expect(
-    p2.getByText(`Your table is on rung ${afterFirst.currentRung} of`)
-  ).toBeVisible()
+  await expect(p2.getByText(`Your table is on rung ${afterFirst.currentRung} of`)).toBeVisible()
 
   // One run for the table, two devices under it — the §6.1 distinction.
   expect(await db.tableRun.count({ where: { serviceId, tableId: treatmentTableId } })).toBe(1)

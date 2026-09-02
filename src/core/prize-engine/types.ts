@@ -7,11 +7,7 @@ export type MarginTier = 'HIGH' | 'MID' | 'LOW'
 export type PrepBurden = 'LOW' | 'MEDIUM' | 'HIGH'
 export type LoadLevel = 'GREEN' | 'AMBER' | 'RED'
 export type Mechanic =
-  | 'BEAT_THE_KITCHEN'
-  | 'KITCHEN_ROUND'
-  | 'MYSTERY_PLATE'
-  | 'SECRET_RECIPE'
-  | 'MYSTERY_CUSTOMER'
+  'BEAT_THE_KITCHEN' | 'KITCHEN_ROUND' | 'MYSTERY_PLATE' | 'SECRET_RECIPE' | 'MYSTERY_CUSTOMER'
 export type Outcome = 'WIN' | 'LOSE'
 
 /**

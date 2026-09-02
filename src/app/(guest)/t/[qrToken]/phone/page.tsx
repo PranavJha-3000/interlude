@@ -87,7 +87,9 @@ export default async function PhonePage({
       <Heading>{en.guest.phone.heading}</Heading>
       <Body>{en.guest.phone.body}</Body>
 
-      {error && <p className="mt-4 text-sm text-bad">{ERRORS[error] ?? en.guest.phone.errNotNumeric}</p>}
+      {error && (
+        <p className="mt-4 text-sm text-bad">{ERRORS[error] ?? en.guest.phone.errNotNumeric}</p>
+      )}
 
       <form action={submitPhone} className="mt-6">
         <input type="hidden" name="qrToken" value={qrToken} />
@@ -121,10 +123,7 @@ export default async function PhonePage({
         <a href={`/t/${qrToken}`} className="text-sm text-muted underline">
           {en.guest.phone.skip}
         </a>
-        <a
-          href={`/t/${qrToken}/phone/erase`}
-          className="mt-3 block text-sm text-muted underline"
-        >
+        <a href={`/t/${qrToken}/phone/erase`} className="mt-3 block text-sm text-muted underline">
           {en.guest.phone.erase}
         </a>
       </div>

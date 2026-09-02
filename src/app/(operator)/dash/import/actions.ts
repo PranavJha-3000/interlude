@@ -3,11 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireOperator } from '@/lib/operator-session'
-import {
-  importBillExport,
-  importHistoricalBaseline,
-  mapPosRef,
-} from '@/lib/bill-import-db'
+import { importBillExport, importHistoricalBaseline, mapPosRef } from '@/lib/bill-import-db'
 import type { ColumnMap } from '@/core/measurement/bill-import'
 
 /**

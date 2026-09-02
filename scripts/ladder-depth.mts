@@ -1,12 +1,7 @@
 import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
-import {
-  eligiblePairs,
-  rankingFor,
-  pairKey,
-  type GameItem,
-} from '../src/core/game/pairing'
+import { eligiblePairs, rankingFor, pairKey, type GameItem } from '../src/core/game/pairing'
 
 /**
  * REVAMP-BRIEF.md Part 7 — the numbers the owner asked to see before anything
@@ -77,7 +72,7 @@ function simulateRun(
   ranked: GameItem[],
   pool: Array<{ higherId: string; lowerId: string }>,
   accuracy: number,
-  rand: () => number,
+  rand: () => number
 ): number {
   const seen = new Set<string>()
   // known[a] holds every item a is known to outsell (revealed or inferred).
@@ -116,7 +111,14 @@ async function analyse(slug: string, gapRatio: number, runs: number): Promise<An
   if (!venue) return null
   const rows = await db.menuItem.findMany({
     where: { venueId: venue.id, active: true },
-    select: { id: true, name: true, photoUrl: true, trailingSales: true, chefRank: true, active: true },
+    select: {
+      id: true,
+      name: true,
+      photoUrl: true,
+      trailingSales: true,
+      chefRank: true,
+      active: true,
+    },
   })
   const items: GameItem[] = rows.map((r) => ({
     id: r.id,
@@ -192,9 +194,13 @@ for (const slug of ['pilot', 'copper']) {
     continue
   }
   console.log(`\n═══ ${a.venue} — gapRatio ${gapRatio}, ${runs} simulated runs ═══`)
-  console.log(`basis ${a.basis} · ${a.items} active items, ${a.itemsWithSales} with sales · spread ${a.salesSpread}`)
+  console.log(
+    `basis ${a.basis} · ${a.items} active items, ${a.itemsWithSales} with sales · spread ${a.salesSpread}`
+  )
   console.log(`defensible pairs: ${a.pairCount}`)
-  console.log(`longest ≥${gapRatio}× chain (= winner-stays reachable rung ceiling): ${a.longestChain}`)
+  console.log(
+    `longest ≥${gapRatio}× chain (= winner-stays reachable rung ceiling): ${a.longestChain}`
+  )
   console.log(`today's dealer — "tap the famous dish" with memory + transitivity:`)
   for (const [k, v] of Object.entries(a.exploitDepths)) console.log(`  ${k}: ${v}`)
   console.log(`the brief's winner-stays fix — candidate pAbove(streak) curves:`)

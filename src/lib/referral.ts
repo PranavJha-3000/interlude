@@ -65,7 +65,10 @@ const baseSchema = z.object({
   restaurantName: z.string().trim().min(2).max(120),
   location: z.string().trim().min(2).max(160),
   pocName: z.string().trim().min(2).max(80),
-  pocPhone: z.string().transform(normalisePhone).refine((v) => v !== null),
+  pocPhone: z
+    .string()
+    .transform(normalisePhone)
+    .refine((v) => v !== null),
   pocRoleTitle: z.string().trim().min(2).max(80),
   referrerName: z.string().trim().min(2).max(80),
   referrerContact: z.string().trim(),
@@ -86,8 +89,7 @@ export type ReferralErrorCode =
   | 'REFERRER_CONTACT'
 
 export type ReferralParseResult =
-  | { ok: true; value: ReferralInput }
-  | { ok: false; code: ReferralErrorCode }
+  { ok: true; value: ReferralInput } | { ok: false; code: ReferralErrorCode }
 
 const fieldCodes: Record<string, ReferralErrorCode> = {
   restaurantName: 'RESTAURANT_NAME',
@@ -186,10 +188,7 @@ export function fillTimingLooksHuman(issuedAtMs: number, nowMs: number): boolean
  * the guest phone salt: keyed by SESSION_SECRET, so a database dump yields no
  * addresses, and useless across secret rotations.
  */
-export function referralSubmitterKey(
-  secret: string,
-  clientIp: string | undefined,
-): string {
+export function referralSubmitterKey(secret: string, clientIp: string | undefined): string {
   return createHmac('sha256', secret)
     .update(`referral:${clientIp ?? 'unknown'}`)
     .digest('hex')

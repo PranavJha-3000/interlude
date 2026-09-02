@@ -12,6 +12,38 @@ result in rupees. The incumbent is a PDF.
 
 ---
 
+## 0. Feature status
+
+Where every shipped surface actually stands, audited against the code — not against aspiration.
+
+| Status | Meaning |
+|---|---|
+| **IMPLEMENTED** | In the code, behind unit and/or E2E tests. Works today on a seeded dev database |
+| **PILOT-READY** | Implemented and tested, but validated only against fixtures/seed data — first live pilot use pending (POS export validation, Monday cron delivery, printed-tent scan) |
+| **PARTIAL** | Exists in a reduced or dormant form by recorded decision |
+| **PLANNED** | Scoped in TODO.md LATER. Not started. Nothing here is required for the pilot weekend |
+
+| Area | Status | Notes |
+|---|---|---|
+| Beat the Kitchen (canonical table game) | **IMPLEMENTED** | `core/game/pairing.ts`, `core/game/run.ts`, server-action answers |
+| Secret Recipe (menu discovery) | **IMPLEMENTED** | `core/games/secret-recipe.ts`; AI-drafted combos, operator-approved |
+| Mystery Customer (rapid choice) | **IMPLEMENTED** | `core/games/mystery-customer.ts`; AI-drafted personas, operator-approved |
+| Prize engine + award spine | **IMPLEMENTED** | One `decidePrizePool`; all three games claim through `decideAndWriteAward` |
+| Operator surfaces (signup → onboarding → dash/*) | **IMPLEMENTED** | Email+password auth, scrypt, IP throttling |
+| Guest flow (`/v` → `/t` → play → claim → review/phone/feedback) | **IMPLEMENTED** | Consent-gated, no accounts, no AI on the critical path |
+| Staff floor + kitchen pass | **IMPLEMENTED** | PIN auth, order fire, redemptions, load/vetoes/kill switch |
+| AI menu extraction & draft generation | **IMPLEMENTED** | Gemini adapter + deterministic mock; draft-first, operator-approved |
+| Measurement (arms, events, contribution, reports) | **PILOT-READY** | Engine and CLI tested; needs a live pilot service to produce real numbers |
+| POS bill import (CSV) | **PILOT-READY** | Deterministic parser tested; `/dash/import` awaits a real venue export (TODO NOW) |
+| Weekly cron email | **PILOT-READY** | Route + narration implemented; Monday delivery unverified until a domain is verified |
+| Loyalty stamp card | **PILOT-READY** | Off by default; venue must opt in (it changes the measured variable) |
+| Magic-link email auth | **PARTIAL** | Dormant by decision (§13): no verified sending domain. Password is primary; link code intact and tested |
+| Petpooja / Restroworks POS adapters | **PARTIAL** | Interface-conforming stubs only, by T3 rule (§6) |
+| Voice review drafting | **PLANNED** | Typed review works; voice path deferred (TODO LATER) |
+| Server recognition card, offline tolerance, Hindi, salt rotation | **PLANNED** | TODO LATER |
+
+---
+
 ## 1. What it is
 
 > Short, food-native games occupy the dead time in a restaurant visit, and that attention is used
@@ -44,7 +76,7 @@ V1 is **W2-first**. W3 ships with the Google review hand-off, first-party privat
 
 | Archetype | Surface | Route | Auth |
 |---|---|---|---|
-| **Guest** — the person scanning the QR | Mobile web, one-handed (Clay theme) | `/v/[venueToken]` → `/t/[qrToken]` (plus `/feedback`, `/phone`, `/review`) | None. Anonymous session cookie. Phone optional, at loyalty stamp only |
+| **Guest** — the person scanning the QR | Mobile web, one-handed (Clay theme) | `/v/[venueToken]` → `/t/[qrToken]` (plus `/play/[game]`, `/feedback`, `/phone`, `/review`) | None. Anonymous session cookie. Phone optional, at loyalty stamp only |
 | **Server / floor staff** | Phone or shared tablet, fast one-tap list (Iron theme) | `/floor/[venueSlug]` | Venue PIN → httpOnly session (`StaffUser`) |
 | **Chef / kitchen lead** | Tablet mounted at the pass, glanceable, big targets (Iron theme) | `/pass` | Venue PIN, kitchen role (`StaffUser`) |
 | **Owner / F&B head** | Desktop or phone (Cotton theme) | `/`, `/signin`, `/signup`, `/onboarding`, `/dash` (incl. `/menu`, `/prizes`, `/import`, `/feedback`, `/activity`, `/games`, `/settings`), `/tents` | Email + password (primary) or email magic link → httpOnly session (`OperatorUser`) |
@@ -73,17 +105,24 @@ if a guest can infer their arm from the wording, the experiment is contaminated.
 
 ---
 
-## 4. V1 scope — one game, three bill-wait hooks, one headline number
+## 4. V1 scope — three games on one prize spine, three bill-wait hooks, one headline number
 
 Locked per §12. Anything not on this list is out.
 
 | Component | What ships |
 |---|---|
-| **Beat the Kitchen** | **The single shipped game mechanic.** Higher-or-lower sales volume comparisons between dish pairs from the venue's own menu ("Which dish sells more here?"). Pure and deterministic. Defensible pairing rule (`pairGapRatio`, default 2.0). Ladder of rungs (default 6) with starting lives (default 2) and gamble penalty on wrong answer (default 1 rung drop). Table is the unit of play; devices share the run and streak. Countdown driven by server-issued end timestamp from order-fired time. Untimed fallback if no order fired |
+| **Beat the Kitchen** | **The canonical game mechanic, and the only one bound to the `TableRun` ladder.** Higher-or-lower sales volume comparisons between dish pairs from the venue's own menu ("Which dish sells more here?"). Pure and deterministic. Defensible pairing rule (`pairGapRatio`, default 2.0). Ladder of rungs (default 6) with starting lives (default 2) and gamble penalty on wrong answer (default 1 rung drop). Table is the unit of play; devices share the run and streak. Countdown driven by server-issued end timestamp from order-fired time. Untimed fallback if no order fired |
+| **Secret Recipe** | Menu-discovery game (`/t/[qrToken]/play/secret-recipe`). The guest taps ingredient cards to uncover venue-configured combinations that reveal real dishes — intent for a future order, never a change to the current one. Configured per venue in `VenueGame.data`, optionally drafted by AI and confirmed by the operator. Claims through the same award spine as Beat the Kitchen |
+| **Mystery Customer** | Rapid-choice game (`/t/[qrToken]/play/mystery-customer`). A deterministic brief (budget, craving, preference, appetite) is drawn from the table's run id; the guest builds a meal from real menu items and a pure scorer explains the fit point by point. Same `VenueGame.data` + same award spine |
 | **Review at the bill** | At the bill: Google review prompt (`/t/[qrToken]/review`). Typed or spoken draft → guest approves own words → deep-links to Google Place. Unincentivised, prompted to 100% of tables regardless of play, win, or sentiment. Zero rating stored |
 | **Loyalty stamp card** | Optional phone capture (`/t/[qrToken]/phone`) after play. Normalised and HMAC'd with `Venue.phoneSalt`. Nth visit rewards an item through the exact same `decidePrizePool` engine, obeying all fences |
 | **Private feedback** | First-party feedback (`/t/[qrToken]/feedback`) sent to `/dash/feedback`. Words and optional rating. Grants an extra game life. Structurally separated from Google reviews |
 | **Dashboard** | Net contribution ₹ on night one (Tier 1 app-native); attach-rate delta vs. control once bills are imported (Tier 2 POS-backed). Plus refusal log, activity feed, and Monday morning cron email |
+
+**The three games share one session/prize architecture.** Game logic answers "what did the customer
+do?"; the prize engine answers "what reward may be awarded?" — every claim, from a Beat the Kitchen
+rung or a discovery-game win, routes through `decideAndWriteAward`, and there is no path from a game
+to an award that skips the engine's fences.
 
 **Shipped with the guest loop, not after it:** kitchen-load input (GREEN/AMBER/RED), the chef veto switch,
 and the emergency kill switch (§5, §12). Pushing a dying dessert at 9pm Saturday without them makes
@@ -118,7 +157,7 @@ decidePrizePool({
   kitchenLoad,          // GREEN | AMBER | RED, live from the pass
   chefVetoes,           // string[] of vetoed menuItemIds
   depthCaps,            // { perItemPct, perServicePaise }
-  mechanic,             // 'BEAT_THE_KITCHEN'
+  mechanic,             // 'BEAT_THE_KITCHEN' | 'SECRET_RECIPE' | 'MYSTERY_CUSTOMER'
   outcome,              // 'WIN' | 'LOSE'
   prizeRules,           // PrizeRuleInput[]: operator's prioritized policy
   rankingWeights,       // RankingWeights: scoring weights for item eligibility
@@ -182,19 +221,32 @@ by ESLint rules and architectural invariants.
 
 ```ts
 interface AiAdapter {
-  extractMenu(file: Upload): Promise<MenuDraft>
-  narrateReport(metrics: WeeklyMetrics): Promise<string>
-  draftReview(spoken: string): Promise<string>
-  describeItem(item: MenuItem): Promise<string>
+  extractMenu(upload: AiUpload): Promise<ExtractResult>
+  describeItems(menu: readonly MenuItemForAI[]): Promise<DescribeItemsResult>
+  generateSecretRecipes(input: SecretRecipeGenerationInput): Promise<SecretRecipeGenResult>
+  generateMysteryCustomers(input: MysteryCustomerGenerationInput): Promise<MysteryCustomerGenResult>
+  generateGameCopy(input: GameCopyInput): Promise<GameCopyResult>
+  narrateReport(metrics: WeeklyMetrics): Promise<NarrationResult>
 }
 ```
+
+`MenuItemForAI` carries only `id`, `name`, `category`, `pricePaise` — food cost, margin tier, prep
+burden and the hero flag do not exist on the type, so no prompt can contain them and no model can be
+nudged into an opinion about a number the operator owns. `narrateReport` receives pre-formatted
+figures and `parse.ts` refuses narration containing a figure it was not handed.
 
 | Use | Cadence | Marginal cost | Confirmed by |
 |---|---|---|---|
 | **Menu extraction** — photo or PDF → draft grid | Once per venue | A few rupees | Operator, on `/onboarding` or `/dash/menu` before writing `MenuItem` rows |
-| **Weekly report narration** — computed metrics → 3 sentences | Weekly per venue | Under ₹1 | Automated; narrates pre-computed numbers, does not calculate |
-| **Review drafting** — guest's spoken/typed words tidied | Per review | Under ₹1 | Guest approves before hand-off |
-| **Item descriptions** — cards and tents | Once per item | Paise | Operator |
+| **Weekly report narration** — computed metrics → 3 sentences | Weekly per venue | Under ₹1 | Operator approves the draft before it becomes the Monday email |
+| **Item descriptions** — playful one-liners for the whole active menu, one call | On demand | Paise | Operator approves each line on `/dash/menu` before a `MenuItem` row is touched |
+| **Secret Recipe combinations** — candidate combos built only from the venue's real items | On demand | Under ₹1 | Operator edits/approves on `/dash/games` before the venue config changes |
+| **Mystery Customer personas** — candidate briefs from the menu's attributes | On demand | Under ₹1 | Operator edits budget/tags and approves on `/dash/games` |
+| **Game copy** — intro/prompt/discovery lines | On demand | Paise | Operator approves on `/dash/games` |
+
+**The review prompt uses no AI, anywhere.** The guest drafts their own words on their own screen and
+Google's dialog receives them; the platform records that a hand-off happened and never the text.
+Voice input is a TODO LATER item, and it would draft on the guest's device approval path, not ours.
 
 **Banned outright:**
 - Choosing a prize, a pair, or a game outcome (gambling law invariant).
@@ -394,9 +446,9 @@ a native mobile app · multiplayer of any kind (table-vs-table, beat-the-house, 
 |---|---|---|
 | Validation gate (T0–T2) | **Settled: lifted.** | Staged MLP validates from live pilot data; all unmeasured values are `VenueConfig` rows |
 | Pilot structure | **Settled: 4–6 venues, one weekend.** | Single venue cannot yield statistical rate/delta significance; pooled script evaluates pilot |
-| Shipped mechanic | **Settled: Beat the Kitchen.** | Single-player higher-or-lower sales volume comparisons on venue's own menu; climb and mystery plate retired |
+| Shipped mechanic | **Settled: three games on one prize spine — Beat the Kitchen (canonical, `TableRun`), Secret Recipe, Mystery Customer.** | Climb, trivia quiz and mystery plate retired. All three claim awards through the one `decideAndWriteAward` path; no game has its own reward path |
 | Operator auth | **Settled: Email + Password (primary), Magic link (secondary).** | Passwords avoid unverified email domain delivery failures during launch; scrypt hashing + IP throttling |
-| AI integration | **Settled: Reads & drafts, never decides.** | `lib/ai/` port with Gemini and Mock adapters; import-banned from `core/`; photo/PDF menu extraction, report narration, review drafting |
+| AI integration | **Settled: Reads & drafts, never decides.** | `lib/ai/` port with Gemini and Mock adapters; import-banned from `core/`; photo/PDF menu extraction, item descriptions, game-content drafting, report narration. The review prompt uses no AI |
 | Food cost source | **Settled: Operator category %, never AI.** | Food cost derived from operator category estimate; AI extraction strictly forbidden |
 | Unit of play | **Settled: TableRun.** | Table is the unit; multiple device sessions share run and inherit streak |
 | Unit of assignment | **Settled: Service.** | Service-level counterbalanced LIVE vs CONTROL nights prevent table-to-table cross-contamination |

@@ -68,9 +68,7 @@ export function deltaWithInterval(
   }
   const p1 = treatmentNum / treatmentDen
   const p2 = controlNum / controlDen
-  const se = Math.sqrt(
-    (p1 * (1 - p1)) / treatmentDen + (p2 * (1 - p2)) / controlDen
-  )
+  const se = Math.sqrt((p1 * (1 - p1)) / treatmentDen + (p2 * (1 - p2)) / controlDen)
   const delta = p1 - p2
   const low = delta - Z * se
   const high = delta + Z * se

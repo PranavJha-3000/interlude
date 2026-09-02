@@ -91,9 +91,10 @@ describe('form tokens', () => {
     const token = issueReferralFormToken(SECRET, Date.now())
     const [atMs, sig] = token.split('.')
     if (atMs === undefined || sig === undefined) throw new Error('unreachable')
-    expect(
-      verifyReferralFormToken(SECRET, `${atMs}.${sig.slice(0, -1)}A`),
-    ).toEqual({ valid: false, reason: 'TAMPERED' })
+    expect(verifyReferralFormToken(SECRET, `${atMs}.${sig.slice(0, -1)}A`)).toEqual({
+      valid: false,
+      reason: 'TAMPERED',
+    })
     expect(verifyReferralFormToken(SECRET, 'not-a-token')).toEqual({
       valid: false,
       reason: 'MALFORMED',

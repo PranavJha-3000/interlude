@@ -930,7 +930,8 @@ export const en = {
       nothing: 'That draft is gone — it may have been decided from another screen.',
       menuChanged: 'The menu changed since that draft was written. Generate again.',
       generic: 'That draft could not be saved. Try again.',
-      decided: (n: number) => (n === 1 ? '1 draft ready to review.' : `${n} drafts ready to review.`),
+      decided: (n: number) =>
+        n === 1 ? '1 draft ready to review.' : `${n} drafts ready to review.`,
 
       menuBody:
         'One playful line per dish, drafted from your active menu. Approve the ones you want on the card.',

@@ -23,7 +23,8 @@ export default async function FeedbackPage() {
   // /dash/activity: signup and sign-in are one request.
   const operator = await getOperatorWithoutVenue()
   if (!operator) redirect('/signin')
-  if (!operator.venueId) return <Shell>{<p className="text-lg text-muted">{en.dash.empty}</p>}</Shell>
+  if (!operator.venueId)
+    return <Shell>{<p className="text-lg text-muted">{en.dash.empty}</p>}</Shell>
 
   const venueId = operator.venueId
 
@@ -63,9 +64,7 @@ export default async function FeedbackPage() {
         <p className="mt-8 text-base text-muted">{en.dash.feedback.empty}</p>
       ) : (
         <>
-          <p className="mt-6 font-mono text-xs text-muted">
-            {en.dash.feedback.count(rows.length)}
-          </p>
+          <p className="mt-6 font-mono text-xs text-muted">{en.dash.feedback.count(rows.length)}</p>
           <ul className="mt-4">
             {rows.map((row) => (
               <li key={row.id} className="border-t border-line py-4">

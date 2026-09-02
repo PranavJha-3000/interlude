@@ -144,58 +144,58 @@ export default async function MenuPage({
               const draft = draftsByItem.get(item.id)!
               const approvedLine = item.aiDescription
               return (
-              <li key={item.id} className="rounded-xl border border-line bg-warm p-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex-1 text-sm font-medium">{item.name}</span>
-                  {draft ? <AiDraftBadge /> : null}
-                </div>
+                <li key={item.id} className="rounded-xl border border-line bg-warm p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex-1 text-sm font-medium">{item.name}</span>
+                    {draft ? <AiDraftBadge /> : null}
+                  </div>
 
-                {approvedLine && (
-                  <p className="mt-2 text-xs text-muted">
-                    {en.dash.aiAssist.approvedLabel} {approvedLine}
-                  </p>
-                )}
+                  {approvedLine && (
+                    <p className="mt-2 text-xs text-muted">
+                      {en.dash.aiAssist.approvedLabel} {approvedLine}
+                    </p>
+                  )}
 
-                {draft && (
-                  <>
-                    {edit === draft.id ? (
-                      <form action={editMenuItemDescriptionDraft} className="mt-3">
-                        <input type="hidden" name="draftId" value={draft.id} />
-                        <textarea
-                          name="description"
-                          rows={2}
-                          defaultValue={draft.description}
-                          className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm"
-                        />
-                        <div className="mt-2 flex gap-2">
-                          <button
-                            type="submit"
-                            className="min-h-9 rounded-xl bg-ink px-4 text-xs font-semibold text-paper"
-                          >
-                            {en.dash.aiAssist.save}
-                          </button>
-                          <Link
-                            href="/dash/menu"
-                            className="min-h-9 rounded-xl border border-line px-4 text-xs font-semibold leading-[2.25rem]"
-                          >
-                            {en.dash.aiAssist.cancel}
-                          </Link>
-                        </div>
-                      </form>
-                    ) : (
-                      <p className="mt-2 text-sm leading-relaxed text-ink">{draft.description}</p>
-                    )}
-                    <AiDraftActions
-                      draftId={draft.id}
-                      approveAction={approveMenuItemDescriptionDraft}
-                      rejectAction={rejectMenuItemDescriptionDraft}
-                      editHref={`/dash/menu?edit=${draft.id}`}
-                    />
-                  </>
-                )}
-              </li>
-            )
-          })}
+                  {draft && (
+                    <>
+                      {edit === draft.id ? (
+                        <form action={editMenuItemDescriptionDraft} className="mt-3">
+                          <input type="hidden" name="draftId" value={draft.id} />
+                          <textarea
+                            name="description"
+                            rows={2}
+                            defaultValue={draft.description}
+                            className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm"
+                          />
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="submit"
+                              className="min-h-9 rounded-xl bg-ink px-4 text-xs font-semibold text-paper"
+                            >
+                              {en.dash.aiAssist.save}
+                            </button>
+                            <Link
+                              href="/dash/menu"
+                              className="min-h-9 rounded-xl border border-line px-4 text-xs font-semibold leading-[2.25rem]"
+                            >
+                              {en.dash.aiAssist.cancel}
+                            </Link>
+                          </div>
+                        </form>
+                      ) : (
+                        <p className="mt-2 text-sm leading-relaxed text-ink">{draft.description}</p>
+                      )}
+                      <AiDraftActions
+                        draftId={draft.id}
+                        approveAction={approveMenuItemDescriptionDraft}
+                        rejectAction={rejectMenuItemDescriptionDraft}
+                        editHref={`/dash/menu?edit=${draft.id}`}
+                      />
+                    </>
+                  )}
+                </li>
+              )
+            })}
         </ul>
       </section>
 
@@ -217,7 +217,8 @@ export default async function MenuPage({
           <li key={item.id} className="rounded-2xl border border-line p-5">
             {item.aiDescription && (
               <p className="mb-3 text-sm text-muted">
-                {en.dash.aiAssist.approvedLabel} <span className="text-ink">{item.aiDescription}</span>
+                {en.dash.aiAssist.approvedLabel}{' '}
+                <span className="text-ink">{item.aiDescription}</span>
               </p>
             )}
             <form action={updateMenuItem}>
@@ -312,7 +313,13 @@ function ItemFields({
           <label htmlFor={`name-${uid}`} className={LABEL}>
             {en.dash.menu.nameLabel}
           </label>
-          <input id={`name-${uid}`} name="name" required defaultValue={item?.name} className={INPUT} />
+          <input
+            id={`name-${uid}`}
+            name="name"
+            required
+            defaultValue={item?.name}
+            className={INPUT}
+          />
         </div>
         <div>
           <label htmlFor={`category-${uid}`} className={LABEL}>

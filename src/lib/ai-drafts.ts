@@ -35,8 +35,7 @@ import { defaultVenueGames } from '@/lib/venue-setup'
  */
 
 export type AiOutcome =
-  | { ok: true; count: number; warnings: string[] }
-  | { ok: false; reason: string }
+  { ok: true; count: number; warnings: string[] } | { ok: false; reason: string }
 
 export type ApplyOutcome =
   | { ok: true }
@@ -311,7 +310,11 @@ export async function itemDescriptionDraftViews(
   const rows = await draftRows(venueId, 'ITEM_DESCRIPTION', statuses)
   return rows.flatMap((r) => {
     const data = r.data as { description?: unknown }
-    if (typeof data.description !== 'string' || data.description.trim() === '' || r.refId === null) {
+    if (
+      typeof data.description !== 'string' ||
+      data.description.trim() === '' ||
+      r.refId === null
+    ) {
       return []
     }
     return [{ id: r.id, itemId: r.refId, description: data.description }]
@@ -401,7 +404,15 @@ export async function gameCopyDraftViews(
       return []
     }
     const game = d.game === 'SECRET_RECIPE' || d.game === 'MYSTERY_CUSTOMER' ? d.game : null
-    return [{ id: r.id, game, introCopy: d.introCopy, promptCopy: d.promptCopy, discoveryCopy: d.discoveryCopy }]
+    return [
+      {
+        id: r.id,
+        game,
+        introCopy: d.introCopy,
+        promptCopy: d.promptCopy,
+        discoveryCopy: d.discoveryCopy,
+      },
+    ]
   })
 }
 
@@ -413,7 +424,9 @@ export async function narrationDraftViews(
   return rows.flatMap((r) => {
     const d = r.data as { sentences?: unknown }
     if (!Array.isArray(d.sentences)) return []
-    const sentences = d.sentences.filter((s): s is string => typeof s === 'string' && s.trim() !== '')
+    const sentences = d.sentences.filter(
+      (s): s is string => typeof s === 'string' && s.trim() !== ''
+    )
     if (sentences.length === 0) return []
     return [{ id: r.id, sentences }]
   })
@@ -440,7 +453,11 @@ export async function approveAiDraft(draftId: string, venueId: string): Promise<
   switch (draft.kind) {
     case 'ITEM_DESCRIPTION': {
       const data = draft.data as { description?: unknown }
-      if (typeof data.description !== 'string' || data.description.trim() === '' || draft.refId === null) {
+      if (
+        typeof data.description !== 'string' ||
+        data.description.trim() === '' ||
+        draft.refId === null
+      ) {
         return { ok: false, reason: 'NOT_FOUND' }
       }
       // Scoped by venue as well as id — an item id off another venue (or one
@@ -462,7 +479,12 @@ export async function approveAiDraft(draftId: string, venueId: string): Promise<
         : []
       const revealItemId =
         typeof candidate.revealItemId === 'string' ? candidate.revealItemId : null
-      if (!combinationId || itemIds.length < 2 || !revealItemId || !itemIds.includes(revealItemId)) {
+      if (
+        !combinationId ||
+        itemIds.length < 2 ||
+        !revealItemId ||
+        !itemIds.includes(revealItemId)
+      ) {
         return { ok: false, reason: 'MENU_CHANGED' }
       }
       // The menu may have changed since the draft was written. Re-verify every
@@ -605,7 +627,11 @@ export async function editAiDraft(
         next.budgetPaise = paise
       }
       if (patch.cravings !== undefined) {
-        const list = z.array(z.string().trim().min(1).max(40)).min(1).max(6).safeParse(patch.cravings)
+        const list = z
+          .array(z.string().trim().min(1).max(40))
+          .min(1)
+          .max(6)
+          .safeParse(patch.cravings)
         if (!list.success) return { ok: false, reason: 'INVALID' }
         next.cravings = list.data
       }

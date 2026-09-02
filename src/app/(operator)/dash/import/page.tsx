@@ -67,7 +67,9 @@ export default async function ImportPage({
   return (
     <Shell>
       <p className="mb-2 text-lg text-muted">{en.dash.import.body}</p>
-      <p className="mb-6 font-mono text-sm text-muted">{en.dash.import.ticketsSoFar(ticketCount)}</p>
+      <p className="mb-6 font-mono text-sm text-muted">
+        {en.dash.import.ticketsSoFar(ticketCount)}
+      </p>
 
       {imported !== undefined && (
         <p className="mb-4 rounded-xl border border-line bg-warm px-4 py-3 font-mono text-sm">
@@ -85,8 +87,12 @@ export default async function ImportPage({
         </p>
       )}
       {error === 'parse' && <p className="mb-4 text-sm text-bad">{en.dash.import.failed}</p>}
-      {error === 'no_service' && <p className="mb-4 text-sm text-bad">{en.dash.import.noService}</p>}
-      {error === 'history' && <p className="mb-4 text-sm text-bad">{en.dash.import.historyFailed}</p>}
+      {error === 'no_service' && (
+        <p className="mb-4 text-sm text-bad">{en.dash.import.noService}</p>
+      )}
+      {error === 'history' && (
+        <p className="mb-4 text-sm text-bad">{en.dash.import.historyFailed}</p>
+      )}
 
       {/* ── The export upload ───────────────────────────────────────── */}
       <section className={SECTION}>
@@ -106,7 +112,11 @@ export default async function ImportPage({
           <h2 className="mt-6 text-base font-semibold">{en.dash.import.columnsHeading}</h2>
           <p className="mt-1 text-sm text-muted">{en.dash.import.columnsBody}</p>
           <div className="mt-3 grid gap-4 sm:grid-cols-4">
-            <Col name="colExternalRef" label={en.dash.import.colExternalRef} defaultValue="bill no" />
+            <Col
+              name="colExternalRef"
+              label={en.dash.import.colExternalRef}
+              defaultValue="bill no"
+            />
             <Col name="colPosRef" label={en.dash.import.colPosRef} defaultValue="table" />
             <Col name="colClosedAt" label={en.dash.import.colClosedAt} defaultValue="time" />
             <Col name="colTotal" label={en.dash.import.colTotal} defaultValue="total" />
@@ -131,7 +141,9 @@ export default async function ImportPage({
           <p className="mt-3 text-sm text-muted">—</p>
         ) : (
           <>
-            <p className="mt-3 font-mono text-sm">{en.dash.import.unjoinedCount(unjoined.length)}</p>
+            <p className="mt-3 font-mono text-sm">
+              {en.dash.import.unjoinedCount(unjoined.length)}
+            </p>
             <ul className="mt-3">
               {unmappedRefs.map((posRef) => (
                 <li key={posRef} className="border-t border-line py-3">
@@ -161,7 +173,10 @@ export default async function ImportPage({
             </ul>
             <ul className="mt-4">
               {unjoined.slice(0, 20).map((t) => (
-                <li key={t.id} className="flex gap-3 border-t border-line py-2 font-mono text-xs text-muted">
+                <li
+                  key={t.id}
+                  className="flex gap-3 border-t border-line py-2 font-mono text-xs text-muted"
+                >
                   <span>{t.externalRef}</span>
                   <span>“{t.posRef}”</span>
                   <span className="ml-auto">{formatPaise(t.totalPaise)}</span>
@@ -177,7 +192,10 @@ export default async function ImportPage({
         ) : (
           <ul className="mt-2 flex flex-wrap gap-2">
             {mappings.map((m) => (
-              <li key={m.posRef} className="rounded-xl border border-line px-3 py-1 font-mono text-xs">
+              <li
+                key={m.posRef}
+                className="rounded-xl border border-line px-3 py-1 font-mono text-xs"
+              >
                 “{m.posRef}” → {m.table.label}
               </li>
             ))}
@@ -221,15 +239,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Col({
-  name,
-  label,
-  defaultValue,
-}: {
-  name: string
-  label: string
-  defaultValue: string
-}) {
+function Col({ name, label, defaultValue }: { name: string; label: string; defaultValue: string }) {
   return (
     <div>
       <label htmlFor={name} className={LABEL}>

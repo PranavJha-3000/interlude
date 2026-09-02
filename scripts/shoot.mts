@@ -32,24 +32,51 @@ import path from 'node:path'
 const VIEWPORTS = {
   // 390×844 — the brief's guest phone. deviceScaleFactor 2 so type is judged
   // at the sharpness a phone actually has.
-  guest: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  guest: {
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  },
   // A wall tablet at the pass, landscape.
-  pass: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, isMobile: false, hasTouch: true },
+  pass: {
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor: 2,
+    isMobile: false,
+    hasTouch: true,
+  },
   // The server's phone.
-  floor: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  floor: {
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  },
   // The owner's laptop.
-  dash: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, isMobile: false, hasTouch: false },
+  dash: {
+    viewport: { width: 1440, height: 900 },
+    deviceScaleFactor: 2,
+    isMobile: false,
+    hasTouch: false,
+  },
 } as const
 
 type ViewportName = keyof typeof VIEWPORTS
 
 const [, , route, name, ...flags] = process.argv
 if (!route || !name) {
-  console.error('usage: npx tsx scripts/shoot.mts <route> <name> [--viewport=guest|pass|floor|dash] [--base=url] [--full]')
+  console.error(
+    'usage: npx tsx scripts/shoot.mts <route> <name> [--viewport=guest|pass|floor|dash] [--base=url] [--full]'
+  )
   process.exit(1)
 }
 
-const flag = (k: string) => flags.find((f) => f.startsWith(`--${k}=`))?.split('=').slice(1).join('=')
+const flag = (k: string) =>
+  flags
+    .find((f) => f.startsWith(`--${k}=`))
+    ?.split('=')
+    .slice(1)
+    .join('=')
 const viewportName = (flag('viewport') ?? 'guest') as ViewportName
 const base = flag('base') ?? process.env.SHOOT_BASE_URL ?? 'http://localhost:3000'
 const fullPage = flags.includes('--full')
@@ -191,7 +218,14 @@ if (flow === 'round' || flow === 'rung' || flow === 'won' || flow === 'lost') {
     // Consent and StartRun both offer a button reading "Start" — keep tapping
     // whichever is up until the question is.
     for (let i = 0; i < 4; i++) {
-      if (await page.getByText(/Which one/).first().isVisible().catch(() => false)) break
+      if (
+        await page
+          .getByText(/Which one/)
+          .first()
+          .isVisible()
+          .catch(() => false)
+      )
+        break
       const start = page.getByRole('button', { name: 'Start' }).first()
       if (await start.isVisible().catch(() => false)) {
         await start.click()
@@ -200,7 +234,10 @@ if (flow === 'round' || flow === 'rung' || flow === 'won' || flow === 'lost') {
         await page.waitForTimeout(400)
       }
     }
-    await page.getByText(/Which one/).first().waitFor()
+    await page
+      .getByText(/Which one/)
+      .first()
+      .waitFor()
 
     if (flow !== 'round') {
       const name = await dishNameFor(token, flow === 'lost' ? 'lower' : 'higher')
@@ -209,7 +246,10 @@ if (flow === 'round' || flow === 'rung' || flow === 'won' || flow === 'lost') {
       if (flow === 'lost') {
         await page.getByText('The kitchen won this one.').first().waitFor()
       } else {
-        await page.getByText(/^Rung 1\./).first().waitFor()
+        await page
+          .getByText(/^Rung 1\./)
+          .first()
+          .waitFor()
         if (flow === 'won') {
           await page.getByRole('button', { name: 'Take it' }).first().click()
           await page.getByText('You beat the kitchen.').first().waitFor()

@@ -107,7 +107,9 @@ export default async function GamesPage({
     <Shell>
       <p className="mb-8 text-lg text-muted">{en.dash.games.body}</p>
       {message && <p className="mb-4 text-sm text-bad">{message}</p>}
-      {params.aiOk && <p className="mb-4 text-sm">{en.dash.aiAssist.decided(Number(params.aiOk))}</p>}
+      {params.aiOk && (
+        <p className="mb-4 text-sm">{en.dash.aiAssist.decided(Number(params.aiOk))}</p>
+      )}
 
       {allOff && (
         <p className="mb-6 rounded-2xl border border-line bg-warm p-5 text-sm">
@@ -155,9 +157,7 @@ export default async function GamesPage({
         reject={rejectGameDraft}
       />
 
-      {editId && editKind && (
-        <EditDraftForm id={editId} kind={editKind} action={editGameDraft} />
-      )}
+      {editId && editKind && <EditDraftForm id={editId} kind={editKind} action={editGameDraft} />}
     </Shell>
   )
 }

@@ -61,7 +61,8 @@ const GAME_LABEL: Record<Mechanic, string> = {
 }
 
 const INPUT = 'mt-2 min-h-14 w-full rounded-xl border border-line bg-paper px-4 text-lg'
-const BUTTON = 'mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper active:scale-[0.99]'
+const BUTTON =
+  'mt-6 min-h-14 w-full rounded-xl bg-ink px-5 text-lg font-semibold text-paper active:scale-[0.99]'
 
 export default async function OnboardingPage({
   searchParams,
@@ -290,7 +291,9 @@ async function Menu({ venueId }: { venueId: string }) {
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 border-t border-line py-3">
               <span className="flex-1">{item.name}</span>
-              <span className="font-mono text-muted tabular-nums">{formatPaise(item.pricePaise)}</span>
+              <span className="font-mono text-muted tabular-nums">
+                {formatPaise(item.pricePaise)}
+              </span>
               <form action={removeItem}>
                 <input type="hidden" name="menuItemId" value={item.id} />
                 <button type="submit" className="text-sm text-muted underline">

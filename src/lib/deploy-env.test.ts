@@ -28,8 +28,7 @@ import { checkDeploymentEnv, isDeployment, assertDeploymentEnv } from '@/lib/dep
 const GOOD: Record<string, string | undefined> = {
   DATABASE_URL:
     'postgresql://user:password@ep-x-pooler.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
-  DIRECT_URL:
-    'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
+  DIRECT_URL: 'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
   SESSION_SECRET: 'a'.repeat(64),
   NEXT_PUBLIC_BASE_URL: 'https://interlude.example.com',
   // RESEND_API_KEY, EMAIL_FROM, and CRON_SECRET are now optional (warning only).
@@ -111,9 +110,14 @@ describe('checkDeploymentEnv', () => {
   })
 
   it('warns (not fatals) when EMAIL_FROM is missing', () => {
-    const problem = problemFor({ ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined }, 'EMAIL_FROM')
+    const problem = problemFor(
+      { ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined },
+      'EMAIL_FROM'
+    )
     expect(problem?.severity).toBe('warning')
-    expect(fatalNames({ ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined })).not.toContain('EMAIL_FROM')
+    expect(
+      fatalNames({ ...GOOD, RESEND_API_KEY: 're_live_key', EMAIL_FROM: undefined })
+    ).not.toContain('EMAIL_FROM')
   })
 
   it('warns (not fatals) when EMAIL_TRANSPORT=console on a deployment', () => {

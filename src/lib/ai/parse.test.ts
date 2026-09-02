@@ -62,9 +62,7 @@ describe('parseMenuDraft', () => {
     })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.draft.items[0]?.modifiers).toEqual([
-      { name: 'Cheese', priceDeltaRupees: 40 },
-    ])
+    expect(result.draft.items[0]?.modifiers).toEqual([{ name: 'Cheese', priceDeltaRupees: 40 }])
     expect(result.draft.warnings.length).toBeGreaterThan(0)
   })
 })
@@ -88,9 +86,9 @@ describe('parseDescribeItems', () => {
   })
 
   it('refuses outright when nothing survives validation', () => {
-    expect(parseDescribeItems({ items: [{ itemId: 'ghost', description: 'Nope' }] }, MENU_IDS).ok).toBe(
-      false
-    )
+    expect(
+      parseDescribeItems({ items: [{ itemId: 'ghost', description: 'Nope' }] }, MENU_IDS).ok
+    ).toBe(false)
   })
 })
 describe('parseSecretRecipeCandidates', () => {
@@ -272,12 +270,20 @@ describe('parseNarration', () => {
   })
 
   it('refuses a count that was not provided', () => {
-    const result = parseNarration({ sentences: ['18 of 30 tables played last week.'] }, figures, counts)
+    const result = parseNarration(
+      { sentences: ['18 of 30 tables played last week.'] },
+      figures,
+      counts
+    )
     expect(result.ok).toBe(false)
   })
 
   it('refuses more than three sentences', () => {
-    const result = parseNarration({ sentences: ['One.', 'Two.', 'Three.', 'Four.'] }, figures, counts)
+    const result = parseNarration(
+      { sentences: ['One.', 'Two.', 'Three.', 'Four.'] },
+      figures,
+      counts
+    )
     expect(result.ok).toBe(false)
   })
 
