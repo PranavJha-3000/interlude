@@ -11,6 +11,12 @@ export const BRAND = {
   shortName: 'Interlude',
   /** Appended to page titles. */
   tagline: 'while you wait',
+  /**
+   * The beta badge, rendered wherever the wordmark appears. Set to null when
+   * the beta period ends and the badge disappears from every surface at once —
+   * there is no second place to hunt for a stale "beta".
+   */
+  beta: 'beta',
 } as const
 
 export type Brand = typeof BRAND

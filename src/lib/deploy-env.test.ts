@@ -27,8 +27,9 @@ import { checkDeploymentEnv, isDeployment, assertDeploymentEnv } from '@/lib/dep
  */
 const GOOD: Record<string, string | undefined> = {
   DATABASE_URL:
-    'postgresql://user:password@ep-x-pooler.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
-  DIRECT_URL: 'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=require',
+    'postgresql://user:password@ep-x-pooler.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=verify-full',
+  DIRECT_URL:
+    'postgresql://user:password@ep-x.c-3.ap-southeast-1.aws.neon.tech/db?sslmode=verify-full',
   SESSION_SECRET: 'a'.repeat(64),
   NEXT_PUBLIC_BASE_URL: 'https://interlude.example.com',
   // RESEND_API_KEY, EMAIL_FROM, and CRON_SECRET are now optional (warning only).
