@@ -117,6 +117,31 @@ function marginTierFor(priceRupees: number, costRupees: number): 'HIGH' | 'MID' 
   return 'LOW'
 }
 
+function uploadErrorKey(reason: string): string {
+  switch (reason) {
+    case 'EMPTY_FILE':
+      return 'empty'
+    case 'TOO_LARGE':
+      return 'too_large'
+    case 'UNSUPPORTED_TYPE':
+      return 'unsupported'
+    case 'CSV_NO_HEADER':
+      return 'csv_header'
+    case 'CSV_NO_ROWS':
+      return 'csv_empty'
+    case 'AI_UNAVAILABLE':
+      return 'upload_ai_unavailable'
+    case 'AI_DECLINED':
+    case 'AI_UNREACHABLE':
+    case 'AI_INVALID':
+      return 'upload_ai_failed'
+    case 'NO_ITEMS':
+      return 'no_items'
+    default:
+      return 'upload_failed'
+  }
+}
+
 export async function uploadMenu(formData: FormData): Promise<void> {
   const venue = await requireOnboardingVenue()
 
@@ -124,7 +149,7 @@ export async function uploadMenu(formData: FormData): Promise<void> {
   if (!(file instanceof File)) redirect('/onboarding?error=upload_failed')
 
   const result = await uploadMenuFile(venue.id, file)
-  if (!result.ok) redirect('/onboarding?error=upload_failed')
+  if (!result.ok) redirect(`/onboarding?error=${uploadErrorKey(result.reason)}`)
 
   revalidatePath('/onboarding')
   redirect('/onboarding')

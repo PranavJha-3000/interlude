@@ -40,6 +40,17 @@ const ERRORS: Record<string, string> = {
   invalid: en.dash.menu.invalid,
   cost_over_price: en.dash.menu.costOverPrice,
   upload_failed: en.onboarding.menu.upload.failed,
+  empty: en.onboarding.menu.upload.empty,
+  too_large: en.onboarding.menu.upload.tooLarge,
+  unsupported: en.onboarding.menu.upload.unsupported,
+  csv_header: en.onboarding.menu.upload.csvHeader,
+  csv_empty: en.onboarding.menu.upload.csvEmpty,
+  // The menu upload's two AI keys collide with the AI assist's, by design —
+  // both fail for the same reason (no model wired in), and "menu reader" is the
+  // clearer copy on a screen whose previous line was "upload a menu".
+  upload_ai_unavailable: en.onboarding.menu.upload.aiUnavailable,
+  upload_ai_failed: en.onboarding.menu.upload.aiFailed,
+  no_items: en.onboarding.menu.upload.noItems,
   nothing_selected: en.onboarding.menu.upload.nothingSelected,
   missing_cost_pct: en.onboarding.menu.upload.missingCostPct,
   ai_unavailable: en.dash.aiAssist.unavailable,

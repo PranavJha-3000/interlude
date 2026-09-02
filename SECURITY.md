@@ -22,9 +22,11 @@ the client bundle. `eslint.config.mjs` makes it an **error** to read
 `process.env.NEXT_PUBLIC_*` where the name contains `KEY`, `SECRET`, `TOKEN`,
 `PASSWORD`, `SALT`, `CREDENTIAL` or `DATABASE`.
 
-`NEXT_PUBLIC_BASE_URL` is intentionally allowed — it is a public origin used to
-build the QR links printed on the table tents and the venue QR, and to build the
-absolute magic-link URL that goes into an email.
+The public origin was renamed from `NEXT_PUBLIC_BASE_URL` to `APP_BASE_URL`:
+the value is read only in server-rendered pages (table tents, onboarding QR)
+and the deploy-env boot check, never in the browser, so exposing it via the
+public prefix would be a leak we do not need. `APP_BASE_URL` is the only place
+in the codebase where a non-secret value still lives as a server-only env var.
 
 ## 3. Pre-commit secret scan — enforced
 
