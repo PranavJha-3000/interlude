@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AiAdapter } from '@/lib/ai/types'
 import { parseMenuDraft } from '@/lib/ai/parse'
-import { confirmDraft, draftCategories, fileToDraft, marginTierFor } from './menu-import'
+import { classifyExtractFailure, confirmDraft, draftCategories, fileToDraft, marginTierFor } from './menu-import'
 
 /**
  * A fixture standing in for what the model returns for a real menu photo:
@@ -119,6 +119,27 @@ describe('fileToDraft', () => {
     expect(result.ok).toBe(false)
     expect(adapter.extractMenu).not.toHaveBeenCalled()
   })
+
+  // PDF media-type normalisations. Real-world browsers and OSes label the
+  // same file a few different ways; the server should not refuse a real
+  // menu because the OS chose a synonym.
+  it('a PDF with media type application/x-pdf still goes to the adapter', async () => {
+    const adapter = spyAdapter()
+    await fileToDraft(
+      { mediaType: 'application/x-pdf', fileName: 'menu.pdf', bytes: Buffer.from('%PDF-1.4\n') },
+      adapter
+    )
+    expect(adapter.extractMenu).toHaveBeenCalledOnce()
+  })
+
+  it('a PDF sent without a media type but a .pdf filename still goes to the adapter', async () => {
+    const adapter = spyAdapter()
+    await fileToDraft(
+      { mediaType: '', fileName: 'menu.pdf', bytes: Buffer.from('%PDF-1.4\n') },
+      adapter
+    )
+    expect(adapter.extractMenu).toHaveBeenCalledOnce()
+  })
 })
 
 describe('confirmDraft', () => {
@@ -181,5 +202,48 @@ describe('confirmDraft', () => {
         warnings: [],
       })
     ).toEqual(['mains', 'desserts'])
+  })
+})
+
+/**
+ * Locks the menu-upload error surface to the keys the action layer maps from.
+ *
+ * The classifier is the seam between the AI adapter's free-form prose and the
+ * stable reason codes the pages render. A change to either side without the
+ * other shows up here as a row that falls through to `UNKNOWN` and lands the
+ * operator on the generic "could not be read" message — the very thing the
+ * specific keys were written to avoid.
+ */
+describe('classifyExtractFailure', () => {
+  it('maps CSV parser failures', () => {
+    expect(classifyExtractFailure('The CSV needs a header row with at least "name" and "price" columns.')).toBe('CSV_NO_HEADER')
+    expect(classifyExtractFailure('No menu rows could be read from this CSV.')).toBe('CSV_NO_ROWS')
+  })
+
+  it('maps unsupported media types', () => {
+    expect(classifyExtractFailure('Upload a photo, a PDF, or a CSV.')).toBe('UNSUPPORTED_TYPE')
+  })
+
+  it('maps the no-adapter case', () => {
+    expect(
+      classifyExtractFailure('Photo and PDF reading is not available right now — use a CSV or type items in.')
+    ).toBe('AI_UNAVAILABLE')
+  })
+
+  it('maps Gemini auth/quota/error tokens', () => {
+    expect(classifyExtractFailure('GEMINI_AUTH The menu reader rejected the API key (HTTP 401/403).')).toBe('AI_AUTH')
+    expect(classifyExtractFailure('GEMINI_QUOTA The menu reader is rate-limited right now (HTTP 429).')).toBe('AI_QUOTA')
+    expect(classifyExtractFailure('GEMINI_ERROR The menu reader returned an error (HTTP 500).')).toBe('AI_INVALID')
+  })
+
+  it('maps the legacy AI error strings the older adapter emitted', () => {
+    expect(classifyExtractFailure('The menu reader declined this file.')).toBe('AI_DECLINED')
+    expect(classifyExtractFailure('The menu reader could not be reached.')).toBe('AI_UNREACHABLE')
+    expect(classifyExtractFailure('The menu reader returned something unreadable.')).toBe('AI_INVALID')
+    expect(classifyExtractFailure('No menu items could be read from this file.')).toBe('NO_ITEMS')
+  })
+
+  it('falls through to UNKNOWN for messages no rule catches', () => {
+    expect(classifyExtractFailure('Something nobody has ever seen before.')).toBe('UNKNOWN')
   })
 })

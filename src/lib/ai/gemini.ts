@@ -201,7 +201,14 @@ export function geminiAdapter(apiKey: string): AiAdapter {
       return { ok: true, text: response.text ?? '' }
     } catch (error) {
       if (error instanceof ApiError) {
-        return { ok: false, reason: `The AI reader returned an error (${error.status}).` }
+        const status = error.status ?? 0
+        if (status === 401 || status === 403) {
+          return { ok: false, reason: `GEMINI_AUTH The AI reader rejected the API key (HTTP 401/403).` }
+        }
+        if (status === 429) {
+          return { ok: false, reason: `GEMINI_QUOTA The AI reader is rate-limited right now (HTTP 429).` }
+        }
+        return { ok: false, reason: `GEMINI_ERROR The AI reader returned an error (HTTP ${status}).` }
       }
       return { ok: false, reason: 'The AI reader could not be reached.' }
     }
@@ -241,7 +248,18 @@ export function geminiAdapter(apiKey: string): AiAdapter {
         text = response.text ?? null
       } catch (error) {
         if (error instanceof ApiError) {
-          return { ok: false, reason: `The menu reader returned an error (${error.status}).` }
+          // The status is the part an operator can act on: 401/403 means the
+          // API key is missing, wrong, or revoked; 429 means the project is
+          // rate-limited; 5xx is Google's side, not ours. Each gets a
+          // recognisable prefix the menu-draft classifier can route on.
+          const status = error.status ?? 0
+          if (status === 401 || status === 403) {
+            return { ok: false, reason: 'GEMINI_AUTH The menu reader rejected the API key (HTTP 401/403).' }
+          }
+          if (status === 429) {
+            return { ok: false, reason: 'GEMINI_QUOTA The menu reader is rate-limited right now (HTTP 429).' }
+          }
+          return { ok: false, reason: `GEMINI_ERROR The menu reader returned an error (HTTP ${status}).` }
         }
         return { ok: false, reason: 'The menu reader could not be reached.' }
       }

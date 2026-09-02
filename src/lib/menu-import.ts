@@ -16,6 +16,51 @@ export const CSV_TYPES = ['text/csv', 'application/vnd.ms-excel']
 export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 export const UPLOAD_TYPES = [...CSV_TYPES, ...IMAGE_TYPES, 'application/pdf']
 
+/**
+ * The failure codes the upload action knows about. Stable — the action layer
+ * and the page error maps both depend on these names.
+ */
+export type UploadFailureReason =
+  | 'EMPTY_FILE'
+  | 'TOO_LARGE'
+  | 'UNSUPPORTED_TYPE'
+  | 'CSV_NO_HEADER'
+  | 'CSV_NO_ROWS'
+  | 'AI_UNAVAILABLE'
+  | 'AI_DECLINED'
+  | 'AI_UNREACHABLE'
+  | 'AI_INVALID'
+  | 'AI_AUTH'
+  | 'AI_QUOTA'
+  | 'NO_ITEMS'
+  | 'UNKNOWN'
+
+/**
+ * Collapse the menu-import failure surface — the CSV parser's own codes plus
+ * the AI adapter's prose — to a small, stable set the action layer maps to
+ * error keys the user can read.
+ *
+ * The classifier matches on the leading token the Gemini adapter prefixes its
+ * error strings with (`GEMINI_AUTH`, `GEMINI_QUOTA`, `GEMINI_ERROR`). The
+ * plain-English fallback matches exist for messages that don't carry a token
+ * — most importantly, the "no API key" path that the menu-import layer
+ * generates when `getAiAdapter()` returns null.
+ */
+export function classifyExtractFailure(reason: string): UploadFailureReason {
+  if (reason.startsWith('GEMINI_AUTH')) return 'AI_AUTH'
+  if (reason.startsWith('GEMINI_QUOTA')) return 'AI_QUOTA'
+  if (reason.startsWith('GEMINI_ERROR')) return 'AI_INVALID'
+  if (reason.includes('CSV needs a header')) return 'CSV_NO_HEADER'
+  if (reason.includes('No menu rows')) return 'CSV_NO_ROWS'
+  if (reason.startsWith('Upload a photo')) return 'UNSUPPORTED_TYPE'
+  if (reason.includes('Photo and PDF reading is not available')) return 'AI_UNAVAILABLE'
+  if (reason.includes('menu reader declined')) return 'AI_DECLINED'
+  if (reason.includes('menu reader could not be reached')) return 'AI_UNREACHABLE'
+  if (reason.includes('returned something unreadable')) return 'AI_INVALID'
+  if (reason.includes('No menu items could be read')) return 'NO_ITEMS'
+  return 'UNKNOWN'
+}
+
 export function isCsvUpload(mediaType: string, fileName: string): boolean {
   return CSV_TYPES.includes(mediaType) || fileName.toLowerCase().endsWith('.csv')
 }
@@ -24,7 +69,15 @@ export async function fileToDraft(
   file: { mediaType: string; fileName: string; bytes: Buffer },
   adapter: AiAdapter | null
 ): Promise<ExtractResult> {
-  if (isCsvUpload(file.mediaType, file.fileName)) {
+  // Browsers and OSes report a few variants for the same file type. The list
+  // is what the spec and a phone camera produce, not the full IANA registry —
+  // a real menu arrives as one of these and a wrong one is a real failure
+  // mode worth surfacing rather than papering over.
+  const PDF_TYPES = ['application/pdf', 'application/x-pdf']
+  const normalisedType = file.mediaType === '' && file.fileName.toLowerCase().endsWith('.pdf')
+    ? 'application/pdf'
+    : file.mediaType
+  if (isCsvUpload(normalisedType, file.fileName)) {
     const parsed = parseMenuCsv(file.bytes.toString('utf-8'))
     if (!parsed.ok) {
       return {
@@ -38,7 +91,7 @@ export async function fileToDraft(
     return { ok: true, draft: csvToDraft(parsed) }
   }
 
-  if (!IMAGE_TYPES.includes(file.mediaType) && file.mediaType !== 'application/pdf') {
+  if (!IMAGE_TYPES.includes(normalisedType) && !PDF_TYPES.includes(normalisedType)) {
     return { ok: false, reason: 'Upload a photo, a PDF, or a CSV.' }
   }
 
@@ -50,7 +103,7 @@ export async function fileToDraft(
   }
 
   return adapter.extractMenu({
-    mediaType: file.mediaType,
+    mediaType: normalisedType,
     base64: file.bytes.toString('base64'),
   })
 }

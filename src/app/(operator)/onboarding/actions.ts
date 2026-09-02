@@ -131,6 +131,10 @@ function uploadErrorKey(reason: string): string {
       return 'csv_empty'
     case 'AI_UNAVAILABLE':
       return 'upload_ai_unavailable'
+    case 'AI_AUTH':
+      return 'upload_ai_auth'
+    case 'AI_QUOTA':
+      return 'upload_ai_quota'
     case 'AI_DECLINED':
     case 'AI_UNREACHABLE':
     case 'AI_INVALID':
