@@ -31,8 +31,19 @@ export default async function OperatorLayout({ children }: { children: React.Rea
             the operator surface's own — 1152px, wide enough for the command
             center's metric row, stacking below md. */}
         <nav className="relative mx-auto flex w-full max-w-6xl items-center gap-x-5 px-6 py-4">
-          <Link href="/" className="shrink-0 text-xs tracking-widest text-muted uppercase">
+          {/* The wordmark returns a signed-in operator to their dashboard,
+              not to the public landing page — landing on `/` while holding a
+              session reads as having been signed out. Visitors still get `/`. */}
+          <Link
+            href={operator ? '/dash' : '/'}
+            className="shrink-0 text-xs tracking-widest text-muted uppercase"
+          >
             {BRAND.name}
+            {BRAND.beta && (
+              <span className="ml-1.5 rounded-full border border-line px-1.5 py-0.5 text-[0.6rem] font-bold">
+                {BRAND.beta}
+              </span>
+            )}
           </Link>
 
           <OperatorNav signedIn={Boolean(operator)} />

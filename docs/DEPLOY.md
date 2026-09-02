@@ -79,8 +79,8 @@ All of these go in the Vercel project, scoped to Production (and Preview, if you
 `check-env` treats a preview as a real deployment, because real people open preview URLs).
 
 ```
-DATABASE_URL          pooled Neon URL (hostname contains -pooler)
-DIRECT_URL            unpooled Neon URL
+DATABASE_URL          pooled Neon URL (hostname contains -pooler) + ?sslmode=verify-full
+DIRECT_URL            unpooled Neon URL + ?sslmode=verify-full
 SESSION_SECRET        64 hex chars from step 3
 NEXT_PUBLIC_BASE_URL  https://your-final-domain          ← https, never localhost
 RESEND_API_KEY        re_...
@@ -89,6 +89,11 @@ CRON_SECRET           64 hex chars from step 3
 GEMINI_API_KEY        AIza...   (optional — omit and menu photo/PDF reading is unavailable)
 AI_MODEL              gemini-2.5-flash   (optional; this is the default)
 ```
+
+Both Postgres URLs carry `?sslmode=verify-full` explicitly. `require`, `prefer` and `verify-ca`
+are aliases for `verify-full` today, but `pg` v9 / `pg-connection-string` v3 adopt libpq semantics
+where `require` no longer verifies the server certificate — spelling `verify-full` keeps the
+guarantee across that upgrade and silences the driver's startup warning.
 
 **Do not set `EMAIL_TRANSPORT` or `AI_TRANSPORT`.** Both are test waivers and `check-env` refuses a
 deployment that carries either. `EMAIL_TRANSPORT=console` would write sign-in links into a

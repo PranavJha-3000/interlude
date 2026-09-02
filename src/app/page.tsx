@@ -42,8 +42,8 @@ const jakarta = Plus_Jakarta_Sans({
 // to noindex (the operator/guest app is private); the marketing front door
 // overrides that back to indexable.
 export const metadata: Metadata = {
-  title: `${BRAND.name} — Merchandising wait times`,
-  description: `${BRAND.name} turns the minutes between ordering and eating into menu discovery a quick, playful moment at the table that gets guests to order more and leave happier. No app, no login. Onboarding pilot restaurants now.`,
+  title: `${BRAND.name}: Merchandising wait times`,
+  description: `${BRAND.name} turns the minutes between ordering and eating into menu discovery: a quick, playful moment at the table that gets guests to order more and leave happier. No app, no login. Onboarding pilot restaurants now.`,
   robots: { index: true, follow: true },
 }
 
@@ -66,7 +66,7 @@ export default function LandingPage() {
         <div className="nav__inner container">
           <a className="nav__brand" href="#top" aria-label={`${BRAND.name} — home`}>
             {BRAND.name}
-            <span className="nav__beta">beta</span>
+            {BRAND.beta && <span className="nav__beta">{BRAND.beta}</span>}
           </a>
 
           <div className="nav__actions">
@@ -238,7 +238,7 @@ export default function LandingPage() {
                 {/* One string child, not expression-adjacent text: the SWC build
                     drops a space following an expression container, which fused
                     the brand into the first word ("Interludeturns"). */}
-                {`${BRAND.name} turns the time between order and arrival into a playful, menu-driven experience — so guests discover more, order more, and leave happier.`}
+                {`${BRAND.name} turns the time between order and arrival into a playful, menu-driven experience. So guests discover more, order more, and leave happier.`}
               </p>
               <p className="hero__note reveal" data-reveal-delay="3">
                 Now taking pilot restaurants
@@ -299,7 +299,7 @@ export default function LandingPage() {
                 <h3 className="step__title">Explore while they wait</h3>
                 <p className="step__body">
                   Guests discover menu highlights, chef picks, and off-menu gems through a quick,
-                  playful game &mdash; with rewards to win and little moments of delight along the
+                  playful game. With rewards to win and little moments of delight along the
                   way.
                 </p>
               </li>
@@ -310,8 +310,8 @@ export default function LandingPage() {
                 </div>
                 <h3 className="step__title">Add to order, effortlessly</h3>
                 <p className="step__body">
-                  With a tap, they send add-on suggestions straight to the server. No friction
-                  &mdash; just a spontaneous second cocktail or dessert they didn&rsquo;t know they
+                  With a tap, they send add-on suggestions straight to the server. No friction.
+                  Just a spontaneous second cocktail or dessert they didn&rsquo;t know they
                   wanted.
                 </p>
               </li>
@@ -345,7 +345,7 @@ export default function LandingPage() {
                   </h2>
                 </div>
                 <p className="panel__lead">
-                  Every restaurant has idle wait-time. {BRAND.name} puts it to work &mdash; quietly,
+                  Every restaurant has idle wait-time. {BRAND.name} puts it to work: quietly,
                   tastefully, effectively.
                 </p>
               </header>
@@ -456,14 +456,14 @@ export default function LandingPage() {
                   </span>
                   <span>
                     <span className="quote__name">Kabir Sharma</span>
-                    <span className="quote__role">Owner, Dilli Junction — New Delhi</span>
+                    <span className="quote__role">Owner, Dilli Junction, New Delhi</span>
                   </span>
                 </figcaption>
               </figure>
 
               <figure className="quote quote--sage reveal" data-reveal-delay="1">
                 <blockquote className="quote__text">
-                  &ldquo;Our servers love it. Guests arrive at the table already excited &mdash; the
+                  &ldquo;Our servers love it. Guests arrive at the table already excited. The
                   conversation shifts from &lsquo;how long?&rsquo; to &lsquo;can I add the truffle
                   fries?&rsquo;&rdquo;
                 </blockquote>
@@ -473,7 +473,7 @@ export default function LandingPage() {
                   </span>
                   <span>
                     <span className="quote__name">Meera Iyer</span>
-                    <span className="quote__role">GM, Coastal Table — Bengaluru</span>
+                    <span className="quote__role">GM, Coastal Table, Bengaluru</span>
                   </span>
                 </figcaption>
               </figure>
@@ -523,7 +523,7 @@ export default function LandingPage() {
           <div className="footer__brand">
             <p className="footer__word">
               {BRAND.name}
-              <span className="nav__beta">beta</span>
+              {BRAND.beta && <span className="nav__beta">{BRAND.beta}</span>}
             </p>
             <p className="footer__tag">Revenue from Dead Zones.</p>
           </div>
