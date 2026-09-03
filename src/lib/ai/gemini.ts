@@ -63,6 +63,30 @@ Rules:
 - Do not include food costs, margins, or anything not printed on the page.`
 
 /**
+ * A more directive prompt for the second attempt, used only when the first
+ * attempt returned no usable items. The first prompt is the rule book; this
+ * one is a coaching call — read every line, even half-cut or partially
+ * obscured, because a partial draft is more useful to the operator than a
+ * blank one.
+ */
+const PROMPT_RETRY = `${PROMPT}
+
+Additional rules for this attempt:
+- If a price is partially obscured, transcribe the items anyway with the price you can read and put the unreadable price in warnings.
+- If you can see at least one item, transcribe every item you can see, even if some look cut off.
+- A 5-item draft is more useful to the operator than an empty one. Bias toward transcribing.`
+
+/**
+ * A short classification call: is the uploaded image even a menu? Used only
+ * after a failed first attempt, so a non-menu upload (a page from a book, a
+ * screenshot of a webpage, a photo of a person) gets a tailored error
+ * message rather than the generic "could not read."
+ */
+const NON_MENU_PROMPT = `Look at the image. Is this a restaurant menu — printed prices, dish names, organised in sections?
+
+Reply with JSON exactly: {"isMenu": true|false, "what": "one short sentence describing what is in the image"}`
+
+/**
  * The extraction prompt above is transcription. Everything below is *draft
  * generation* — the model is told, in every prompt, that the operator confirms
  * each line and that costs, margins, prizes and outcomes are not its business.
@@ -225,55 +249,17 @@ export function geminiAdapter(apiKey: string): AiAdapter {
   return {
     name: 'gemini',
     async extractMenu(upload: AiUpload): Promise<ExtractResult> {
-      let text: string | null = null
-      try {
-        const response = await client.models.generateContent({
-          model,
-          contents: [
-            {
-              role: 'user',
-              parts: [createPartFromBase64(upload.base64, upload.mediaType), { text: PROMPT }],
-            },
-          ],
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: GEMINI_MENU_SCHEMA,
-          },
-        })
+      // Two attempts: the first with the normal prompt, the second with a
+      // more directive prompt that tells the model to be liberal about
+      // partial reads. The first call is the one that usually works; the
+      // second is the safety net for blurry photos where the model gave up
+      // too quickly.
+      const first = await callGeminiForMenu(upload, PROMPT, client, model)
+      if (first.ok) return first
+      if (!first.retryable) return first
 
-        const candidate = response.candidates?.[0]
-        if (!candidate || DECLINED_FINISH_REASONS.has(candidate.finishReason ?? '')) {
-          return { ok: false, reason: 'The menu reader declined this file.' }
-        }
-        text = response.text ?? null
-      } catch (error) {
-        if (error instanceof ApiError) {
-          // The status is the part an operator can act on: 401/403 means the
-          // API key is missing, wrong, or revoked; 429 means the project is
-          // rate-limited; 5xx is Google's side, not ours. Each gets a
-          // recognisable prefix the menu-draft classifier can route on.
-          const status = error.status ?? 0
-          if (status === 401 || status === 403) {
-            return { ok: false, reason: 'GEMINI_AUTH The menu reader rejected the API key (HTTP 401/403).' }
-          }
-          if (status === 429) {
-            return { ok: false, reason: 'GEMINI_QUOTA The menu reader is rate-limited right now (HTTP 429).' }
-          }
-          return { ok: false, reason: `GEMINI_ERROR The menu reader returned an error (HTTP ${status}).` }
-        }
-        return { ok: false, reason: 'The menu reader could not be reached.' }
-      }
-
-      let raw: unknown
-      try {
-        raw = JSON.parse(text ?? '')
-      } catch {
-        return { ok: false, reason: 'The menu reader returned something unreadable.' }
-      }
-
-      const parsed = parseMenuDraft(raw)
-      if (!parsed.ok) return { ok: false, reason: 'No menu items could be read from this file.' }
-      return { ok: true, draft: parsed.draft }
+      const second = await callGeminiForMenu(upload, PROMPT_RETRY, client, model)
+      return second
     },
 
     async describeItems(menu): Promise<DescribeItemsResult> {
@@ -327,5 +313,159 @@ export function geminiAdapter(apiKey: string): AiAdapter {
       if (!data.ok) return data
       return parseNarration(data.data, figures, counts)
     },
+  }
+}
+
+/**
+ * One extraction call. Returns the result, the underlying reason when it
+ * failed, and whether the failure is *retryable* (a partial draft) or
+ * terminal (auth, quota, the model declined — retrying cannot help).
+ *
+ * A retry is only worth doing when the model returned something parseable
+ * but the draft was empty or every item was dropped — that is the partial-
+ * read case where the second prompt's "bias toward transcribing" rule wins.
+ * Network errors and auth/quota errors are terminal and short-circuit.
+ */
+async function callGeminiForMenu(
+  upload: AiUpload,
+  prompt: string,
+  client: GoogleGenAI,
+  model: string
+): Promise<ExtractResult & { retryable?: boolean }> {
+  let text: string | null = null
+  try {
+    const response = await client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [createPartFromBase64(upload.base64, upload.mediaType), { text: prompt }],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: GEMINI_MENU_SCHEMA,
+      },
+    })
+
+    const candidate = response.candidates?.[0]
+    if (!candidate || DECLINED_FINISH_REASONS.has(candidate.finishReason ?? '')) {
+      return { ok: false, reason: 'The menu reader declined this file.' }
+    }
+    text = response.text ?? null
+  } catch (error) {
+    if (error instanceof ApiError) {
+      // 401/403 means the key is wrong; 429 means quota; 5xx is Google's
+      // side. None of these improve with a retry — propagate with the token
+      // the classifier can route on.
+      const status = error.status ?? 0
+      if (status === 401 || status === 403) {
+        return {
+          ok: false,
+          reason: 'GEMINI_AUTH The menu reader rejected the API key (HTTP 401/403).',
+        }
+      }
+      if (status === 429) {
+        return {
+          ok: false,
+          reason: 'GEMINI_QUOTA The menu reader is rate-limited right now (HTTP 429).',
+        }
+      }
+      return {
+        ok: false,
+        reason: `GEMINI_ERROR The menu reader returned an error (HTTP ${status}).`,
+      }
+    }
+    return { ok: false, reason: 'The menu reader could not be reached.' }
+  }
+
+  let raw: unknown
+  try {
+    raw = JSON.parse(text ?? '')
+  } catch {
+    return { ok: false, reason: 'The menu reader returned something unreadable.' }
+  }
+
+  const parsed = parseMenuDraft(raw)
+  if (parsed.ok) return { ok: true, draft: parsed.draft }
+
+  // The two parser reasons worth retrying: no items at all, or every item
+  // dropped (e.g. every price read as 0 or as an implausible number). Both
+  // are signals the model gave up too soon.
+  if (parsed.reason === 'NO_ITEMS' || parsed.reason === 'ALL_ITEMS_DROPPED') {
+    return {
+      ok: false,
+      reason: `The menu reader did not find any menu items in this file.${
+        parsed.warnings && parsed.warnings.length > 0
+          ? ' ' + parsed.warnings.slice(0, 2).join(' ')
+          : ''
+      }`,
+      retryable: true,
+    }
+  }
+
+  // INVALID_SHAPE / NOT_AN_OBJECT — the model returned something that
+  // doesn't even look like a menu draft. Retrying with the same prompt
+  // produces the same shape, so we go further and ask: is this even a menu?
+  if (parsed.reason === 'INVALID_SHAPE' || parsed.reason === 'NOT_AN_OBJECT') {
+    const isMenu = await classifyAsMenu(upload, client, model)
+    if (isMenu && !isMenu.isMenu && isMenu.what) {
+      return {
+        ok: false,
+        reason: `NOT_A_MENU The image does not look like a menu — ${isMenu.what}.`,
+      }
+    }
+    return {
+      ok: false,
+      reason: `The menu reader could not make sense of this file. ${
+        parsed.zodIssues && parsed.zodIssues.length > 0
+          ? `(${parsed.zodIssues[0]})`
+          : ''
+      }`.trim(),
+    }
+  }
+
+  return { ok: false, reason: 'No menu items could be read from this file.' }
+}
+
+const NON_MENU_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    isMenu: { type: 'BOOLEAN' },
+    what: { type: 'STRING' },
+  },
+  required: ['isMenu', 'what'],
+} as const
+
+/**
+ * A second, very small call: "is this image a menu at all?" Used only when
+ * the main extraction returned nothing parseable. Returns null on any
+ * failure — the operator gets the generic "could not read" message rather
+ * than a hard error from this call.
+ */
+async function classifyAsMenu(
+  upload: AiUpload,
+  client: GoogleGenAI,
+  model: string
+): Promise<{ isMenu: boolean; what: string } | null> {
+  try {
+    const response = await client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [createPartFromBase64(upload.base64, upload.mediaType), { text: NON_MENU_PROMPT }],
+        },
+      ],
+      config: { responseMimeType: 'application/json', responseSchema: NON_MENU_SCHEMA },
+    })
+    const text = response.text
+    if (!text) return null
+    const parsed = jsonFromText(text)
+    if (!parsed.ok) return null
+    const data = parsed.data as { isMenu?: boolean; what?: string }
+    return { isMenu: Boolean(data.isMenu), what: String(data.what ?? '').slice(0, 200) }
+  } catch {
+    return null
   }
 }

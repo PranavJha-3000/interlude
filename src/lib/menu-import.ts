@@ -32,6 +32,8 @@ export type UploadFailureReason =
   | 'AI_INVALID'
   | 'AI_AUTH'
   | 'AI_QUOTA'
+  | 'AI_NOT_A_MENU'
+  | 'AI_PARTIAL'
   | 'NO_ITEMS'
   | 'UNKNOWN'
 
@@ -41,15 +43,16 @@ export type UploadFailureReason =
  * error keys the user can read.
  *
  * The classifier matches on the leading token the Gemini adapter prefixes its
- * error strings with (`GEMINI_AUTH`, `GEMINI_QUOTA`, `GEMINI_ERROR`). The
- * plain-English fallback matches exist for messages that don't carry a token
- * — most importantly, the "no API key" path that the menu-import layer
- * generates when `getAiAdapter()` returns null.
+ * error strings with (`GEMINI_AUTH`, `GEMINI_QUOTA`, `GEMINI_ERROR`,
+ * `NOT_A_MENU`). The plain-English fallback matches exist for messages that
+ * don't carry a token — most importantly, the "no API key" path that the
+ * menu-import layer generates when `getAiAdapter()` returns null.
  */
 export function classifyExtractFailure(reason: string): UploadFailureReason {
   if (reason.startsWith('GEMINI_AUTH')) return 'AI_AUTH'
   if (reason.startsWith('GEMINI_QUOTA')) return 'AI_QUOTA'
   if (reason.startsWith('GEMINI_ERROR')) return 'AI_INVALID'
+  if (reason.startsWith('NOT_A_MENU')) return 'AI_NOT_A_MENU'
   if (reason.includes('CSV needs a header')) return 'CSV_NO_HEADER'
   if (reason.includes('No menu rows')) return 'CSV_NO_ROWS'
   if (reason.startsWith('Upload a photo')) return 'UNSUPPORTED_TYPE'
@@ -57,6 +60,10 @@ export function classifyExtractFailure(reason: string): UploadFailureReason {
   if (reason.includes('menu reader declined')) return 'AI_DECLINED'
   if (reason.includes('menu reader could not be reached')) return 'AI_UNREACHABLE'
   if (reason.includes('returned something unreadable')) return 'AI_INVALID'
+  // "did not find any menu items" is the partial-read message after a retry
+  // that still came back empty. The operator can do something about it
+  // (try a clearer photo), so the copy is actionable, not generic.
+  if (reason.includes('did not find any menu items')) return 'AI_PARTIAL'
   if (reason.includes('No menu items could be read')) return 'NO_ITEMS'
   return 'UNKNOWN'
 }

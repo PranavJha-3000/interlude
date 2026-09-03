@@ -69,11 +69,35 @@ export const GEMINI_MENU_SCHEMA = {
 /** Sanity ceiling for a single menu item, in rupees. Above this is a misread. */
 const MAX_PLAUSIBLE_RUPEES = 100_000
 
-export function parseMenuDraft(raw: unknown): { ok: true; draft: MenuDraft } | { ok: false } {
-  const parsed = rawDraft.safeParse(raw)
-  if (!parsed.success) return { ok: false }
+export type ParseResult =
+  | { ok: true; draft: MenuDraft; warnings: string[] }
+  | {
+      ok: false
+      reason:
+        | 'NOT_AN_OBJECT'
+        | 'NO_ITEMS'
+        | 'ALL_ITEMS_DROPPED'
+        | 'INVALID_SHAPE'
+      /** The zod issues, when the shape is wrong. Used in error copy. */
+      zodIssues?: string[]
+      /** The model's own warnings, even when the parse failed. */
+      modelWarnings?: string[]
+      /** Item-level warnings collected while sanitising (used by ALL_ITEMS_DROPPED). */
+      warnings?: string[]
+    }
 
-  const warnings = [...parsed.data.warnings]
+export function parseMenuDraft(raw: unknown): ParseResult {
+  const parsed = rawDraft.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      reason: 'INVALID_SHAPE',
+      zodIssues: parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`),
+    }
+  }
+
+  const modelWarnings = [...parsed.data.warnings]
+  const warnings: string[] = []
   const items = []
 
   for (const item of parsed.data.items) {
@@ -101,8 +125,13 @@ export function parseMenuDraft(raw: unknown): { ok: true; draft: MenuDraft } | {
     })
   }
 
-  if (items.length === 0) return { ok: false }
-  return { ok: true, draft: { items, warnings } }
+  if (items.length === 0 && parsed.data.items.length === 0) {
+    return { ok: false, reason: 'NO_ITEMS', modelWarnings }
+  }
+  if (items.length === 0) {
+    return { ok: false, reason: 'ALL_ITEMS_DROPPED', modelWarnings, warnings }
+  }
+  return { ok: true, draft: { items, warnings: [...modelWarnings, ...warnings] }, warnings: [...modelWarnings, ...warnings] }
 }
 
 function sanitisedModifiers(raw: unknown, itemName: string, warnings: string[]): MenuModifier[] {

@@ -236,6 +236,16 @@ describe('classifyExtractFailure', () => {
     expect(classifyExtractFailure('GEMINI_ERROR The menu reader returned an error (HTTP 500).')).toBe('AI_INVALID')
   })
 
+  it('maps the non-menu detection token', () => {
+    expect(classifyExtractFailure('NOT_A_MENU The image does not look like a menu — a sunset over a beach.')).toBe('AI_NOT_A_MENU')
+  })
+
+  it('maps the partial-read case after a retry', () => {
+    expect(
+      classifyExtractFailure('The menu reader did not find any menu items in this file. The page was too blurry to read.')
+    ).toBe('AI_PARTIAL')
+  })
+
   it('maps the legacy AI error strings the older adapter emitted', () => {
     expect(classifyExtractFailure('The menu reader declined this file.')).toBe('AI_DECLINED')
     expect(classifyExtractFailure('The menu reader could not be reached.')).toBe('AI_UNREACHABLE')

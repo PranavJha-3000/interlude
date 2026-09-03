@@ -65,6 +65,50 @@ describe('parseMenuDraft', () => {
     expect(result.draft.items[0]?.modifiers).toEqual([{ name: 'Cheese', priceDeltaRupees: 40 }])
     expect(result.draft.warnings.length).toBeGreaterThan(0)
   })
+
+  it('reports the reason when the model returned nothing parseable', () => {
+    expect(parseMenuDraft(null).ok).toBe(false)
+    expect(parseMenuDraft('not even an object').ok).toBe(false)
+  })
+
+  it('reports NO_ITEMS when the model returned an empty array', () => {
+    const result = parseMenuDraft({ items: [], warnings: [] })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('NO_ITEMS')
+  })
+
+  it('reports ALL_ITEMS_DROPPED when every item had a bad shape', () => {
+    const result = parseMenuDraft({
+      items: [
+        { name: '', category: 'mains', priceRupees: 100 },
+        { name: 'Free Item', category: 'mains', priceRupees: 0 },
+      ],
+      warnings: [],
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('ALL_ITEMS_DROPPED')
+    expect(result.warnings).toBeDefined()
+    expect(result.warnings!.length).toBeGreaterThan(0)
+  })
+
+  it('reports INVALID_SHAPE and surfaces the zod issue path', () => {
+    const result = parseMenuDraft({ items: [{ name: 'X' }], warnings: 'not an array' })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('INVALID_SHAPE')
+    expect(result.zodIssues).toBeDefined()
+    expect(result.zodIssues!.length).toBeGreaterThan(0)
+  })
+
+  it('preserves the model warnings even when the parse fails', () => {
+    const result = parseMenuDraft({ items: [], warnings: ['The page was too blurry to read.'] })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('NO_ITEMS')
+    expect(result.modelWarnings).toEqual(['The page was too blurry to read.'])
+  })
 })
 
 describe('parseDescribeItems', () => {
