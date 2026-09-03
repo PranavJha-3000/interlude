@@ -135,6 +135,10 @@ function uploadErrorKey(reason: string): string {
       return 'upload_ai_auth'
     case 'AI_QUOTA':
       return 'upload_ai_quota'
+    case 'AI_NOT_A_MENU':
+      return 'upload_ai_not_menu'
+    case 'AI_PARTIAL':
+      return 'upload_ai_partial'
     case 'AI_DECLINED':
     case 'AI_UNREACHABLE':
     case 'AI_INVALID':

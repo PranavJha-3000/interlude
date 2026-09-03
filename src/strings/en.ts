@@ -152,6 +152,10 @@ export const en = {
           'The menu reader rejected the API key (HTTP 401/403). Check GEMINI_API_KEY in your Vercel project’s environment variables, or use a CSV / add items by hand.',
         aiQuota:
           'The menu reader is rate-limited right now (HTTP 429). Wait a minute and try again, or use a CSV / add items by hand.',
+        aiNotMenu:
+          'This doesn’t look like a restaurant menu. Try a photo of a single page that has dish names and prices, or upload a CSV.',
+        aiPartial:
+          'The menu reader could not find any items on this page after a second pass. Try a clearer, well-lit photo, or a single page rather than a folded booklet.',
         aiFailed: 'The menu reader could not read this file. Try a clearer photo, a CSV, or add items by hand.',
         noItems: 'The menu reader didn’t find any items on that page. Try a different photo, or add items by hand.',
         draftHeading: 'Check what we read',
