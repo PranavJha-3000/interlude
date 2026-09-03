@@ -45,10 +45,24 @@ import type {
  * so a single path serves the file types the upload screen offers.
  */
 
-const DEFAULT_MODEL = 'gemini-2.5-flash'
+const DEFAULT_MODEL = 'gemini-3.6-flash'
 
 /** Finish reasons that mean the model stopped on content, not that it read the menu. */
 const DECLINED_FINISH_REASONS = new Set(['SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'BLOCKLIST'])
+
+/**
+ * Is this ApiError the key being wrong? 401/403 usually, but Google also
+ * emits HTTP 400 with `API_KEY_INVALID` in the body for a bad or revoked
+ * key — and without this check that lands in the generic `GEMINI_ERROR`
+ * bucket, so the operator uploading a perfectly good menu is told to
+ * "try a clearer photo" when the real fix is the API key. Exported for the
+ * unit test; the typed shape is all the helper reads, so tests need no SDK
+ * instance.
+ */
+export function isAuthError(error: { status?: number; message?: unknown }): boolean {
+  if (error.status === 401 || error.status === 403) return true
+  return /API_KEY_INVALID|API key not valid/i.test(String(error.message ?? ''))
+}
 
 const PROMPT = `Read this restaurant menu and transcribe every item you can see.
 
@@ -226,7 +240,7 @@ export function geminiAdapter(apiKey: string): AiAdapter {
     } catch (error) {
       if (error instanceof ApiError) {
         const status = error.status ?? 0
-        if (status === 401 || status === 403) {
+        if (isAuthError(error)) {
           return { ok: false, reason: `GEMINI_AUTH The AI reader rejected the API key (HTTP 401/403).` }
         }
         if (status === 429) {
@@ -355,11 +369,11 @@ async function callGeminiForMenu(
     text = response.text ?? null
   } catch (error) {
     if (error instanceof ApiError) {
-      // 401/403 means the key is wrong; 429 means quota; 5xx is Google's
-      // side. None of these improve with a retry — propagate with the token
-      // the classifier can route on.
+      // 401/403 (and 400 API_KEY_INVALID) mean the key is wrong; 429 means
+      // quota; 5xx is Google's side. None of these improve with a retry —
+      // propagate with the token the classifier can route on.
       const status = error.status ?? 0
-      if (status === 401 || status === 403) {
+      if (isAuthError(error)) {
         return {
           ok: false,
           reason: 'GEMINI_AUTH The menu reader rejected the API key (HTTP 401/403).',
