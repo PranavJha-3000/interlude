@@ -86,8 +86,8 @@ APP_BASE_URL          https://your-final-domain          ← https, never localh
 RESEND_API_KEY        re_...
 EMAIL_FROM            Interlude <signin@your-verified-domain>
 CRON_SECRET           64 hex chars from step 3
-GEMINI_API_KEY        AIza...   (optional — omit and menu photo/PDF reading is unavailable)
-AI_MODEL              gemini-2.5-flash   (optional; this is the default)
+GEMINI_API_KEY        (optional — omit and menu photo/PDF reading is unavailable)
+AI_MODEL              gemini-3.6-flash   (optional; this is the default)
 ```
 
 `APP_BASE_URL` is intentionally **not** a `NEXT_PUBLIC_*` variable. The value ships into
