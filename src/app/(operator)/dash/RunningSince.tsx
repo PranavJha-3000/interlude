@@ -15,11 +15,11 @@ import { useEffect, useState } from 'react'
 export function RunningSince({
   startedAtMs,
   timezone,
-  children,
+  prefix,
 }: {
   startedAtMs: number
   timezone: string
-  children: (since: string) => React.ReactNode
+  prefix: string
 }) {
   const [now, setNow] = useState<number | null>(null)
 
@@ -37,7 +37,8 @@ export function RunningSince({
 
   return (
     <span className="tabular-nums">
-      {children(since)}
+      {prefix}
+      {since}
       <span className="text-muted">{elapsed}</span>
     </span>
   )

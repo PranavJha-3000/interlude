@@ -144,9 +144,11 @@ export default async function DashPage({
           appears stuck. */}
       <p className="text-lg">
         {service ? (
-          <RunningSince startedAtMs={service.startedAt.getTime()} timezone={tz}>
-            {(since) => en.dash.service.running(since)}
-          </RunningSince>
+          <RunningSince
+            startedAtMs={service.startedAt.getTime()}
+            timezone={tz}
+            prefix="Running since "
+          />
         ) : (
           serviceStatus
         )}
