@@ -1,15 +1,18 @@
 import { en } from '@/strings/en'
 import type { MenuDraft } from '@/lib/ai/types'
 import { draftCategories } from '@/lib/menu-import'
+import { MenuSubmitButton } from './menu-submit-button'
 
 /**
  * Menu upload, shared between onboarding's MENU step and /dash/menu — the
  * same grid either way, so a re-import later behaves exactly like setup did.
  *
- * Server-rendered, zero client JS. The editable grid is one big form: rows are
- * repeated field names read back with `formData.getAll`, and the include
- * checkbox carries the row index. Plain HTML is enough here, and it keeps the
- * operator surfaces at the same weight discipline as everything else.
+ * Server-rendered except the submit button, which is a client component so it
+ * can report that the extraction is running — on a big PDF that can take
+ * minutes. The editable grid is one big form: rows are repeated field names
+ * read back with `formData.getAll`, and the include checkbox carries the row
+ * index. Plain HTML is enough here, and it keeps the operator surfaces at the
+ * same weight discipline as everything else.
  */
 
 const INPUT = 'mt-2 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base'
@@ -40,12 +43,7 @@ export function MenuUploadForm({
           className={INPUT}
         />
         <p className="mt-2 text-sm text-muted">{en.onboarding.menu.upload.csvHint}</p>
-        <button
-          type="submit"
-          className="mt-4 min-h-11 w-full rounded-xl border border-line px-5 text-base font-semibold"
-        >
-          {en.onboarding.menu.upload.submit}
-        </button>
+        <MenuSubmitButton />
       </form>
     </section>
   )
