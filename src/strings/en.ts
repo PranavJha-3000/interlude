@@ -132,6 +132,7 @@ export const en = {
         body: 'A photo of the menu, a PDF, or a CSV. You check every line before anything is saved.',
         fileLabel: 'Menu file',
         submit: 'Read my menu',
+        submitLoading: 'Reading my menu…',
         csvHint: 'CSV columns: name, category, price — and optionally cost. Prices in rupees.',
         // The generic catch-all, kept for the case every specific check missed.
         // Every other key in this block is a more useful version of the same

@@ -1,0 +1,11 @@
+▲ Next.js 16.3.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://26.130.8.207:3000
+- Environments: .env
+✓ Ready in 992ms
+✓ Running next.config.ts took 65ms
+- Experiments (use with caution):
+  · serverActions
+
+ GET /dash 200 in 950ms (next.js: 456ms, application-code: 494ms)
+ GET /signin 200 in 588ms (next.js: 450ms, application-code: 138ms)
