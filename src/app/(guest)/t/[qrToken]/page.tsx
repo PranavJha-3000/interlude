@@ -341,33 +341,6 @@ export default async function GuestPage({ params }: { params: Promise<{ qrToken:
 
   const fire = await getLatestOrderFire(scan.serviceId, scan.tableId, scan.venueId)
 
-  // ── Before the fire ──────────────────────────────────────────────────────
-  // The clock starts when the kitchen starts the order, so there is genuinely
-  // nothing to do yet — and the copy says so rather than offering a disabled
-  // mystery. The page wakes itself; the guest is told that too, because the
-  // alternative is a table staring at a screen wondering if it is broken.
-  if (!fire) {
-    const untimedAt = run.openedAt.getTime() + config.untimedAfterSec * 1000
-    const runUntimed = now >= untimedAt
-
-    if (!runUntimed) {
-      return (
-        <Screen venueName={scan.venueName} tableLabel={scan.tableLabel}>
-          <Poller everyMs={5000} />
-          <Heading>{en.guest.waiting.heading}</Heading>
-          <Body>{en.guest.waiting.body}</Body>
-          <div className="mt-auto pt-8">
-            <button
-              disabled
-              className="min-h-14 w-full rounded-xl border border-line text-lg text-muted"
-            >
-              {en.guest.waiting.notYet}
-            </button>
-          </div>
-        </Screen>
-      )
-    }
-  }
 
   // ── The round ────────────────────────────────────────────────────────────
   // The run is bounded by the food. `endsAt` is a server-issued absolute
