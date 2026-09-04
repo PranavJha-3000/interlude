@@ -50,6 +50,8 @@ export function StartRun({
   const [state, setState] = useState({ streak, currentRung })
   const [pending, startTransition] = useTransition()
   const [failed, setFailed] = useState(false)
+  const [unavailable, setUnavailable] = useState(false)
+  const [selected, setSelected] = useState(false)
 
   if (pair) {
     return (
@@ -63,6 +65,26 @@ export function StartRun({
         rungs={rungs}
         penaltyRungs={penaltyRungs}
       />
+    )
+  }
+
+  if (!selected) {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8">
+        <header className="mb-8 flex items-baseline justify-between">
+          <p className="text-xs tracking-widest text-muted uppercase">{venueName}</p>
+          <p className="font-mono text-xs text-muted tabular-nums">{tableLabel}</p>
+        </header>
+        <h1 className="text-3xl leading-tight font-semibold text-balance">Choose a game</h1>
+        <p className="mt-3 text-lg leading-relaxed text-muted text-pretty">
+          Pick something to play while you wait.
+        </p>
+        <GameSelector
+          qrToken={qrToken}
+          games={selectorGames}
+          onBeatTheKitchen={() => setSelected(true)}
+        />
+      </main>
     )
   }
 
@@ -84,9 +106,16 @@ export function StartRun({
         {en.guest.start.lives(livesRemaining)}
       </p>
 
-      <GameSelector qrToken={qrToken} games={selectorGames} />
-
-      {failed && <p className="mt-4 text-base text-loss">{en.common.genericError}</p>}
+      {unavailable ? (
+        <div className="mt-4 text-base text-muted">
+          <p>This game is unavailable right now. Choose another game or ask your server.</p>
+          <button type="button" onClick={() => setSelected(false)} className="mt-3 underline">
+            Choose another game
+          </button>
+        </div>
+      ) : (
+        failed && <p className="mt-4 text-base text-loss">{en.common.genericError}</p>
+      )}
 
       <div className="mt-auto pt-8">
         <button
@@ -107,6 +136,10 @@ export function StartRun({
                 // and the page it re-renders says why.
                 if (result?.endedReason === 'FOOD_ARRIVED') {
                   router.refresh()
+                  return
+                }
+                if (result?.endedReason === 'NO_AVAILABLE_PAIR') {
+                  setUnavailable(true)
                   return
                 }
                 setFailed(true)

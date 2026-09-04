@@ -53,6 +53,7 @@ async function seatedAndConsented(page: Page): Promise<{ serviceId: string; toke
 
   await page.goto(`/t/${treatmentToken}`)
   await page.getByRole('button', { name: 'Start' }).first().click()
+  await page.getByRole('button', { name: 'Beat the Kitchen' }).click()
   await expect(page.getByText('Beat the kitchen')).toBeVisible()
 
   return { serviceId, token: treatmentToken }

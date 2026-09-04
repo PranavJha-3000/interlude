@@ -25,6 +25,7 @@ async function seatAndConsent(page: Page) {
 
   await page.goto(`/t/${arranged.treatmentToken}`)
   await page.getByRole('button', { name: 'Start' }).first().click()
+  await page.getByRole('button', { name: 'Beat the Kitchen' }).click()
   await expect(page.getByText('Beat the kitchen')).toBeVisible()
 
   return arranged
