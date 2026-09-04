@@ -63,3 +63,4 @@ Thumbs.db
 
 # revamp screenshot loop output (scripts/shoot.mts) — reviewed, never committed
 /screenshots/
+dev-server.log

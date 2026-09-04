@@ -9,3 +9,69 @@
 
  GET /dash 200 in 950ms (next.js: 456ms, application-code: 494ms)
  GET /signin 200 in 588ms (next.js: 450ms, application-code: 138ms)
+ GET / 200 in 1434ms (next.js: 1212ms, application-code: 222ms)
+ GET /signin 200 in 970ms (next.js: 21ms, application-code: 949ms)
+ GET /dash 200 in 235ms (next.js: 18ms, application-code: 217ms)
+ POST /signin 200 in 1210ms (next.js: 7ms, application-code: 1203ms)
+  └─ ƒ signIn({}) in 942ms src/app/(operator)/signin/actions.ts
+ GET /onboarding 200 in 246ms (next.js: 64ms, application-code: 182ms)
+ GET /onboarding 200 in 707ms (next.js: 10ms, application-code: 697ms)
+ GET /onboarding 200 in 878ms (next.js: 13ms, application-code: 865ms)
+ GET / 200 in 122ms (next.js: 27ms, application-code: 95ms)
+ GET /signin 200 in 647ms (next.js: 8ms, application-code: 638ms)
+ GET /signin?error=bad 200 in 152ms (next.js: 12ms, application-code: 140ms)
+ POST /signin 200 in 968ms (next.js: 9ms, application-code: 959ms)
+  └─ ƒ signIn({}) in 773ms src/app/(operator)/signin/actions.ts
+ GET /dash 200 in 172ms (next.js: 7ms, application-code: 165ms)
+ POST /signin?error=bad 200 in 931ms (next.js: 6ms, application-code: 926ms)
+  └─ ƒ signIn({}) in 732ms src/app/(operator)/signin/actions.ts
+ GET /onboarding 200 in 176ms (next.js: 8ms, application-code: 168ms)
+ GET /onboarding 200 in 623ms (next.js: 7ms, application-code: 616ms)
+ GET /onboarding 200 in 280ms (next.js: 6ms, application-code: 274ms)
+ POST /onboarding 200 in 626ms (next.js: 6ms, application-code: 620ms)
+  └─ ƒ advanceStep({}) in 325ms src/app/(operator)/onboarding/actions.ts
+ GET /dash 200 in 1088ms (next.js: 7ms, application-code: 1082ms)
+ POST /onboarding 200 in 1522ms (next.js: 6ms, application-code: 1516ms)
+  └─ ƒ advanceStep({}) in 414ms src/app/(operator)/onboarding/actions.ts
+ GET /dash 200 in 91ms (next.js: 11ms, application-code: 80ms)
+ GET /signin 200 in 87ms (next.js: 9ms, application-code: 78ms)
+ GET /dash 200 in 943ms (next.js: 6ms, application-code: 937ms)
+ POST /signin 200 in 1787ms (next.js: 6ms, application-code: 1781ms)
+  └─ ƒ signIn({}) in 826ms src/app/(operator)/signin/actions.ts
+⨯ Error: Functions are not valid as a child of Client Components. This may happen if you return children instead of <children /> from render. Or maybe you meant to call this function rather than return it.
+  <... startedAtMs=... timezone=... children={function children}>
+                                             ^^^^^^^^^^^^^^^^^^^
+    at ignore-listed frames {
+  digest: '1435283533'
+}
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... type="submit" className=... onClick={function onClick} children=...>
+                                           ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '1862256614'
+}
+ POST /dash 200 in 4.1s (next.js: 8ms, application-code: 4.1s)
+  └─ ƒ startService() in 618ms src/app/(operator)/dash/actions.ts
+⨯ Error: Functions are not valid as a child of Client Components. This may happen if you return children instead of <children /> from render. Or maybe you meant to call this function rather than return it.
+  <... startedAtMs=... timezone=... children={function children}>
+                                             ^^^^^^^^^^^^^^^^^^^
+    at ignore-listed frames {
+  digest: '1435283533'
+}
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... type="submit" className=... onClick={function onClick} children=...>
+                                           ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '1862256614'
+}
+ GET /dash 200 in 3.4s (next.js: 54ms, application-code: 3.4s)
+⨯ Error: Event handlers cannot be passed to Client Component props.
+  <... type="submit" className=... onClick={function onClick} children=...>
+                                           ^^^^^^^^^^^^^^^^^^
+If you need interactivity, consider converting part of this to a Client Component.
+    at ignore-listed frames {
+  digest: '1862256614'
+}
+ GET /dash 200 in 2.2s (next.js: 36ms, application-code: 2.2s)
