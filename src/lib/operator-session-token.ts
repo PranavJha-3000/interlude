@@ -15,6 +15,15 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 /** Longer than a staff shift — an owner checking Saturday's number on Sunday. */
 export const OPERATOR_SESSION_TTL_MS = 60 * 60 * 24 * 14 * 1000
 
+/**
+ * The pending role selection: email and password are verified, the code is not
+ * typed yet. Ten minutes — long enough to walk from the office laptop to the
+ * floor tablet is not the same device anyway, short enough that a captured
+ * pending cookie is worthless by the time anyone could use it. The real
+ * session cookie is only ever issued *after* the code step succeeds.
+ */
+export const PENDING_ROLE_TTL_MS = 10 * 60 * 1000
+
 const SEPARATOR = '.'
 
 export interface OperatorSession {
@@ -50,6 +59,37 @@ export function decodeOperatorSession(
   secret: string,
   nowMs: number
 ): OperatorSession | null {
+  return parseSession(raw, secret, nowMs, OPERATOR_SESSION_TTL_MS)
+}
+
+/**
+ * The pending half of the two-step login: the same wire format as the session
+ * cookie, but a ten-minute ceiling instead of a fortnight. Encoding is shared
+ * with the session — the payload is identical; only the enforced lifetime and
+ * the cookie it travels in differ.
+ */
+export function encodePendingRoleSession(
+  session: OperatorSession,
+  secret: string,
+  nowMs: number
+): string {
+  return encodeOperatorSession(session, secret, nowMs)
+}
+
+export function decodePendingRoleSession(
+  raw: string,
+  secret: string,
+  nowMs: number
+): OperatorSession | null {
+  return parseSession(raw, secret, nowMs, PENDING_ROLE_TTL_MS)
+}
+
+function parseSession(
+  raw: string,
+  secret: string,
+  nowMs: number,
+  ttlMs: number
+): OperatorSession | null {
   const idx = raw.lastIndexOf(SEPARATOR)
   if (idx <= 0) return null
 
@@ -65,7 +105,7 @@ export function decodeOperatorSession(
     if (typeof operatorId !== 'string' || operatorId.length === 0) return null
     if (venueId !== null && typeof venueId !== 'string') return null
     if (typeof iat !== 'number' || !Number.isFinite(iat)) return null
-    if (nowMs - iat >= OPERATOR_SESSION_TTL_MS) return null
+    if (nowMs - iat >= ttlMs) return null
     return { operatorId, venueId }
   } catch {
     return null

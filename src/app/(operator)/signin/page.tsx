@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { en } from '@/strings/en'
+import { readPendingRoleSession } from '@/lib/operator-session'
 import { signIn } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +26,12 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
+  // A pending session means the password was just verified on this device.
+  // Sending the code step back to the email form would make the user type the
+  // password again, so hand them straight on to the code pad instead.
+  const pending = await readPendingRoleSession()
+  if (pending && pending.venueId) redirect('/signin/code')
+
   const { error } = await searchParams
   const message = error ? ERRORS[error] : undefined
 

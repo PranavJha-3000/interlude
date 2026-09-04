@@ -7,6 +7,8 @@ import { ONBOARDING_ORDER, type OnboardingStepName } from '@/lib/venue-setup'
 import { en } from '@/strings/en'
 import { miniGames } from '@/strings/mini-games'
 import type { Mechanic } from '@/core/prize-engine'
+import { RoleCodes } from './RoleCodes'
+import { StaffPins } from './StaffPins'
 import {
   advanceStep,
   confirmUploadedMenu,
@@ -20,7 +22,6 @@ import {
 } from './actions'
 import { MenuDraftGrid, MenuUploadForm } from '../menu-upload-ui'
 import { getMenuDraft } from '@/lib/menu-draft'
-import { StaffPins } from './StaffPins'
 import { ShareLink } from './ShareLink'
 
 export const dynamic = 'force-dynamic'
@@ -332,6 +333,7 @@ function Staff() {
       <h1 className="mt-3 text-3xl font-semibold">{en.onboarding.staff.heading}</h1>
       <p className="mt-3 text-lg text-muted">{en.onboarding.staff.body}</p>
       <StaffPins />
+      <RoleCodes />
     </>
   )
 }

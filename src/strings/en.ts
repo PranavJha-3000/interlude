@@ -59,6 +59,17 @@ export const en = {
     linkUsed: 'That link has already been used.',
     linkUnknown: 'That link isn’t valid.',
     signOut: 'Sign out',
+    // The second step: the password proved who, the code proves what this
+    // device may open. Admin code opens the dashboard; staff code opens the
+    // floor and the pass. The same words for a wrong code as for a wrong PIN —
+    // naming which codes exist would be a list of what to guess.
+    code: {
+      heading: 'Enter your access code',
+      body: 'The code decides what this device opens — the dashboard for admin, the floor and the pass for staff.',
+      label: 'Access code',
+      submit: 'Continue',
+      wrongCode: 'That code didn’t work. Try again.',
+    },
   },
 
   signup: {
@@ -185,6 +196,15 @@ export const en = {
       warning:
         'Written down? These are shown once. Generate again if you lose them — the old ones stop working.',
       submit: 'Got them',
+      codesHeading: 'Role codes',
+      codesBody:
+        'Everyone signs in with your venue’s email and password, then one of these codes. The admin code opens your dashboard; the staff code opens the floor and the pass for your whole team. Share the login, hand out the staff code, keep the admin one yours.',
+      codesAdminLabel: 'Admin code',
+      codesStaffLabel: 'Staff code',
+      codesHelp: '4–12 characters. Both are required — they can be changed later in settings.',
+      codesSave: 'Save codes',
+      codesSaved: 'Role codes saved.',
+      codesInvalid: 'Codes must be 4–12 characters.',
     },
 
     qr: {
@@ -753,6 +773,19 @@ export const en = {
       body: 'The details that aren’t your menu and aren’t your fences.',
       saved: 'Saved.',
       save: 'Save',
+      roleCodes: {
+        heading: 'Role codes',
+        body: 'The codes staff and admin type after signing in with the venue’s email and password. The admin code opens this dashboard; the staff code opens the floor and the pass for the whole team.',
+        adminLabel: 'Admin code',
+        staffLabel: 'Staff code',
+        adminSet: 'Admin code is set.',
+        staffSet: 'Staff code is set.',
+        adminNotSet: 'No admin code — the password alone opens the dashboard.',
+        staffNotSet: 'No staff code — staff sign in with their personal PINs.',
+        help: '4–12 characters. A blank field keeps the code it has; type both to replace the pair. New codes apply from the next sign-in.',
+        errLength: 'Codes must be 4–12 characters.',
+        nothing: 'Nothing to change — both fields were blank.',
+      },
       review: {
         heading: 'Google reviews',
         body: 'At the end of every visit we offer the guest a screen to write a review in their own words, and hand them off to your Google page. Without this, that hand-off has nowhere to go and the screen tells them to say it in person instead.',

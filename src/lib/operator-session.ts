@@ -5,8 +5,11 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import {
   OPERATOR_SESSION_TTL_MS,
+  PENDING_ROLE_TTL_MS,
   decodeOperatorSession,
+  decodePendingRoleSession,
   encodeOperatorSession,
+  encodePendingRoleSession,
   type OperatorSession,
 } from '@/lib/operator-session-token'
 
@@ -52,6 +55,39 @@ export async function readOperatorSession(): Promise<OperatorSession | null> {
 export async function clearOperatorSessionCookie(): Promise<void> {
   const jar = await cookies()
   jar.delete(COOKIE)
+}
+
+/**
+ * The pending half of the two-step login. Email and password verified, code
+ * not typed yet — this cookie carries no access on its own, and no surface
+ * reads it except the code step itself. A separate cookie rather than a flag
+ * on the operator session, so "signed in but not role-selected" is not a state
+ * any admin surface can accidentally honour: the dashboard's session simply
+ * does not exist until the code picks a role.
+ */
+const PENDING_COOKIE = 'op_pending'
+
+export async function setPendingRoleCookie(session: OperatorSession): Promise<void> {
+  const jar = await cookies()
+  jar.set(PENDING_COOKIE, encodePendingRoleSession(session, secret(), Date.now()), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: Math.floor(PENDING_ROLE_TTL_MS / 1000),
+  })
+}
+
+export async function readPendingRoleSession(): Promise<OperatorSession | null> {
+  const jar = await cookies()
+  const raw = jar.get(PENDING_COOKIE)?.value
+  if (!raw) return null
+  return decodePendingRoleSession(raw, secret(), Date.now())
+}
+
+export async function clearPendingRoleCookie(): Promise<void> {
+  const jar = await cookies()
+  jar.delete(PENDING_COOKIE)
 }
 
 export interface Operator {

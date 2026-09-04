@@ -304,6 +304,19 @@ export async function signInWithPassword(
   // The redirect can paint before the cookie lands in the jar, so settle first
   // — the same race `operator-auth.spec.ts` guards against for the PIN form.
   await page.waitForLoadState('networkidle')
+
+  // The password proves who. The code step that follows decides what this device
+  // opens. The E2E harness sets no role codes on its venues, so the fallback
+  // (any entry opens admin) applies — fill once and continue.
+  const codeField = page.getByLabel('Access code')
+  if (await codeField.isVisible()) {
+    await codeField.fill('0000')
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Continue' }).click(),
+    ])
+    await page.waitForLoadState('networkidle')
+  }
 }
 
 /**
