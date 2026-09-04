@@ -9,6 +9,7 @@ import { getConcededSoFarPaise, getEnabledGames, getOpenService } from '@/lib/se
 import { getDashboardData } from '@/lib/dashboard'
 import { narrationDraftViews } from '@/lib/ai-drafts'
 import { NarrationCard } from '../ai-assist-ui'
+import { miniGames } from '@/strings/mini-games'
 import {
   approveNarrationDraft,
   editNarrationDraft,
@@ -527,6 +528,8 @@ function mechanicLabel(mechanic: string): string {
   if (mechanic === 'BEAT_THE_KITCHEN') return en.dash.games.beatTheKitchen
   if (mechanic === 'KITCHEN_ROUND') return en.dash.games.kitchenRound
   if (mechanic === 'MYSTERY_PLATE') return en.dash.games.mysteryPlate
+  if (mechanic === 'SECRET_RECIPE') return miniGames.secretRecipe.title
+  if (mechanic === 'MYSTERY_CUSTOMER') return miniGames.mysteryCustomer.title
   return mechanic
 }
 
