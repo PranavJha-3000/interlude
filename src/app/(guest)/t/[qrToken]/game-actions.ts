@@ -156,6 +156,21 @@ export async function beginRun(qrToken: string): Promise<AnswerOutcome> {
     return { ok: false, endedReason: 'FOOD_ARRIVED' }
   }
 
+  // A menu with no defensible, unseen pair is a configuration state, not a
+  // failed game. Check before consuming a table life; previously this was
+  // discovered only after `startRun`, leaving the guest on the generic error.
+  const menu = await getMenuForGame(scan.venueId)
+  if (
+    !dealPair(
+      menu,
+      { gapRatio: config.pairGapRatio },
+      device.tableRun.pairsShown,
+      pairSeedFor(device.tableRunId, device.tableRun.pairsShown.length)
+    )
+  ) {
+    return { ok: false, endedReason: 'NO_AVAILABLE_PAIR' }
+  }
+
   const started = startRun(state)
   await saveRunState(device.tableRunId, started)
 

@@ -41,6 +41,7 @@ async function menuRanking(slug = 'pilot') {
 async function consentAndBegin(page: import('@playwright/test').Page, token: string) {
   await page.goto(`/t/${token}`)
   await page.getByRole('button', { name: 'Start' }).first().click()
+  await page.getByRole('button', { name: 'Beat the Kitchen' }).click()
   await expect(page.getByText('Beat the kitchen')).toBeVisible()
   await page.getByRole('button', { name: 'Start' }).click()
   await expect(page.getByText(/Which one/)).toBeVisible()
@@ -56,6 +57,7 @@ test('a guest consents, plays, and the answer never reaches the phone', async ({
   expect(await db.tableRun.count({ where: { serviceId, tableId: treatmentTableId } })).toBe(0)
 
   await page.getByRole('button', { name: 'Start' }).first().click()
+  await page.getByRole('button', { name: 'Beat the Kitchen' }).click()
   await expect(page.getByText('Beat the kitchen')).toBeVisible()
 
   const run = await db.tableRun.findFirstOrThrow({
@@ -116,6 +118,7 @@ test('the streak belongs to the table, so a second phone inherits it', async ({ 
   const p2 = await second.newPage()
   await p2.goto(`/t/${treatmentToken}`)
   await p2.getByRole('button', { name: 'Start' }).first().click()
+  await p2.getByRole('button', { name: 'Beat the Kitchen' }).click()
 
   // The inherited standing, by its own copy — `Rung N` alone is ambiguous now
   // that the take-instead button also names the rung.
