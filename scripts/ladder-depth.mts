@@ -114,6 +114,7 @@ async function analyse(slug: string, gapRatio: number, runs: number): Promise<An
     select: {
       id: true,
       name: true,
+      category: true,
       photoUrl: true,
       trailingSales: true,
       chefRank: true,
@@ -123,6 +124,7 @@ async function analyse(slug: string, gapRatio: number, runs: number): Promise<An
   const items: GameItem[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
+    category: r.category,
     photoUrl: r.photoUrl,
     unitsSold: r.trailingSales,
     chefRank: r.chefRank,

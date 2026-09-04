@@ -3,6 +3,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { newRun, type LadderConfig, type RunState } from '@/core/game/run'
 import type { GameItem } from '@/core/game/pairing'
+import { assignDefaultChefRanks } from './games-ranking'
 
 /**
  * The table run and its devices (§6.1).
@@ -103,12 +104,21 @@ export async function markPairShown(tableRunId: string, key: string) {
   })
 }
 
+// Re-export the pure ranking helpers from the standalone module so existing
+// callers (`/dash/games`, `getMenuForGame` below) keep working.  The helpers
+// live in their own file so unit tests can import them without pulling in db.
+export { assignDefaultChefRanks, rankingReadiness } from './games-ranking'
+export type { RankingReadiness } from './games-ranking'
+
 /**
  * The menu as the game sees it.
  *
  * `unitsSold` is the imported trailing count — never a guess. When the venue has
- * no import, every count is zero and `rankingFor` falls back to the chef's
- * ordering and says so, which changes the guest-facing question copy.
+ * no import and no explicit chef ranks, a default order is assigned from the
+ * menu's category/name sort so the game is playable immediately.  The guest-facing
+ * question still says "the chef reckons" — which is honest when the venue has
+ * not yet supplied a real ranking.  The operator can override by setting
+ * explicit chef ranks in /dash/menu.
  */
 export async function getMenuForGame(venueId: string): Promise<GameItem[]> {
   const rows = await db.menuItem.findMany({
@@ -116,6 +126,7 @@ export async function getMenuForGame(venueId: string): Promise<GameItem[]> {
     select: {
       id: true,
       name: true,
+      category: true,
       photoUrl: true,
       trailingSales: true,
       chefRank: true,
@@ -123,14 +134,17 @@ export async function getMenuForGame(venueId: string): Promise<GameItem[]> {
     },
   })
 
-  return rows.map((r) => ({
+  const items: GameItem[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
+    category: r.category,
     photoUrl: r.photoUrl,
     unitsSold: r.trailingSales,
     chefRank: r.chefRank,
     active: r.active,
   }))
+
+  return assignDefaultChefRanks(items)
 }
 
 /** Which life-earning actions this run has already used (§4.4). */

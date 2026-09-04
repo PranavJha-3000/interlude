@@ -11,6 +11,7 @@ import {
   mysteryCustomerDraftViews,
   secretRecipeDraftViews,
 } from '@/lib/ai-drafts'
+import { rankingReadiness } from '@/lib/table-run'
 import { GamesAiAssist } from '../../game-ai-assist'
 import {
   approveGameDraft,
@@ -85,10 +86,15 @@ export default async function GamesPage({
     gameCopyDraftViews(operator.venueId),
     db.menuItem.findMany({
       where: { venueId: operator.venueId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, active: true, trailingSales: true, chefRank: true },
     }),
   ])
   const itemNames = new Map(menu.map((m) => [m.id, m.name]))
+  // Beat the Kitchen needs ranking data.  On a fresh venue the runtime
+  // assigns a default order from the menu's own category/name sort, so the
+  // game is playable immediately — but the operator should see that the
+  // engine is on a placeholder and be one click from taking control.
+  const beatTheKitchenReadiness = rankingReadiness(menu)
 
   const message =
     params.error === 'ai_unavailable'
@@ -126,6 +132,9 @@ export default async function GamesPage({
             <div>
               <p className="text-lg font-semibold">{nameOf(game.mechanic)}</p>
               <p className="mt-1 text-sm text-muted">{blurbOf(game.mechanic)}</p>
+              {game.mechanic === 'BEAT_THE_KITCHEN' && game.enabled && (
+                <BeatTheKitchenNote readiness={beatTheKitchenReadiness} />
+              )}
               <p className="mt-2 text-xs tracking-widest text-muted uppercase">
                 {game.enabled ? en.dash.games.on : en.dash.games.off}
               </p>
@@ -261,4 +270,35 @@ function blurbOf(mechanic: Mechanic): string {
   if (mechanic === 'MYSTERY_CUSTOMER')
     return 'Guests build a meal for a mystery customer and see how it scores.'
   return en.dash.games.beatTheKitchenBlurb
+}
+
+/**
+ * Beat the Kitchen's ranking-basis note — shown only when the game is on.
+ *
+ * The note is an honest label of what the engine is currently doing, not a
+ * warning, so the operator understands why the game is playable on day one
+ * and what they could change to take control.
+ */
+function BeatTheKitchenNote({
+  readiness,
+}: {
+  readiness: ReturnType<typeof rankingReadiness>
+}) {
+  if (readiness.kind === 'SALES' || readiness.kind === 'CHEF') {
+    return (
+      <p className="mt-2 text-xs text-muted">
+        {readiness.kind === 'SALES'
+          ? en.dash.games.rankingBasisSales
+          : en.dash.games.rankingBasisChef}
+      </p>
+    )
+  }
+  if (readiness.kind === 'TOO_FEW') {
+    return (
+      <p className="mt-2 text-xs text-bad">{en.dash.games.rankingReadyTooFew}</p>
+    )
+  }
+  return (
+    <p className="mt-2 text-xs text-muted">{en.dash.games.rankingReadyDefault}</p>
+  )
 }

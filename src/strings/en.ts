@@ -735,6 +735,17 @@ export const en = {
       mysteryPlateBlurb:
         'Same questions, different stake — the guest wins the right to buy tonight’s chef’s pick at your fixed price.',
       allOffWarning: 'Every game is off. Guests see the same screen a closed venue shows.',
+      /**
+       * Per-game readiness notes for Beat the Kitchen.  The default-rank
+       * fallback is honest: it gets a brand-new venue playing immediately, but
+       * the operator should be told so they can replace it with their own
+       * ranking.  Sales/Chef are the better states.
+       */
+      rankingReadyDefault:
+        "Using a default dish order — set the chef's rank in /dash/menu to control the questions.",
+      rankingReadyTooFew: 'Needs at least two active dishes in /dash/menu to play.',
+      rankingBasisSales: 'Using imported sales counts.',
+      rankingBasisChef: "Using the chef's ranking you set.",
     },
     empty: 'No service running.',
     gamesNav: 'Games',
@@ -969,6 +980,9 @@ export const en = {
       kitchenWorkHelp: 'Suppressed as a prize while the pass shows RED.',
       heroLabel: 'Hero item',
       heroHelp: 'Never discounted, never a prize. Your signatures live here.',
+      chefRankLabel: "Chef's rank",
+      chefRankHelp:
+        "Lower = more popular. Beat the Kitchen uses this when there's no sales data. Leave blank to use the default order.",
       save: 'Save',
       add: 'Add item',
       deactivate: 'Deactivate',
