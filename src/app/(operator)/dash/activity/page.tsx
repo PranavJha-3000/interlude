@@ -5,6 +5,7 @@ import { formatPaise, guestPaysPaise } from '@/lib/money'
 import { getOperatorWithoutVenue } from '@/lib/operator-session'
 import { getOpenService } from '@/lib/service'
 import { getServiceActivity, type ActivityRow } from '@/lib/activity'
+import { miniGames } from '@/strings/mini-games'
 
 export const dynamic = 'force-dynamic'
 
@@ -250,6 +251,8 @@ function gameLabel(mechanic: ActivityRow['mechanic']): string {
   if (mechanic === 'KITCHEN_ROUND') return en.dash.activity.gameKitchenRound
   if (mechanic === 'MYSTERY_PLATE') return en.dash.activity.gameMysteryPlate
   if (mechanic === 'BEAT_THE_KITCHEN') return en.dash.games.beatTheKitchen
+  if (mechanic === 'SECRET_RECIPE') return miniGames.secretRecipe.title
+  if (mechanic === 'MYSTERY_CUSTOMER') return miniGames.mysteryCustomer.title
   return en.common.none
 }
 
