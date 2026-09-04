@@ -32,6 +32,13 @@ model Venue {
   qrToken        String         @unique
   /// Google Place ID for the review deep link.
   googlePlaceId  String?
+  /// Role codes for the two-step login (email+password first, then code):
+  /// the admin code opens the operator dashboard, the staff code opens the
+  /// floor and pass on any device that has signed in with the shared account.
+  /// Null until the operator sets them — a null code is simply unusable, and
+  /// the login falls back to the per-staff PIN flow.
+  adminPinHash   String?
+  staffPinHash   String?
   /// Onboarding is resumable — nobody sets up a venue in one sitting.
   onboardingStep OnboardingStep @default(DETAILS)
   createdAt      DateTime       @default(now())
