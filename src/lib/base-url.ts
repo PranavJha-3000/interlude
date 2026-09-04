@@ -13,14 +13,30 @@
  * never reaches the browser, so exposing it via the public prefix would be
  * spending a slot on a leak that is not one.
  *
- * A Vercel preview URL (`*.vercel.app`) is refused outright: those are
- * ephemeral branch deployments, and a QR printed from one stops working the
- * day the branch is deleted. The user almost always wants the canonical
- * production origin here, and would rather see a loud error than ship a tent
- * that 404s a month later.
+ * A Vercel *preview or per-deployment* URL is refused: those are ephemeral,
+ * and a QR printed from one stops working the day the branch or deployment is
+ * deleted. The project's own production origin — a custom domain, or the plain
+ * `<project>.vercel.app` alias — is allowed, because that is the stable origin
+ * a venue prints tents from. Preview and deployment URLs always carry a marker
+ * the production alias never has (`-git-<branch>`, a trailing deployment hash,
+ * or a `-<username>` suffix after one), so we refuse the markers, not
+ * `.vercel.app` itself. The user almost always wants the canonical production
+ * origin here, and would rather see a loud error than ship a tent that 404s a
+ * month later.
  */
 
-const VERCEL_PREVIEW_HOST = /\.vercel\.app$/i
+// The canonical Vercel project domain is exactly `<project>.vercel.app`.
+// Preview and per-deployment URLs always add a marker to that label:
+//
+//   - git branch previews          `proj-git-<branch>[-<hash>].vercel.app`
+//   - deployment URLs              `proj-<16-hex-hash>.vercel.app`
+//   - old shared previews          `proj-<16-hex-hash>-<username>.vercel.app`
+//
+// The production alias matches none of those shapes, so refusing the markers
+// lets `myinterlude.vercel.app` print tents while an ephemeral `-git-` or
+// hashed URL still cannot.
+const VERCEL_EPHEMERAL_HOST =
+  /(?:-git-|[0-9a-f]{12,}(?:-[a-z0-9-]+)?)\.vercel\.app$/i
 
 export function publicBaseUrl(): string {
   const base = process.env.APP_BASE_URL
@@ -30,9 +46,9 @@ export function publicBaseUrl(): string {
     )
   }
   const trimmed = base.replace(/\/+$/, '')
-  if (VERCEL_PREVIEW_HOST.test(safeHost(trimmed))) {
+  if (VERCEL_EPHEMERAL_HOST.test(safeHost(trimmed))) {
     throw new Error(
-      `APP_BASE_URL is a Vercel preview URL (${trimmed}). A QR printed from a preview deployment stops working the day the branch is deleted. Set it in Vercel → Settings → Environment Variables to your canonical production origin, e.g. https://app.interlude.fit, and re-print the tents.`
+      `APP_BASE_URL looks like a Vercel preview or per-deployment URL (${trimmed}). A QR printed from one stops working the day the branch or deployment is deleted. Set it to the project's stable origin — a custom domain, or the plain <project>.vercel.app production alias — and re-print the tents.`
     )
   }
   return trimmed
