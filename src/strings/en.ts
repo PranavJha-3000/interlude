@@ -32,9 +32,7 @@ export const en = {
    */
   nav: {
     manage: 'Manage',
-    insights: 'Insights',
-    /** No dedicated performance page exists; the metrics live on the command center. */
-    performance: 'Performance',
+    activity: 'Activity',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
   },
