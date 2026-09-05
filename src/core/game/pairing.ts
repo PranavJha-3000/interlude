@@ -19,6 +19,7 @@ import { hashToRange } from '@/core/mechanics/hash'
 export interface GameItem {
   id: string
   name: string
+  category: string
   photoUrl: string | null
   /** Units sold in the venue's configured window. */
   unitsSold: number
