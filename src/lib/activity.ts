@@ -116,6 +116,7 @@ export async function getServiceActivity(
     claimedSessions,
     sessionTotal,
     addOns,
+    playCounts,
   ] = await Promise.all([
     db.guestSession.findMany({
       where: { serviceId },
@@ -150,6 +151,15 @@ export async function getServiceActivity(
       where: { tableRun: { serviceId } },
       _count: { _all: true },
       _sum: { pricePaise: true },
+    }),
+    // Unbounded read over every play: the mechanic breakdown must not be
+    // derived from the bounded `sessions` array above, or a busy service
+    // silently under-reports "what they played" once ACTIVITY_ROW_LIMIT rows
+    // are reached. Each play row has a non-null `mechanic`.
+    db.play.groupBy({
+      by: ['mechanic'],
+      where: { guestSession: { serviceId } },
+      _count: { _all: true },
     }),
   ])
 
@@ -186,18 +196,10 @@ export async function getServiceActivity(
   })
 
   // ── Per-mechanic breakdown ─────────────────────────────────────────────
-  // One read, all sessions, not the bounded `rows`. Same reasoning as the
-  // funnel: a derived summary off a bounded row array would silently
-  // under-report once `take` is applied.
-  const mechanicCounts = new Map<Mechanic, number>()
-  for (const s of sessions) {
-    for (const p of s.plays) {
-      if (!p.mechanic) continue
-      mechanicCounts.set(p.mechanic, (mechanicCounts.get(p.mechanic) ?? 0) + 1)
-    }
-  }
-  const mechanicBreakdown = [...mechanicCounts.entries()]
-    .map(([mechanic, count]) => ({ mechanic, count }))
+  // Built from the unbounded `playCounts` groupBy read above, not the bounded
+  // `sessions` array — a busy service must not lose play counts once ACTIVITY_ROW_LIMIT rows have been loaded.
+  const mechanicBreakdown = playCounts
+    .map((g) => ({ mechanic: g.mechanic as Mechanic, count: g._count._all ?? 0 }))
     .sort((a, b) => b.count - a.count)
 
   // ── Add-ons ─────────────────────────────────────────────────────────────
