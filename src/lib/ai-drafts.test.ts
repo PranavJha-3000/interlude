@@ -142,6 +142,7 @@ const {
   generateItemDescriptionDrafts,
   generateSecretRecipeDrafts,
   rejectAiDraft,
+  resolveCourseOrder,
 } = await import('@/lib/ai-drafts')
 
 const VENUE_A = 'venue-a'
@@ -243,6 +244,43 @@ describe('reject', () => {
     const result = await rejectAiDraft(String(first.id), VENUE_B)
     expect(result).toEqual({ ok: false, reason: 'NOT_FOUND' })
     expect(store.drafts[0]!.status).toBe('DRAFT')
+  })
+})
+
+describe('resolveCourseOrder', () => {
+  beforeEach(() => {
+    // Override the menu stub with test-specific items.
+    vi.mocked(dbStub.menuItem.findMany).mockReset()
+  })
+
+  it('returns stored courseOrder when already configured', async () => {
+    const result = await resolveCourseOrder(VENUE_A, { courseOrder: ['main', 'side'] })
+    expect(result).toEqual(['main', 'side'])
+  })
+
+  it('derives slots from menu categories in canonical order', async () => {
+    vi.mocked(dbStub.menuItem.findMany).mockResolvedValueOnce([
+      { id: 'd1', category: 'Soft Drinks' },
+      { id: 'd2', category: 'Main Course' },
+      { id: 'd3', category: 'Starters' },
+    ] as never)
+    const result = await resolveCourseOrder(VENUE_A, null)
+    expect(result).toEqual(['main', 'side', 'drink'])
+  })
+
+  it('skips unrecognised categories without crashing', async () => {
+    vi.mocked(dbStub.menuItem.findMany).mockResolvedValueOnce([
+      { id: 'x', category: 'Specials' },
+      { id: 'y', category: 'Unknown Category' },
+    ] as never)
+    const result = await resolveCourseOrder(VENUE_A, null)
+    expect(result).toEqual([])
+  })
+
+  it('handles a menu with no categories at all', async () => {
+    vi.mocked(dbStub.menuItem.findMany).mockResolvedValueOnce([] as never)
+    const result = await resolveCourseOrder(VENUE_A, null)
+    expect(result).toEqual([])
   })
 })
 

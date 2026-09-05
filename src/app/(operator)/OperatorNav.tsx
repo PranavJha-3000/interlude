@@ -7,10 +7,10 @@ import { en } from '@/strings/en'
 import { signOut } from './signin/actions'
 
 /**
- * The operator nav — `INTERLUDE | Tonight | Manage | Insights | Sign out`.
+ * The operator nav — `INTERLUDE | Tonight | Manage | Activity | Sign out`.
  *
  * The flat nine-link strip outlived its usefulness: an operator's jobs split
- * into doing tonight, running the venue (Manage) and reading it (Insights), so
+ * into doing tonight, running the venue (Manage) and reading it (Activity), so
  * the groups carry that split. The groups are hand-rolled disclosure buttons —
  * no component library and no icon library exist in this repo, and the whole
  * behaviour is open, close, close-on-outside-click and close-on-Escape.
@@ -34,13 +34,9 @@ const MANAGE_LINKS = [
   { href: '/tents', label: en.dash.tents },
 ]
 
-const INSIGHT_LINKS = [
-  { href: '/dash/activity', label: en.dash.activity.heading },
-  // No dedicated performance page exists; the metrics are the command center.
-  { href: '/dash', label: en.nav.performance },
-]
+const ACTIVITY_LINK = { href: '/dash/activity', label: en.dash.activity.heading }
 
-type GroupId = 'manage' | 'insights'
+type GroupId = 'manage' | 'activity'
 
 export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
@@ -89,7 +85,7 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   // (UI-SPEC §5), so "here" is ink plus an underline, never a colour.
   const tonightActive = pathname === '/dash'
   const manageActive = MANAGE_LINKS.some((l) => pathname.startsWith(l.href))
-  const insightsActive = pathname.startsWith('/dash/activity')
+  const activityActive = pathname.startsWith('/dash/activity')
   const isHere = (href: string) => pathname === href
 
   const stripLink = (active: boolean) =>
@@ -121,11 +117,11 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
         />
 
         <NavGroup
-          label={en.nav.insights}
-          active={insightsActive}
-          open={openGroup === 'insights'}
-          onToggle={() => setOpenGroup(openGroup === 'insights' ? null : 'insights')}
-          links={INSIGHT_LINKS}
+          label={en.nav.activity}
+          active={activityActive}
+          open={openGroup === 'activity'}
+          onToggle={() => setOpenGroup(openGroup === 'activity' ? null : 'activity')}
+          links={[ACTIVITY_LINK]}
           isHere={isHere}
           linkClass={stripLink}
           onNavigate={() => setOpenGroup(null)}
@@ -190,20 +186,18 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
             ))}
           </ul>
 
-          <p className="mt-5 text-xs tracking-widest text-muted uppercase">{en.nav.insights}</p>
+          <p className="mt-5 text-xs tracking-widest text-muted uppercase">{en.nav.activity}</p>
           <ul className="mt-1">
-            {INSIGHT_LINKS.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  onClick={() => setDrawerOpen(false)}
-                  className={drawerLink(isHere(l.href))}
-                  aria-current={isHere(l.href) ? 'page' : undefined}
-                >
-                  {l.label}
-                </Link>
-              </li>
-            ))}
+            <li key={ACTIVITY_LINK.href}>
+              <Link
+                href={ACTIVITY_LINK.href}
+                onClick={() => setDrawerOpen(false)}
+                className={drawerLink(isHere(ACTIVITY_LINK.href))}
+                aria-current={isHere(ACTIVITY_LINK.href) ? 'page' : undefined}
+              >
+                {ACTIVITY_LINK.label}
+              </Link>
+            </li>
           </ul>
 
           <form action={signOut} className="mt-5 border-t border-line pt-3">

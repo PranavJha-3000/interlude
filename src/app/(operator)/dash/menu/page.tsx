@@ -319,6 +319,7 @@ function ItemFields({
     prepBurden: string
     requiresKitchenWork: boolean
     isHero: boolean
+    chefRank: number | null
   }
 }) {
   const uid = item?.id ?? 'new'
@@ -431,6 +432,23 @@ function ItemFields({
           {en.dash.menu.heroLabel}
           <span className="text-xs text-muted">{en.dash.menu.heroHelp}</span>
         </label>
+      </div>
+
+      <div className="mt-4 max-w-xs">
+        <label htmlFor={`chefRank-${uid}`} className={LABEL}>
+          {en.dash.menu.chefRankLabel}
+        </label>
+        <input
+          id={`chefRank-${uid}`}
+          name="chefRank"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          defaultValue={item?.chefRank ?? ''}
+          className={INPUT + ' font-mono'}
+        />
+        <p className="mt-1 text-xs text-muted">{en.dash.menu.chefRankHelp}</p>
       </div>
     </div>
   )

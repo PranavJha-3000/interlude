@@ -25,6 +25,7 @@ const CONFIG: PairingConfig = { gapRatio: 2.0 }
 function item(over: Partial<GameItem> & { id: string }): GameItem {
   return {
     name: `Item ${over.id}`,
+    category: 'mains',
     photoUrl: null,
     unitsSold: 10,
     chefRank: null,
@@ -219,6 +220,35 @@ describe('ranking basis (§4.2 — never present a guess as data)', () => {
     const ranked = fromChefRanking([item({ id: 'a', chefRank: 1 }), item({ id: 'unranked' })])
 
     expect(ranked.find((i) => i.id === 'unranked')!.unitsSold).toBe(0)
+  })
+})
+
+/**
+ * A fresh-venue menu has no explicit chef rank and no sales.  Combined with
+ * `assignDefaultChefRanks` from `@/lib/table-run`, the engine must always be
+ * able to deal at least one pair.  This is what stops a brand-new venue from
+ * landing on the "This game is unavailable" dead-end.
+ */
+describe('a fresh-venue menu reaches a pair', () => {
+  it('dealPair returns a real pair once ranks exist (CHEF basis)', () => {
+    // Six dishes spanning three categories — a realistic fresh venue menu.
+    const menu = [
+      item({ id: 'a', name: 'Butter Chicken', category: 'mains' }),
+      item({ id: 'b', name: 'Paneer Tikka', category: 'starters' }),
+      item({ id: 'c', name: 'Garlic Naan', category: 'breads' }),
+      item({ id: 'd', name: 'Dal Tadka', category: 'mains' }),
+      item({ id: 'e', name: 'Sweet Lassi', category: 'drinks' }),
+      item({ id: 'f', name: 'Gulab Jamun', category: 'desserts' }),
+    ]
+    // Assign default ranks from category+name sort — the runtime helper's behaviour.
+    const ranked = fromChefRanking(menu)
+    const withRanks = ranked.map((m, i) => ({ ...m, chefRank: i + 1 }))
+    // Verify fromChefRanking gives unranked items unitsSold: 0 (the basis becomes CHEF).
+    expect(ranked.every((m) => m.unitsSold === 0)).toBe(true)
+    const pair = dealPair(withRanks, CONFIG, [], 'run-1')
+    expect(pair).not.toBeNull()
+    expect(pair!.basis).toBe('CHEF')
+    expect(pair!.higherId).not.toBe(pair!.lowerId)
   })
 })
 

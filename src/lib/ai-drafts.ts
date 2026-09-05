@@ -130,6 +130,114 @@ export async function generateSecretRecipeDrafts(venueId: string): Promise<AiOut
   return { ok: true, count: result.candidates.length, warnings: result.warnings }
 }
 
+/**
+ * Resolve the course slots the venue actually uses for Mystery Customer.
+ *
+ * If the operator (or the AI draft approver) has set a `courseOrder` on the
+ * stored VenueGame data, that wins. Otherwise the slots are derived from the
+ * venue's *live* menu categories, so a fresh venue — or a venue that approved
+ * a persona without ever configuring courses — still gets a playable game
+ * instead of one with zero slots.
+ *
+ * The mapping here is intentionally coarse: we collapse the free-form category
+ * strings the operator types into the three slots the game uses (main, side,
+ * drink). This keeps V1 deterministic without needing a separate tags column.
+ */
+export async function resolveCourseOrder(
+  venueId: string,
+  storedData?: unknown
+): Promise<string[]> {
+  // Use explicitly-passed data if available; otherwise read from DB.
+  const raw =
+    storedData !== undefined
+      ? storedData
+      : (
+          await db.venueGame.findFirst({
+            where: { venueId, mechanic: 'MYSTERY_CUSTOMER' },
+            select: { data: true },
+          })
+        )?.data
+  const stored = parseMysteryCustomerData(raw)
+  if (stored.courseOrder.length > 0) {
+    return stored.courseOrder
+  }
+
+  // Fresh venue — pull categories from the live menu and map them to slots.
+  const items = await db.menuItem.findMany({
+    where: { venueId, active: true },
+    select: { category: true },
+  })
+
+  // Coarse category → slot mapping. The keys are normalised lowercase; the
+  // values are the game slots in canonical order. Unrecognised categories are
+  // simply skipped — guessing would be worse than giving the guest one fewer
+  // course slot, and the operator can always fix the category string later.
+  const categoryToSlot: Record<string, string> = {
+    main: 'main',
+    mains: 'main',
+    'main course': 'main',
+    'main courses': 'main',
+    curry: 'main',
+    curries: 'main',
+    biryani: 'main',
+    rice: 'main',
+    pizza: 'main',
+    pasta: 'main',
+    burger: 'main',
+    sandwich: 'main',
+    starter: 'side',
+    starters: 'side',
+    appetizer: 'side',
+    appetizers: 'side',
+    snack: 'side',
+    snacks: 'side',
+    side: 'side',
+    sides: 'side',
+    bread: 'side',
+    breads: 'side',
+    roti: 'side',
+    naan: 'side',
+    salad: 'side',
+    soup: 'drink',
+    soups: 'side',
+    dessert: 'drink',
+    desserts: 'drink',
+    sweet: 'drink',
+    sweets: 'drink',
+    drink: 'drink',
+    drinks: 'drink',
+    'soft drinks': 'drink',
+    beverage: 'drink',
+    beverages: 'drink',
+    shake: 'drink',
+    shakes: 'drink',
+    tea: 'drink',
+    coffee: 'drink',
+  }
+
+  const slotSet = new Set<string>()
+  for (const item of items) {
+    const cat = item.category?.toLowerCase().trim()
+    if (!cat) continue
+    // Try the whole category first, then a single-word fallback so e.g.
+    // "Main Course" → main, "Soft Drinks" → drink.
+    let slot = categoryToSlot[cat]
+    if (!slot) {
+      const firstWord = cat.split(/\s+/)[0]
+      if (firstWord) slot = categoryToSlot[firstWord]
+    }
+    if (slot) slotSet.add(slot)
+  }
+
+  // Preserve the canonical order: main → side → drink, so the AI prompt sees
+  // them in the sequence the gameplay expects.
+  const ordered: string[] = []
+  for (const slot of ['main', 'side', 'drink']) {
+    if (slotSet.has(slot)) ordered.push(slot)
+  }
+  return ordered
+}
+
 export async function generateMysteryCustomerDrafts(venueId: string): Promise<AiOutcome> {
   const adapter = getAiAdapter()
   if (!adapter) return { ok: false, reason: 'AI_UNAVAILABLE' }
@@ -140,7 +248,7 @@ export async function generateMysteryCustomerDrafts(venueId: string): Promise<Ai
   })
   // Personas target the course slots the venue already runs — never ones the
   // model invents. An unconfigured venue gets personas and no new slots.
-  const courseOrder = parseMysteryCustomerData(row?.data).courseOrder
+  const courseOrder = await resolveCourseOrder(venueId, row?.data)
 
   const [menu, name] = await Promise.all([menuForAI(venueId), venueNameFor(venueId)])
   const result = await adapter.generateMysteryCustomers({ venueName: name, menu, courseOrder })
@@ -534,13 +642,14 @@ export async function approveAiDraft(draftId: string, venueId: string): Promise<
       })
       const existing = parseMysteryCustomerData(row?.data)
       // Budgets and cravings merge into what the operator already wrote; the
-      // course order is theirs alone and is never added to here.
+      // course order is resolved fresh each time from stored data or menu.
+      const resolvedCourseOrder = await resolveCourseOrder(venueId, row?.data)
       const data: MysteryCustomerData = {
         budgetOptionsPaise: [...new Set([...existing.budgetOptionsPaise, budgetPaise])].sort(
           (a, b) => a - b
         ),
         cravings: [...new Set([...existing.cravings, ...cravings])],
-        courseOrder: existing.courseOrder,
+        courseOrder: resolvedCourseOrder,
       }
       await upsertVenueGameData(venueId, 'MYSTERY_CUSTOMER', data)
       break
