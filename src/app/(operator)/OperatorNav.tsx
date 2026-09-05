@@ -9,11 +9,11 @@ import { signOut } from './signin/actions'
 /**
  * The operator nav — `INTERLUDE | Tonight | Manage | Activity | Sign out`.
  *
- * The flat nine-link strip outlived its usefulness: an operator's jobs split
- * into doing tonight, running the venue (Manage) and reading it (Activity), so
- * the groups carry that split. The groups are hand-rolled disclosure buttons —
- * no component library and no icon library exist in this repo, and the whole
- * behaviour is open, close, close-on-outside-click and close-on-Escape.
+ * The flat strip carries four concerns: doing tonight (Tonight), running the venue
+ * (Manage), reading it tonight (Activity), and leaving. Manage is a disclosure
+ * group because it holds several links; Activity is a single destination, so it
+ * is a direct link, not a dropdown — a dropdown that opens onto one item is a
+ * click that hides the thing it reveals.
  *
  * It must NOT appear on the pre-auth pages. `/signin` and `/signup` render
  * inside this layout, and a visitor landing on them (possibly still holding a
@@ -34,9 +34,7 @@ const MANAGE_LINKS = [
   { href: '/tents', label: en.dash.tents },
 ]
 
-const ACTIVITY_LINK = { href: '/dash/activity', label: en.dash.activity.heading }
-
-type GroupId = 'manage' | 'activity'
+type GroupId = 'manage'
 
 export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
@@ -116,16 +114,13 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
           onNavigate={() => setOpenGroup(null)}
         />
 
-        <NavGroup
-          label={en.nav.activity}
-          active={activityActive}
-          open={openGroup === 'activity'}
-          onToggle={() => setOpenGroup(openGroup === 'activity' ? null : 'activity')}
-          links={[ACTIVITY_LINK]}
-          isHere={isHere}
-          linkClass={stripLink}
-          onNavigate={() => setOpenGroup(null)}
-        />
+        <Link
+          href="/dash/activity"
+          className={stripLink(activityActive)}
+          aria-current={activityActive ? 'page' : undefined}
+        >
+          {en.nav.activity}
+        </Link>
       </div>
 
       <form action={signOut} className="ml-auto hidden md:block">
@@ -186,19 +181,14 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
             ))}
           </ul>
 
-          <p className="mt-5 text-xs tracking-widest text-muted uppercase">{en.nav.activity}</p>
-          <ul className="mt-1">
-            <li key={ACTIVITY_LINK.href}>
-              <Link
-                href={ACTIVITY_LINK.href}
-                onClick={() => setDrawerOpen(false)}
-                className={drawerLink(isHere(ACTIVITY_LINK.href))}
-                aria-current={isHere(ACTIVITY_LINK.href) ? 'page' : undefined}
-              >
-                {ACTIVITY_LINK.label}
-              </Link>
-            </li>
-          </ul>
+          <Link
+            href="/dash/activity"
+            onClick={() => setDrawerOpen(false)}
+            className={drawerLink(activityActive)}
+            aria-current={activityActive ? 'page' : undefined}
+          >
+            {en.nav.activity}
+          </Link>
 
           <form action={signOut} className="mt-5 border-t border-line pt-3">
             <button type="submit" className="flex min-h-11 items-center text-base text-muted">
