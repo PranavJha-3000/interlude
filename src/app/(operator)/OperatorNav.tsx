@@ -87,7 +87,7 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   const isHere = (href: string) => pathname === href
 
   const stripLink = (active: boolean) =>
-    `transition-state text-sm ${active ? 'text-ink underline underline-offset-4' : 'text-muted hover:text-ink'}`
+    `transition-state rounded-full px-3 py-1.5 text-sm ${active ? 'bg-warm font-semibold text-ink' : 'text-muted hover:bg-warm/60 hover:text-ink'}`
   const drawerLink = (active: boolean) =>
     `flex min-h-11 items-center text-base ${active ? 'font-medium text-ink' : 'text-ink-warm'}`
 

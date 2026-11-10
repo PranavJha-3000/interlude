@@ -1,0 +1,729 @@
+/* Nearby-style sections: pilot panel, phone splits, marquee, pricing, FAQ.
+   Scoped under .lp like landing.css, whose tokens it reuses. */
+.lp .live__panel {
+  display: grid;
+  gap: 2rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  box-shadow: var(--shadow-md);
+}
+@media (min-width: 52rem) {
+  .lp .live__panel {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+  }
+}
+.lp .live__lead {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 30rem;
+}
+.lp .live__cards {
+  display: grid;
+  gap: 0.75rem;
+}
+.lp .live__card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.9rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  background: var(--peach);
+  border: 1px solid var(--peach-line);
+  border-radius: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.lp .live__card strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+.lp .live__glyph {
+  grid-row: span 2;
+  font-size: 1.6rem;
+}
+
+.lp .split__inner {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+@media (min-width: 52rem) {
+  .lp .split__inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+  }
+}
+.lp .split__lead {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 1.075rem;
+  max-width: 30rem;
+}
+.lp .ticks {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.8rem;
+}
+.lp .ticks li {
+  position: relative;
+  padding-left: 2rem;
+  color: var(--body);
+  font-weight: 500;
+}
+.lp .ticks li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: var(--primary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.6 5.4 12.5l-1.4 1.4 5.5 5.5L20.5 8.4 19.1 7z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.6 5.4 12.5l-1.4 1.4 5.5 5.5L20.5 8.4 19.1 7z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* The phone: a device frame, like a screenshot of the product. */
+.lp .phone {
+  width: min(100%, 21rem);
+  margin-inline: auto;
+  padding: 1rem 1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: #fff;
+  border: 8px solid var(--dark);
+  border-radius: 2.6rem;
+  box-shadow: var(--shadow-lg);
+}
+.lp .phone__bar {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 0.4rem 0 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+.lp .bubble {
+  max-width: 82%;
+  padding: 0.65rem 0.95rem;
+  border-radius: 1.2rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.lp .bubble--in {
+  align-self: flex-start;
+  background: #ecebe8;
+  color: var(--ink);
+  border-bottom-left-radius: 0.35rem;
+}
+.lp .bubble--out {
+  align-self: flex-end;
+  background: var(--primary-2);
+  color: #fff;
+  border-bottom-right-radius: 0.35rem;
+}
+.lp .phone__q {
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  padding: 0.6rem 0.2rem;
+}
+.lp .phone__opt {
+  padding: 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--ink);
+}
+.lp .phone__opt--pick {
+  background: var(--peach);
+  border-color: var(--primary);
+}
+.lp .phone__clock {
+  align-self: center;
+  margin-top: 0.4rem;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: var(--primary-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp .marquee {
+  overflow: hidden;
+  padding-block: 1.1rem;
+  border-block: 1px solid var(--border);
+  background: var(--surface);
+}
+.lp .marquee__track {
+  display: flex;
+  width: max-content;
+  animation: lp-marquee 38s linear infinite;
+}
+.lp .marquee__set {
+  display: flex;
+  gap: 2.5rem;
+  padding-right: 2.5rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.lp .marquee__set span::after {
+  content: '•';
+  margin-left: 2.5rem;
+  color: var(--primary);
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp .marquee__track {
+    animation: none;
+  }
+}
+
+.lp .plan {
+  max-width: 26rem;
+  margin-inline: auto;
+  padding: 2rem;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  box-shadow: var(--shadow-md);
+}
+.lp .plan__name {
+  font-weight: 700;
+  color: var(--muted);
+}
+.lp .plan__price {
+  margin-top: 0.4rem;
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.lp .plan__note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.lp .ticks--plain {
+  text-align: left;
+  margin-block: 1.5rem 2rem;
+}
+
+.lp .faq__inner {
+  max-width: 48rem;
+}
+.lp .faq__list {
+  margin-top: 2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.lp .faq details {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 0 1.25rem;
+  transition: box-shadow 0.18s var(--ease);
+}
+.lp .faq details[open] {
+  box-shadow: var(--shadow-md);
+}
+.lp .faq summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 1.1rem 0;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.lp .faq summary::-webkit-details-marker {
+  display: none;
+}
+.lp .faq summary::after {
+  content: '+';
+  color: var(--primary-2);
+  font-size: 1.4rem;
+  line-height: 1;
+  transition: transform 0.2s var(--ease);
+}
+.lp .faq details[open] summary::after {
+  transform: rotate(45deg);
+}
+.lp .faq details p {
+  padding-bottom: 1.1rem;
+  color: var(--muted);
+}
+
+/* ── India dot map ─────────────────────────────────────────────────────── */
+.lp .live__panel--map {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 52rem) {
+  .lp .live__panel--map {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+}
+.lp .live__main {
+  display: grid;
+  gap: 1.75rem;
+}
+.lp .india {
+  width: min(100%, 24rem);
+  margin-inline: auto;
+  display: block;
+  overflow: visible;
+}
+.lp .india__dots {
+  fill: none;
+  stroke: #ecc3a8;
+  stroke-width: 4.3;
+  stroke-linecap: round;
+}
+.lp .india__pin {
+  fill: var(--primary);
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+.lp .india__pulse {
+  fill: var(--primary);
+  opacity: 0.25;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lp-pulse 2.6s var(--ease) infinite;
+}
+.lp .india__label {
+  font: 800 19px var(--font-body);
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+}
+@keyframes lp-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp .india__pulse {
+    animation: none;
+  }
+}
+
+/* ── Game phone screens ────────────────────────────────────────────────── */
+.lp .showcase__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+  gap: 2rem 1.5rem;
+  align-items: start;
+}
+.lp .showcase__item {
+  display: grid;
+  gap: 1.1rem;
+  justify-items: center;
+}
+.lp .showcase__item:nth-child(even) {
+  margin-top: 1.5rem;
+}
+.lp .showcase__cap {
+  text-align: center;
+  max-width: 15rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.lp .showcase__cap strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.15rem;
+}
+.lp .gp {
+  width: 100%;
+  max-width: 16.5rem;
+  height: 30rem;
+  padding: 0.9rem 0.9rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border: 7px solid var(--dark);
+  border-radius: 2.4rem;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.4s var(--ease);
+}
+.lp .gp:hover {
+  transform: translateY(-6px) rotate(-0.6deg);
+}
+.lp .gp::before {
+  content: '';
+  position: absolute;
+  top: 0.45rem;
+  left: 50%;
+  width: 4.2rem;
+  height: 1.1rem;
+  border-radius: 1rem;
+  background: var(--dark);
+  transform: translateX(-50%);
+}
+.lp .gp__top {
+  margin-top: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lp .gp__chip {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--primary-2);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.lp .gp__q {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  color: var(--ink);
+  margin-top: 0.4rem;
+}
+.lp .gp__hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.lp .gp__card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5px solid transparent;
+  border-radius: 1.15rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.lp .gp__card small {
+  grid-column: 2;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.lp .gp__card--pick {
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 6px 18px hsl(20 80% 51% / 0.25);
+}
+.lp .gp__emoji {
+  font-size: 1.5rem;
+  grid-row: span 2;
+}
+.lp .gp__price {
+  font-size: 0.82rem;
+  color: var(--primary-2);
+}
+.lp .gp__cta {
+  margin-top: auto;
+  padding: 0.85rem;
+  text-align: center;
+  font-weight: 800;
+  color: #fff;
+  background: var(--dark);
+  border-radius: 999px;
+}
+.lp .gp__ring {
+  width: 3.1rem;
+  height: 3.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--primary-2);
+  font-variant-numeric: tabular-nums;
+  background:
+    radial-gradient(closest-side, #fff 76%, transparent 78%),
+    conic-gradient(var(--primary) 70%, hsl(20 40% 85%) 0);
+}
+.lp .gp__dots {
+  display: flex;
+  gap: 0.3rem;
+}
+.lp .gp__dots i {
+  width: 1.3rem;
+  height: 0.28rem;
+  border-radius: 4px;
+  background: rgba(58, 28, 13, 0.18);
+}
+.lp .gp__dots i.on {
+  background: var(--primary);
+}
+.lp .gp__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.lp .gp__tag {
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  border: 1.5px solid transparent;
+}
+.lp .gp__tag--on {
+  background: var(--primary);
+  color: #fff;
+}
+.lp .gp__guest {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.lp .gp__avatar {
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+.lp .gp__say {
+  padding: 0.65rem 0.85rem;
+  background: #fff;
+  border-radius: 1.1rem 1.1rem 1.1rem 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.lp .gp--beat {
+  background: linear-gradient(170deg, #fff1e4, #ffd9bd);
+}
+.lp .gp--recipe {
+  background: linear-gradient(170deg, #fff6dd, #f6e2a8);
+}
+.lp .gp--mystery {
+  background: linear-gradient(170deg, #efe6ff, #dccdf7);
+}
+.lp .gp--reward {
+  background: linear-gradient(170deg, #e4f4e8, #bfe3c9);
+  align-items: center;
+  text-align: center;
+}
+.lp .gp__burst {
+  margin-top: 1.6rem;
+  font-size: 3.6rem;
+  filter: drop-shadow(0 8px 12px hsl(24 30% 20% / 0.2));
+}
+.lp .gp__ticket {
+  width: 100%;
+  padding: 1rem;
+  background: #fff;
+  border: 2px dashed var(--primary);
+  border-radius: 1.2rem;
+}
+.lp .gp__ticket b {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+.lp .gp--reward .gp__q {
+  margin-top: 0;
+}
+
+/* ── Reviews: name and role stack instead of running together ──────────── */
+.lp .quote__name,
+.lp .quote__role {
+  display: block;
+}
+.lp .quote__role {
+  margin-top: 0.15rem;
+}
+
+/* ── Hero polish: dotted atmosphere, floating cards, CTA pair ──────────── */
+.lp .hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(hsl(20 50% 40% / 0.14) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(60% 55% at 50% 45%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(60% 55% at 50% 45%, #000 20%, transparent 75%);
+}
+.lp .hero__title {
+  font-size: clamp(3.1rem, 9vw, 6.6rem);
+}
+.lp .hero__title em {
+  background: linear-gradient(100deg, var(--primary-2), #f08a4b 60%, var(--primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lp .hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2.1rem;
+}
+.lp .hero__cta + .hero__note {
+  margin-top: 1.4rem;
+}
+
+/* gradient text clips to the box: give the italic's overhang room */
+.lp .hero__title em {
+  padding: 0.04em 0.14em 0.12em 0.04em;
+  margin: -0.04em -0.14em -0.12em -0.04em;
+}
+
+/* more stage height so the floating cards clear the headline, CTAs and pill */
+.lp .hero__stage {
+  min-height: clamp(38rem, 76vh, 48rem);
+}
+
+/* Reserve a band above and below the copy for the card field, so cards sit
+   around the headline unit instead of under its buttons. */
+@media (min-width: 60.0625rem) {
+  .lp .hero__stage {
+    min-height: 0;
+    padding-block: 2.5rem 9.5rem;
+  }
+  .lp .hero__float {
+    -webkit-mask-image: radial-gradient(54% 50% at 50% 42%, transparent 40%, #000 74%);
+    mask-image: radial-gradient(54% 50% at 50% 42%, transparent 40%, #000 74%);
+  }
+}
+
+@media (min-width: 60.0625rem) {
+  .lp .ph--b {
+    left: 19%;
+    top: 6%;
+  }
+  .lp .ph--c {
+    top: 2%;
+    left: 52%;
+  }
+  .lp .ph--d {
+    right: 15%;
+    top: 3%;
+  }
+}
+
+/* Hero-adjacent phones share the game-phone look; the floor chat gets the same
+   device treatment so every mockup reads as one product. */
+.lp .gp--solo {
+  margin-inline: auto;
+  max-width: 18rem;
+}
+.lp .phone {
+  position: relative;
+  background: linear-gradient(180deg, #fff, #fbf5ee);
+  border-width: 7px;
+  border-radius: 2.4rem;
+  padding-top: 1.6rem;
+}
+.lp .phone::before {
+  content: '';
+  position: absolute;
+  top: 0.45rem;
+  left: 50%;
+  width: 4.2rem;
+  height: 1.1rem;
+  border-radius: 1rem;
+  background: var(--dark);
+  transform: translateX(-50%);
+}
+.lp .split {
+  position: relative;
+}
+.lp .split#guests {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--surface) 30%,
+    var(--surface) 70%,
+    transparent
+  );
+}
+.lp .showcase {
+  background: var(--surface);
+}
+
+.lp .quote__text {
+  font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+}
+.lp .quote {
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.lp .plan {
+  max-width: 30rem;
+}
+
+/* Traced India: soft fill, dot texture, a crisp contour on top. */
+.lp .india {
+  width: min(100%, 28rem);
+}
+.lp .india__shape {
+  fill: hsl(20 80% 51% / 0.07);
+  stroke: none;
+}
+.lp .india__dots {
+  fill: none;
+  stroke: #efc9b0;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+}
+.lp .india__edge {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+.lp .india__label {
+  font: 800 15px var(--font-body);
+}
+.lp .india__pulse {
+  fill: var(--primary);
+}

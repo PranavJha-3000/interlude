@@ -26,7 +26,7 @@ export default async function OperatorLayout({ children }: { children: React.Rea
 
   return (
     <div className={`${operatorFontVars} surface-operator min-h-dvh`}>
-      <header className="border-b border-line">
+      <header className="material-bar sticky top-0 z-30">
         {/* The drawer anchors to this nav (`relative`), and the shell width is
             the operator surface's own — 1152px, wide enough for the command
             center's metric row, stacking below md. */}
