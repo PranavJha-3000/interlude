@@ -219,6 +219,106 @@ describe('scoreMeal', () => {
     expect(result.problems).toContain('No valid dishes picked')
     expect(result.scorePct).toBe(0)
   })
+
+  it('matches a craving by item name when no tags exist', () => {
+    // A no-tags menu where the craving is a dish name substring.
+    const noTagsMenu: MysteryCustomerMenuItem[] = [
+      {
+        id: 'biryani',
+        name: 'Hyderabadi Biryani',
+        category: 'mains',
+        pricePaise: 25_000,
+        tags: [],
+        available: true,
+      },
+    ]
+    const biryaniBrief: MysteryProfile = {
+      ...perfectBrief,
+      craving: 'biryani',
+      preference: null,
+      appetiteDishes: 1,
+    }
+    const result = scoreMeal(
+      { ...config, courses: [{ slot: 'main', label: 'Main', categories: ['mains'] }] },
+      biryaniBrief,
+      noTagsMenu,
+      [{ slot: 'main', itemId: 'biryani' }]
+    )
+    expect(result.scorePct).toBeGreaterThan(30)
+    expect(result.highlights.some((h) => h.includes('biryani'))).toBe(true)
+  })
+
+  it('matches a preference by category when no tags exist', () => {
+    // A no-tags menu where the preference is a category name.
+    const noTagsMenu: MysteryCustomerMenuItem[] = [
+      {
+        id: 'lassi',
+        name: 'Sweet Lassi',
+        category: 'drinks',
+        pricePaise: 5_000,
+        tags: [],
+        available: true,
+      },
+    ]
+    const drinksBrief: MysteryProfile = {
+      ...perfectBrief,
+      craving: null,
+      preference: 'drinks',
+      appetiteDishes: 1,
+    }
+    const result = scoreMeal(
+      { ...config, courses: [{ slot: 'side', label: 'Side', categories: ['drinks'] }] },
+      drinksBrief,
+      noTagsMenu,
+      [{ slot: 'side', itemId: 'lassi' }]
+    )
+    expect(result.scorePct).toBeGreaterThan(15)
+    expect(result.highlights.some((h) => h.includes('drinks'))).toBe(true)
+  })
+
+  it('passes a diet check by name when tags are absent', () => {
+    // A diet requirement that matches a dish name → that dish passes the fence.
+    const noTagsMenu: MysteryCustomerMenuItem[] = [
+      {
+        id: 'dal',
+        name: 'Dal Tadka',
+        category: 'mains',
+        pricePaise: 20_000,
+        tags: [],
+        available: true,
+      },
+    ]
+    const dalBrief: MysteryProfile = { ...perfectBrief, diet: 'dal', appetiteDishes: 1 }
+    const result = scoreMeal(
+      { ...config, courses: [{ slot: 'main', label: 'Main', categories: ['mains'] }] },
+      dalBrief,
+      noTagsMenu,
+      [{ slot: 'main', itemId: 'dal' }]
+    )
+    expect(result.problems.some((p) => p.includes('breaks the dal requirement'))).toBe(false)
+  })
+
+  it('passes a diet check by name when tags are absent', () => {
+    // A diet requirement that matches a dish name → that dish passes the fence.
+    const noTagsMenu: MysteryCustomerMenuItem[] = [
+      {
+        id: 'dal',
+        name: 'Dal Tadka',
+        category: 'mains',
+        pricePaise: 20_000,
+        tags: [],
+        available: true,
+      },
+    ]
+    const dalBrief: MysteryProfile = { ...perfectBrief, diet: 'dal', appetiteDishes: 1 }
+    const result = scoreMeal(
+      { ...config, courses: [{ slot: 'main', label: 'Main', categories: ['mains'] }] },
+      dalBrief,
+      noTagsMenu,
+      [{ slot: 'main', itemId: 'dal' }]
+    )
+    expect(result.problems.some((p) => p.includes('breaks the dal requirement'))).toBe(false)
+  })
 })
 
 describe('menuForCourse', () => {

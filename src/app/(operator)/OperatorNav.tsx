@@ -7,13 +7,13 @@ import { en } from '@/strings/en'
 import { signOut } from './signin/actions'
 
 /**
- * The operator nav — `INTERLUDE | Tonight | Manage | Insights | Sign out`.
+ * The operator nav — `INTERLUDE | Tonight | Manage | Activity | Sign out`.
  *
- * The flat nine-link strip outlived its usefulness: an operator's jobs split
- * into doing tonight, running the venue (Manage) and reading it (Insights), so
- * the groups carry that split. The groups are hand-rolled disclosure buttons —
- * no component library and no icon library exist in this repo, and the whole
- * behaviour is open, close, close-on-outside-click and close-on-Escape.
+ * The flat strip carries four concerns: doing tonight (Tonight), running the venue
+ * (Manage), reading it tonight (Activity), and leaving. Manage is a disclosure
+ * group because it holds several links; Activity is a single destination, so it
+ * is a direct link, not a dropdown — a dropdown that opens onto one item is a
+ * click that hides the thing it reveals.
  *
  * It must NOT appear on the pre-auth pages. `/signin` and `/signup` render
  * inside this layout, and a visitor landing on them (possibly still holding a
@@ -34,13 +34,7 @@ const MANAGE_LINKS = [
   { href: '/tents', label: en.dash.tents },
 ]
 
-const INSIGHT_LINKS = [
-  { href: '/dash/activity', label: en.dash.activity.heading },
-  // No dedicated performance page exists; the metrics are the command center.
-  { href: '/dash', label: en.nav.performance },
-]
-
-type GroupId = 'manage' | 'insights'
+type GroupId = 'manage'
 
 export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
@@ -89,11 +83,11 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
   // (UI-SPEC §5), so "here" is ink plus an underline, never a colour.
   const tonightActive = pathname === '/dash'
   const manageActive = MANAGE_LINKS.some((l) => pathname.startsWith(l.href))
-  const insightsActive = pathname.startsWith('/dash/activity')
+  const activityActive = pathname.startsWith('/dash/activity')
   const isHere = (href: string) => pathname === href
 
   const stripLink = (active: boolean) =>
-    `transition-state text-sm ${active ? 'text-ink underline underline-offset-4' : 'text-muted hover:text-ink'}`
+    `transition-state rounded-full px-3 py-1.5 text-sm ${active ? 'bg-warm font-semibold text-ink' : 'text-muted hover:bg-warm/60 hover:text-ink'}`
   const drawerLink = (active: boolean) =>
     `flex min-h-11 items-center text-base ${active ? 'font-medium text-ink' : 'text-ink-warm'}`
 
@@ -120,16 +114,13 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
           onNavigate={() => setOpenGroup(null)}
         />
 
-        <NavGroup
-          label={en.nav.insights}
-          active={insightsActive}
-          open={openGroup === 'insights'}
-          onToggle={() => setOpenGroup(openGroup === 'insights' ? null : 'insights')}
-          links={INSIGHT_LINKS}
-          isHere={isHere}
-          linkClass={stripLink}
-          onNavigate={() => setOpenGroup(null)}
-        />
+        <Link
+          href="/dash/activity"
+          className={stripLink(activityActive)}
+          aria-current={activityActive ? 'page' : undefined}
+        >
+          {en.nav.activity}
+        </Link>
       </div>
 
       <form action={signOut} className="ml-auto hidden md:block">
@@ -190,21 +181,14 @@ export function OperatorNav({ signedIn }: { signedIn: boolean }) {
             ))}
           </ul>
 
-          <p className="mt-5 text-xs tracking-widest text-muted uppercase">{en.nav.insights}</p>
-          <ul className="mt-1">
-            {INSIGHT_LINKS.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  onClick={() => setDrawerOpen(false)}
-                  className={drawerLink(isHere(l.href))}
-                  aria-current={isHere(l.href) ? 'page' : undefined}
-                >
-                  {l.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <Link
+            href="/dash/activity"
+            onClick={() => setDrawerOpen(false)}
+            className={drawerLink(activityActive)}
+            aria-current={activityActive ? 'page' : undefined}
+          >
+            {en.nav.activity}
+          </Link>
 
           <form action={signOut} className="mt-5 border-t border-line pt-3">
             <button type="submit" className="flex min-h-11 items-center text-base text-muted">

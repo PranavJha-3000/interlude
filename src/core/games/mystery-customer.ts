@@ -255,10 +255,24 @@ export function scoreMeal(
     }
   }
 
-  // Craving (30) / preference (15): the share of dishes carrying the tag.
+  // Craving (30) / preference (15): the share of dishes whose tag *or*
+  // name/category matches the brief. The V1 menu has no tags column, so
+  // without a name/category fallback a craving like "biryani" could never
+  // match a dish called "Hyderabadi Biryani". Match priority: exact tag
+  // wins (when tags exist), then lowercase substring on the item's name and
+  // category. Diet is the same logic but as a fence.
+  const matchesDish = (needle: string | null, item: MysteryCustomerMenuItem) => {
+    if (!needle) return false
+    if (item.tags?.includes(needle)) return true
+    const n = needle.toLowerCase().trim()
+    if (!n) return false
+    if (item.name?.toLowerCase().includes(n)) return true
+    if (item.category?.toLowerCase().includes(n)) return true
+    return false
+  }
   const taggedShare = (tag: string | null) => {
     if (!tag || meal.length === 0) return null
-    return meal.filter((m) => byId.get(m.itemId)?.tags?.includes(tag)).length / meal.length
+    return meal.filter((m) => matchesDish(tag, byId.get(m.itemId)!)).length / meal.length
   }
   const cravingShare = taggedShare(profile.craving)
   const preferenceShare = taggedShare(profile.preference)
@@ -290,7 +304,7 @@ export function scoreMeal(
   // Diet is a fence, not a preference: one violation costs 35 outright.
   let dietPenalty = 0
   if (profile.diet) {
-    const violating = meal.filter((m) => !byId.get(m.itemId)?.tags?.includes(profile.diet!))
+    const violating = meal.filter((m) => !matchesDish(profile.diet, byId.get(m.itemId)!))
     if (violating.length > 0) {
       dietPenalty = 35
       problems.push(`${violating[0]!.name} breaks the ${profile.diet} requirement`)

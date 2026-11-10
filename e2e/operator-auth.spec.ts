@@ -97,9 +97,8 @@ test('a venue-less operator keeps nav and sign-out, and is not bounced off activ
   await page.getByRole('button', { name: 'Open menu' }).click()
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Tonight' })).toBeVisible()
-  // Activity lives in the Insights group of the drawer.
+  // Activity is grouped under the "Activity" heading in the drawer.
   await expect(page.getByRole('link', { name: 'Activity' })).toBeVisible()
-
   await page.goto('/dash/activity')
   await expect(page).toHaveURL(/\/dash\/activity$/)
   await expect(page.locator('main')).toContainText('No service running')

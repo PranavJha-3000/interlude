@@ -130,6 +130,60 @@
    * other change is a discrete state, and a discrete state change gets exactly
    * one duration and one curve. No other timing value may appear anywhere. */
   --ease-state: cubic-bezier(0.2, 0, 0, 1);
+
+  /* iOS-style continuous-feeling corners. Every `rounded-lg/xl/2xl` in the
+   * product reads these, so the whole app softens from one place. */
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.625rem;
+
+  /* Critically damped press spring (apple-design §4): no overshoot. */
+  --ease-press: cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+/* Press feedback lands on pointer-down, not release (apple-design §1). Pure
+ * CSS, so it costs the guest bundle nothing. Opted in by touch-sized targets. */
+button:not(:disabled),
+a[class*='min-h-'],
+summary {
+  transition: transform 140ms var(--ease-press);
+}
+button:not(:disabled):active,
+a[class*='min-h-']:active {
+  transform: scale(0.97);
+}
+
+/* Large display type tightens as it grows (apple-design §15). */
+h1,
+h2 {
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+/* Pages glide into each other instead of cutting — a cross-fade that stays
+ * interruptible because the browser owns it. */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--ease-state);
+}
+
+/* Translucent chrome with content scrolling beneath (apple-design §12). */
+.material-bar {
+  background: color-mix(in srgb, var(--color-paper) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .material-bar {
+    background: var(--color-paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 :root {

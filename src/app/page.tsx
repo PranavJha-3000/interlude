@@ -3,7 +3,9 @@ import Link from 'next/link'
 import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google'
 import { BRAND } from '@/brand'
 import { LandingEnhancements } from './landing-enhancements'
+import { IndiaMap } from './IndiaMap'
 import './landing.css'
+import './landing-sections.css'
 
 /**
  * The public front door — the `/` route Vercel and `npm run dev` serve.
@@ -97,6 +99,8 @@ export default function LandingPage() {
         <div className="nav__mobile" id="nav-mobile" data-nav-mobile hidden>
           <a href="#how">How it works</a>
           <a href="#forres">For restaurants</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
           <Link href="/refer">Refer a Restaurant</Link>
           <Link className="btn btn--dark" href="/signin">
             Log In
@@ -228,8 +232,7 @@ export default function LandingPage() {
                 </span>
               </span>
               <h1 className="hero__title reveal" data-reveal-delay="1">
-                <em>Merchandising</em>
-                wait times
+                <em>Merchandising</em> wait times
                 <span className="dot" aria-hidden="true">
                   .
                 </span>
@@ -240,27 +243,63 @@ export default function LandingPage() {
                     the brand into the first word ("Interludeturns"). */}
                 {`${BRAND.name} turns the time between order and arrival into a playful, menu-driven experience. So guests discover more, order more, and leave happier.`}
               </p>
+              <div className="hero__cta reveal" data-reveal-delay="2">
+                <Link className="btn btn--primary btn--lg" href="/signup">
+                  Get Started
+                </Link>
+                <a className="btn btn--ghost btn--lg" href="#how">
+                  See how it works
+                </a>
+              </div>
               <p className="hero__note reveal" data-reveal-delay="3">
                 Now taking pilot restaurants
               </p>
-              <a
-                className="hero__scroll reveal"
-                data-reveal-delay="4"
-                href="#how"
-                aria-label="Scroll to how it works"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M12 5v14m0 0 6-6m-6 6-6-6" />
-                </svg>
-              </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="section live" aria-labelledby="live-h">
+          <div className="container">
+            <div className="live__panel live__panel--map reveal">
+              <div className="live__main">
+                <div className="live__copy">
+                  <p className="eyebrow eyebrow--accent">Pilot weekend</p>
+                  <h2 className="section-title" id="live-h">
+                    Starting with a handful of restaurants
+                    <span className="dot" aria-hidden="true">
+                      .
+                    </span>
+                  </h2>
+                  <p className="live__lead">
+                    4&ndash;6 venues, one weekend, counted honestly. Every number is a count or a
+                    rate from your own tables, and nothing is called a win until it has earned it.
+                  </p>
+                </div>
+                <ul className="live__cards">
+                  <li className="live__card">
+                    <span className="live__glyph" aria-hidden="true">
+                      📱
+                    </span>
+                    <strong>Scans</strong>
+                    <span>Guests who open the table page</span>
+                  </li>
+                  <li className="live__card">
+                    <span className="live__glyph" aria-hidden="true">
+                      🎮
+                    </span>
+                    <strong>Completions</strong>
+                    <span>Rounds played to the end</span>
+                  </li>
+                  <li className="live__card">
+                    <span className="live__glyph" aria-hidden="true">
+                      🧾
+                    </span>
+                    <strong>Add-ons</strong>
+                    <span>Confirmed by your server, exactly</span>
+                  </li>
+                </ul>
+              </div>
+              <IndiaMap />
             </div>
           </div>
         </section>
@@ -268,7 +307,7 @@ export default function LandingPage() {
         {/* ────────────────────────  HOW IT WORKS  ──────────────────────── */}
         <section className="section how" id="how">
           <div className="container">
-            <header className="section-head reveal">
+            <header className="section-head section-head--center reveal">
               <p className="eyebrow-rule">
                 <span>How it works</span>
               </p>
@@ -287,7 +326,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="step__title">Guest scans, game begins</h3>
                 <p className="step__body">
-                  A quick QR scan at the table launches {BRAND.name}. Instantly, guests are drawn
+                  A quick QR scan at the table launches {BRAND.name}. Instantly, guests are pulled
                   into bite-sized menu stories, trivia, and discovery.
                 </p>
               </li>
@@ -299,8 +338,7 @@ export default function LandingPage() {
                 <h3 className="step__title">Explore while they wait</h3>
                 <p className="step__body">
                   Guests discover menu highlights, chef picks, and off-menu gems through a quick,
-                  playful game. With rewards to win and little moments of delight along the
-                  way.
+                  playful game. With rewards to win and little moments of delight along the way.
                 </p>
               </li>
               <li className="step reveal" data-reveal-delay="2">
@@ -310,9 +348,8 @@ export default function LandingPage() {
                 </div>
                 <h3 className="step__title">Add to order, effortlessly</h3>
                 <p className="step__body">
-                  With a tap, they send add-on suggestions straight to the server. No friction.
-                  Just a spontaneous second cocktail or dessert they didn&rsquo;t know they
-                  wanted.
+                  With a tap, they send add-on suggestions straight to the server. No friction. Just
+                  a spontaneous second cocktail or dessert they didn&rsquo;t know they wanted.
                 </p>
               </li>
               <li className="step reveal" data-reveal-delay="3">
@@ -447,8 +484,8 @@ export default function LandingPage() {
             <div className="quotes">
               <figure className="quote quote--peach reveal">
                 <blockquote className="quote__text">
-                  &ldquo;We sold out of our featured dessert on the first night. Guests kept saying
-                  they saw it in the game.&rdquo;
+                  &ldquo;The tiramisu was gone by nine on opening night. Table after table told us
+                  they&rsquo;d spotted it while they waited.&rdquo;
                 </blockquote>
                 <figcaption className="quote__who">
                   <span className="quote__avatar" aria-hidden="true">
@@ -463,9 +500,9 @@ export default function LandingPage() {
 
               <figure className="quote quote--sage reveal" data-reveal-delay="1">
                 <blockquote className="quote__text">
-                  &ldquo;Our servers love it. Guests arrive at the table already excited. The
-                  conversation shifts from &lsquo;how long?&rsquo; to &lsquo;can I add the truffle
-                  fries?&rsquo;&rdquo;
+                  &ldquo;Nobody asks &lsquo;how much longer?&rsquo; anymore. Now it&rsquo;s
+                  &lsquo;can we add the truffle fries?&rsquo; Guests reach their food already in a
+                  good mood.&rdquo;
                 </blockquote>
                 <figcaption className="quote__who">
                   <span className="quote__avatar" aria-hidden="true">
@@ -477,6 +514,316 @@ export default function LandingPage() {
                   </span>
                 </figcaption>
               </figure>
+            </div>
+          </div>
+        </section>
+
+        <section className="section split" id="floor" aria-labelledby="floor-h">
+          <div className="container split__inner">
+            <div className="split__copy reveal">
+              <p className="eyebrow eyebrow--accent">Your floor</p>
+              <h2 className="section-title" id="floor-h">
+                One list for your servers
+                <span className="dot" aria-hidden="true">
+                  .
+                </span>
+              </h2>
+              <ul className="ticks">
+                <li>Add-on requests land as tickets at the right table, right now</li>
+                <li>One tap to confirm, so your numbers stay exact</li>
+                <li>The chef sets kitchen load with a single control</li>
+                <li>No dashboards for staff. Only what to do next</li>
+              </ul>
+            </div>
+            <div className="phone reveal" data-reveal-delay="1" aria-hidden="true">
+              <div className="phone__bar">Floor &middot; now</div>
+              <div className="bubble bubble--in">Table 12 wants the tiramisu.</div>
+              <div className="bubble bubble--in">Table 4 added a second mocktail.</div>
+              <div className="bubble bubble--out">Confirmed, on the way.</div>
+              <div className="bubble bubble--in">Table 7 earned free fries. Code FRIES-7Q.</div>
+              <div className="bubble bubble--out">Done.</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="section split" id="guests" aria-labelledby="guests-h">
+          <div className="container split__inner">
+            <div className="gp gp--beat gp--solo reveal" aria-hidden="true">
+              <div className="gp__top">
+                <span>Table 12</span>
+                <span className="gp__ring">0:23</span>
+              </div>
+              <p className="gp__q">Which sells more here?</p>
+              <div className="gp__card gp__card--pick">
+                <span className="gp__emoji">🍛</span>
+                <span>Butter chicken</span>
+                <small>Chef&rsquo;s favourite</small>
+                <span className="gp__price">₹420</span>
+              </div>
+              <div className="gp__card">
+                <span className="gp__emoji">🧆</span>
+                <span>Paneer tikka</span>
+                <small>From the tandoor</small>
+                <span className="gp__price">₹360</span>
+              </div>
+              <div className="gp__dots">
+                <i className="on" />
+                <i className="on" />
+                <i className="on" />
+                <i />
+                <i />
+              </div>
+              <span className="gp__hint">Round 3 of 5 &middot; 2 in a row</span>
+            </div>
+            <div className="split__copy reveal" data-reveal-delay="1">
+              <p className="eyebrow eyebrow--accent">For guests</p>
+              <h2 className="section-title" id="guests-h">
+                Scan, play, enjoy
+                <span className="dot" aria-hidden="true">
+                  .
+                </span>
+              </h2>
+              <p className="split__lead">
+                No app and no account. A quick round while the kitchen cooks, and a small reward
+                earned by skill and always honoured.
+              </p>
+              <ul className="ticks">
+                <li>Free for guests, always</li>
+                <li>Leave a number only if you want a reward next visit</li>
+                <li>Your review is never tied to how you played</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section className="section showcase" id="games" aria-labelledby="games-h">
+          <div className="container">
+            <header className="section-head section-head--center reveal">
+              <p className="eyebrow eyebrow--accent">The games</p>
+              <h2 className="section-title" id="games-h">
+                A round for every table
+                <span className="dot" aria-hidden="true">
+                  .
+                </span>
+              </h2>
+              <p className="section-sub">
+                Each game is built from your own menu, so the dishes guests play with are the dishes
+                you want to sell.
+              </p>
+            </header>
+            <div className="showcase__grid">
+              <figure className="showcase__item reveal">
+                <div className="gp gp--beat" aria-hidden="true">
+                  <div className="gp__top">
+                    <span>Beat the Kitchen</span>
+                    <span className="gp__ring">0:23</span>
+                  </div>
+                  <p className="gp__q">Which sells more here?</p>
+                  <div className="gp__card gp__card--pick">
+                    <span className="gp__emoji">🍛</span>
+                    <span>Butter chicken</span>
+                    <small>Chef&rsquo;s favourite</small>
+                    <span className="gp__price">₹420</span>
+                  </div>
+                  <div className="gp__card">
+                    <span className="gp__emoji">🧆</span>
+                    <span>Paneer tikka</span>
+                    <small>From the tandoor</small>
+                    <span className="gp__price">₹360</span>
+                  </div>
+                  <div className="gp__dots">
+                    <i className="on" />
+                    <i className="on" />
+                    <i className="on" />
+                    <i />
+                    <i />
+                  </div>
+                  <span className="gp__hint">Round 3 of 5 &middot; 2 in a row</span>
+                </div>
+                <figcaption className="showcase__cap">
+                  <strong>Beat the Kitchen</strong>
+                  Guess what sells. Real dishes, a short clock.
+                </figcaption>
+              </figure>
+
+              <figure className="showcase__item reveal" data-reveal-delay="1">
+                <div className="gp gp--recipe" aria-hidden="true">
+                  <div className="gp__top">
+                    <span>Secret Recipe</span>
+                    <span className="gp__chip">2 of 3</span>
+                  </div>
+                  <p className="gp__q">What goes into the signature thali?</p>
+                  <div className="gp__tags">
+                    <span className="gp__tag gp__tag--on">Saffron</span>
+                    <span className="gp__tag">Coconut</span>
+                    <span className="gp__tag gp__tag--on">Cardamom</span>
+                    <span className="gp__tag">Tamarind</span>
+                    <span className="gp__tag">Curry leaf</span>
+                    <span className="gp__tag">Jaggery</span>
+                  </div>
+                  <span className="gp__hint">Pick three that belong together.</span>
+                  <span className="gp__cta">Check my recipe</span>
+                </div>
+                <figcaption className="showcase__cap">
+                  <strong>Secret Recipe</strong>
+                  Piece the dish together and meet the menu&rsquo;s best.
+                </figcaption>
+              </figure>
+
+              <figure className="showcase__item reveal" data-reveal-delay="2">
+                <div className="gp gp--mystery" aria-hidden="true">
+                  <div className="gp__top">
+                    <span>Mystery Customer</span>
+                    <span className="gp__chip">New order</span>
+                  </div>
+                  <div className="gp__guest">
+                    <span className="gp__avatar">🧑‍🍳</span>
+                    <p className="gp__say">
+                      Vegetarian, and I&rsquo;d like something warm but not too spicy.
+                    </p>
+                  </div>
+                  <div className="gp__card">
+                    <span className="gp__emoji">🍲</span>
+                    <span>Dal makhani</span>
+                    <small>Slow-cooked, mild</small>
+                    <span className="gp__price">₹340</span>
+                  </div>
+                  <div className="gp__card gp__card--pick">
+                    <span className="gp__emoji">🥘</span>
+                    <span>Paneer lababdar</span>
+                    <small>Creamy, gentle heat</small>
+                    <span className="gp__price">₹390</span>
+                  </div>
+                  <div className="gp__card">
+                    <span className="gp__emoji">🌶️</span>
+                    <span>Chilli paneer</span>
+                    <small>Hot and tangy</small>
+                    <span className="gp__price">₹380</span>
+                  </div>
+                </div>
+                <figcaption className="showcase__cap">
+                  <strong>Mystery Customer</strong>
+                  Serve the right dish to a guest with a story.
+                </figcaption>
+              </figure>
+
+              <figure className="showcase__item reveal" data-reveal-delay="3">
+                <div className="gp gp--reward" aria-hidden="true">
+                  <div className="gp__top" style={{ width: '100%' }}>
+                    <span>Reward unlocked</span>
+                  </div>
+                  <span className="gp__burst">🍟</span>
+                  <p className="gp__q">Free masala fries</p>
+                  <span className="gp__hint">Earned by skill. Yours to claim.</span>
+                  <div className="gp__ticket">
+                    <span className="gp__hint">Show your server</span>
+                    <b>FRIES-7Q</b>
+                  </div>
+                  <span className="gp__cta" style={{ width: '100%' }}>
+                    Add a dessert too
+                  </span>
+                </div>
+                <figcaption className="showcase__cap">
+                  <strong>A reward that&rsquo;s honoured</strong>
+                  Inside your fences, confirmed by your server.
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        <div className="marquee" aria-hidden="true">
+          <div className="marquee__track">
+            {[0, 1].map((i) => (
+              <span className="marquee__set" key={i}>
+                <span>Beat the Kitchen</span>
+                <span>Secret Recipe</span>
+                <span>Mystery Customer</span>
+                <span>Chef&rsquo;s picks</span>
+                <span>Add to order</span>
+                <span>Unlock a reward</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <section className="section pricing" id="pricing" aria-labelledby="pricing-h">
+          <div className="container">
+            <header className="section-head section-head--center reveal">
+              <p className="eyebrow eyebrow--accent">Simple pricing</p>
+              <h2 className="section-title" id="pricing-h">
+                Choose your plan
+                <span className="dot" aria-hidden="true">
+                  .
+                </span>
+              </h2>
+              <p className="section-sub">No contracts. Cancel anytime.</p>
+            </header>
+            <div className="plan reveal">
+              <p className="plan__name">Pilot venue</p>
+              <p className="plan__price">Pilot terms</p>
+              <p className="plan__note">Agreed with you before you start.</p>
+              <ul className="ticks ticks--plain">
+                <li>Self-serve setup: menu, tables, staff PINs, QR</li>
+                <li>Two games, tuned to your own fences</li>
+                <li>Server tickets and chef kitchen-load control</li>
+                <li>Dashboard with exact counts and honest rates</li>
+              </ul>
+              <Link className="btn btn--primary btn--lg" href="/signup">
+                Start growing today
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="section faq" id="faq" aria-labelledby="faq-h">
+          <div className="container faq__inner">
+            <h2 className="section-title reveal" id="faq-h">
+              Questions &amp; answers
+            </h2>
+            <div className="faq__list reveal">
+              <details>
+                <summary>Do guests need an app or an account?</summary>
+                <p>
+                  No. They scan the table QR and play in the browser. A phone number is only asked
+                  for after a round, and only if they want a reward next visit.
+                </p>
+              </details>
+              <details>
+                <summary>Is any of it a game of chance?</summary>
+                <p>
+                  No. Outcomes depend on the guest&rsquo;s skill, never on a random roll, and every
+                  reward decision records why it was made.
+                </p>
+              </details>
+              <details>
+                <summary>Do I need my POS to connect?</summary>
+                <p>
+                  No. Servers confirm add-ons with one tap. A bill export can be imported later for
+                  fuller numbers.
+                </p>
+              </details>
+              <details>
+                <summary>What does it cost me in discounts?</summary>
+                <p>
+                  You set the fences: which items can be rewards, how deep, and how often. Nothing
+                  outside them is ever offered.
+                </p>
+              </details>
+              <details>
+                <summary>Can it affect my reviews?</summary>
+                <p>
+                  Every guest is invited to review, whatever they played or won. A rating is never
+                  stored and never gates a reward.
+                </p>
+              </details>
+              <details>
+                <summary>How long does setup take?</summary>
+                <p>
+                  You do it yourself in a few guided steps and finish with a printable QR for every
+                  table.
+                </p>
+              </details>
             </div>
           </div>
         </section>

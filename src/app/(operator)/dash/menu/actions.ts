@@ -43,7 +43,25 @@ interface ParsedItem {
   prepBurden: (typeof PREP_BURDENS)[number]
   requiresKitchenWork: boolean
   isHero: boolean
+  /**
+   * The chef's ordering (1 = most popular). Optional — null means "use the
+   * default order" (see `assignDefaultChefRanks` in `@/lib/table-run`). The
+   * helper keeps the parsed rank in the valid positive-integer range or
+   * returns an INVALID result.
+   */
+  chefRank: number | null
 }
+
+const MAX_RANK = 10_000
+
+function parseChefRank(raw: string): number | null | typeof INVALID {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  if (!Number.isInteger(n) || n < 1 || n > MAX_RANK) return INVALID
+  return n
+}
+const INVALID = Symbol('INVALID')
 
 function parseItemForm(
   formData: FormData
@@ -59,6 +77,8 @@ function parseItemForm(
 
   const rawTier = String(formData.get('marginTier') ?? '')
   const rawBurden = String(formData.get('prepBurden') ?? '')
+  const chefRank = parseChefRank(String(formData.get('chefRank') ?? ''))
+  if (chefRank === INVALID) return { ok: false, error: 'invalid' }
 
   return {
     ok: true,
@@ -74,6 +94,7 @@ function parseItemForm(
       prepBurden: PREP_BURDENS.find((b) => b === rawBurden) ?? 'LOW',
       requiresKitchenWork: formData.get('requiresKitchenWork') === 'on',
       isHero: formData.get('isHero') === 'on',
+      chefRank,
     },
   }
 }
@@ -84,7 +105,25 @@ export async function addMenuItem(formData: FormData): Promise<void> {
   const parsed = parseItemForm(formData)
   if (!parsed.ok) redirect(`/dash/menu?error=${parsed.error}`)
 
-  await db.menuItem.create({ data: { venueId: operator.venueId, ...parsed.item } })
+  // When the operator leaves the rank blank on a fresh add, assign the next
+  // free number so the new dish stays in the playable list — the default
+  // ordering from `assignDefaultChefRanks` only kicks in when *no* item has
+  // any rank or sales.  An explicit rank in the form always wins.
+  let chefRank = parsed.item.chefRank
+  if (chefRank === null) {
+    const explicit = await db.menuItem.findMany({
+      where: { venueId: operator.venueId, chefRank: { not: null } },
+      select: { chefRank: true },
+    })
+    const used = new Set(explicit.map((r) => r.chefRank!).filter((n) => n > 0))
+    let next = 1
+    while (used.has(next)) next++
+    chefRank = next
+  }
+
+  await db.menuItem.create({
+    data: { venueId: operator.venueId, ...parsed.item, chefRank },
+  })
   revalidatePath('/dash/menu')
   redirect('/dash/menu')
 }
@@ -96,7 +135,10 @@ export async function updateMenuItem(formData: FormData): Promise<void> {
   const parsed = parseItemForm(formData)
   if (!parsed.ok) redirect(`/dash/menu?error=${parsed.error}`)
 
-  await db.menuItem.updateMany({ where: { id, venueId: operator.venueId }, data: parsed.item })
+  await db.menuItem.updateMany({
+    where: { id, venueId: operator.venueId },
+    data: parsed.item,
+  })
   revalidatePath('/dash/menu')
   redirect('/dash/menu')
 }

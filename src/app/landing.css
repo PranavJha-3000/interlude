@@ -328,9 +328,9 @@ html:has(.lp)::-webkit-scrollbar {
   border-bottom: 1px solid transparent;
 }
 .lp .nav--solid {
-  background: hsl(40 50% 98% / 0.82);
-  backdrop-filter: saturate(1.4) blur(12px);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  background: hsl(40 50% 98% / 0.92);
+  backdrop-filter: saturate(1.6) blur(20px);
+  -webkit-backdrop-filter: saturate(1.6) blur(20px);
   border-bottom-color: var(--border);
   box-shadow: var(--shadow-sm);
 }
