@@ -727,3 +727,21 @@
 .lp .india__pulse {
   fill: var(--primary);
 }
+
+/* Mystery Customer carries three dishes: tighten so all of them fit the phone. */
+.lp .gp--mystery .gp__card {
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+}
+.lp .gp--mystery .gp__say {
+  font-size: 0.78rem;
+}
+.lp .gp--mystery .gp__emoji {
+  font-size: 1.25rem;
+}
+@media (min-width: 60.0625rem) {
+  .lp .ph--d {
+    top: 9%;
+    right: 14%;
+  }
+}
