@@ -2,9 +2,17 @@
 
 **Merchandising wait times.** Interlude turns the minutes between "order placed" and "food arrives" into a quick, food-native round at the table, so guests discover more of the menu, order more, and leave happier. No app, no account, no payment processing. A QR on the table is the whole install.
 
-[![Interlude launch film: tap to watch](docs/media/film-poster.jpg)](docs/media/interlude-launch-film.mp4)
+<p align="center">
+  <a href="docs/media/Interlude-product-showcase.mp4">
+    <img src="docs/media/Interlude-product-showcase-preview.gif" alt="Interlude product showcase: the wait flips from grey to colour when the table QR is scanned" width="720">
+  </a>
+</p>
 
-<sub>▶ The 78-second launch film ([mp4, 6.7 MB](docs/media/interlude-launch-film.mp4)) tells one Saturday night at Table 12 from four seats: guest, server, chef, owner. It starts grey and flips to colour when the QR gets scanned. The numbers on screen are labelled sample data.</sub>
+<p align="center">
+  <b><a href="docs/media/Interlude-product-showcase.mp4">▶ Watch the full Interlude product showcase (78 s, with sound)</a></b>
+</p>
+
+<sub>One Saturday night at Table 12, told from four seats: guest, server, chef, owner. It starts grey and flips to colour when the QR is scanned. The preview above loops the turning point; the full film is 6.7 MB. Numbers on screen are labelled sample data.</sub>
 
 ---
 
@@ -49,7 +57,7 @@ The product has to be right for four people at once, which is what makes it inte
 | ![Chef taps Amber and vetoes a dish](docs/media/film-chef.jpg) | ![Owner sees one net-contribution number](docs/media/film-owner.jpg) |
 | A rush hits, the chef taps Amber, rewards shift to quick-prep dishes. | One number, labelled as an estimate, plus the fences the owner controls. |
 
-<sub>Stills are from the launch film and show sample data. They illustrate the flows below; they are not screenshots of a live venue.</sub>
+<sub>Stills are from the product showcase film and show sample data. They illustrate the flows below; they are not screenshots of a live venue.</sub>
 
 ## What you can see today
 
@@ -156,7 +164,7 @@ src/
   strings/         all user-facing copy (English first; Hindi is a translation job)
 prisma/            schema + migrations + seed
 e2e/               Playwright specs
-docs/              deploy runbook, revamp brief and notes, launch-film media
+docs/              deploy runbook, revamp brief and notes, product-showcase media
 scripts/           payload measurement, pilot report, env checks
 ```
 
@@ -280,4 +288,4 @@ npm run db:studio       # inspect the configured database
 - [Security notes](SECURITY.md)
 - [Execution checklist](TODO.md)
 - [UI contract](UI-SPEC.md) · [UI revamp brief](docs/REVAMP-BRIEF.md) · [revamp notes](docs/REVAMP-NOTES.md)
-- [Launch film and screenshots](docs/media/)
+- [Product showcase film and screenshots](docs/media/)
